@@ -21,7 +21,7 @@ class ChatActivity : ComponentActivity() {
             MessengerTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = "HUJ",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -42,6 +42,6 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview() {
     MessengerTheme {
-        Greeting("Android")
+        Greeting("HUJ")
     }
 }
