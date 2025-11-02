@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -100,8 +101,12 @@ fun TopAppBarContentM3() {
             )
         },
         navigationIcon = {
-            TextButton(onClick = {  }) {
-                Text(text = "edit", color = Color.White, fontSize = 17.sp)
+            IconButton(onClick = {  }) {
+              Icon(
+                  imageVector = Icons.Filled.Edit,
+                  tint = Color.White,
+                  contentDescription = "Edit"
+              )
             }
         },
         actions = {
