@@ -182,7 +182,7 @@ fun BottomNavBarM3() {
         // Item 2: Chats
         NavigationBarItem(
             icon = { Image(
-                painter = painterResource(id = R.drawable.unnamed),
+                painter = painterResource(id = R.drawable.cloud_shape),
                 contentDescription = "image description",
                 contentScale = ContentScale.None
             ) },
