@@ -12,12 +12,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Messenger">
         <activity
-            android:name=".Presentation.screens.ChatActivity"
+            android:name=".presentation.screens.ChatActivity"
             android:exported="false"
             android:label="@string/title_activity_chat"
             android:theme="@style/Theme.Messenger" />
         <activity
-            android:name=".Presentation.screens.MainActivity"
+            android:name=".presentation.screens.MainActivity"
             android:exported="false"
             android:label="@string/title_activity_main"
             android:theme="@style/Theme.Messenger" />
