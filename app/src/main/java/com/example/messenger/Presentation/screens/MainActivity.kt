@@ -179,7 +179,7 @@ fun BottomNavBarM3() {
         
         NavigationBarItem(
             icon = { Image(
-                painter = painterResource(id = R.drawable.unnamed),
+                painter = painterResource(id = R.drawable.cloud_shape),
                 contentDescription = "image description",
                 contentScale = ContentScale.None
             ) },
