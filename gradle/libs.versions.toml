@@ -1,5 +1,5 @@
 [versions]
-agp = "8.11.2"
+agp = "8.13.0"
 kotlin = "2.2.21"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -40,6 +40,8 @@ datastore = "1.1.1"
 
 # KSP (Kotlin Symbol Processing) - must match Kotlin version
 ksp = "2.0.21-1.0.27"
+material3 = "1.4.0"
+foundationLayout = "1.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -101,6 +103,8 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 
 # Gson (for type converters in Room)
 google-gson = { group = "com.google.code.gson", name = "gson", version = "2.11.0" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

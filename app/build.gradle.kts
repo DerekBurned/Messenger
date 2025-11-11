@@ -74,6 +74,9 @@ dependencies {
     // Room - using KAPT
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.espresso.core)
     kapt(libs.androidx.room.compiler)
 
     // Hilt - using KAPT
