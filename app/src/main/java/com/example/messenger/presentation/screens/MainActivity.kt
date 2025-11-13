@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,16 +51,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MessengerTheme {
-                // The main screen content is now just Screen()
-                // Screen() itself is a Scaffold, so we don't wrap it in another one.
                 Screen()
             }
         }
@@ -101,11 +101,11 @@ fun TopAppBarContentM3() {
         },
         navigationIcon = {
             IconButton(onClick = { /* Handle edit click */ }) {
-              Icon(
-                  imageVector = Icons.Filled.Edit,
-                  tint = Color.White,
-                  contentDescription = "Edit"
-              )
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    tint = Color.White,
+                    contentDescription = "Edit"
+                )
             }
         },
         actions = {
@@ -184,7 +184,9 @@ fun BottomNavBarM3() {
             icon = { Image(
                 painter = painterResource(id = R.drawable.cloud_shape),
                 contentDescription = "image description",
-                contentScale = ContentScale.None
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(32.dp)
+                    .offset(y = 4.dp)
             ) },
             label = { Text("chats") },
             selected = selectedItem == 1,
