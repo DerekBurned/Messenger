@@ -31,7 +31,7 @@ object DatabaseModule {
             .build()
     }
     @Provides
-    @Singleton 
+    @Singleton
     fun provideMessageDao(db: MessengerDatabaseR): MessageDao {
         return db.messageDao()
     }
