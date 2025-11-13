@@ -31,7 +31,7 @@ object DatabaseModule {
             .build()
     }
     @Provides
-    @Singleton // DAO також мають бути синглтонами
+    @Singleton
     fun provideMessageDao(db: MessengerDatabaseR): MessageDao {
         return db.messageDao()
     }

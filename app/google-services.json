@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "894190603423",
+    "project_id": "mesengerfrom0",
+    "storage_bucket": "mesengerfrom0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:894190603423:android:e15f1de8935321a16ba6aa",
+        "android_client_info": {
+          "package_name": "com.example.mesengerfrom0"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdV0y956KJF9S_GWILNzgaiNnl2CTTTso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
