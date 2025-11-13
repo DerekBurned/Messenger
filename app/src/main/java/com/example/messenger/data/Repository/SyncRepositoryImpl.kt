@@ -2,9 +2,10 @@ package com.example.messenger.data.Repository
 
 import com.example.messenger.domain.model.SyncStatus
 import com.example.messenger.domain.repository.ISyncRepository
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-class SyncRepositoryImpl: ISyncRepository {
+class SyncRepositoryImpl @Inject constructor(): ISyncRepository {
     override suspend fun syncAllData(): Result<Unit> {
         TODO("Not yet implemented")
     }

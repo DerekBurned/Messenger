@@ -2,9 +2,10 @@ package com.example.messenger.data.Repository
 
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.repository.IConversationRepository
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-class ConversationRepositoryImpl: IConversationRepository {
+class ConversationRepositoryImpl @Inject constructor(): IConversationRepository {
     override fun getAllConversations(): Flow<List<Conversation>> {
         TODO("Not yet implemented")
     }

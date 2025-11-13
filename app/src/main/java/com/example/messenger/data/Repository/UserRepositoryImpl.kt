@@ -2,9 +2,10 @@ package com.example.messenger.data.Repository
 
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IUserRepository
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-class UserRepositoryImpl : IUserRepository {
+class UserRepositoryImpl @Inject constructor(): IUserRepository {
     override suspend fun getUserById(userId: String): Result<User?> {
         TODO("Not yet implemented")
     }
