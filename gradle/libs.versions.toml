@@ -37,8 +37,6 @@ coil = "3.0.4"
 
 # DataStore
 datastore = "1.1.1"
-
-# KSP (Kotlin Symbol Processing) - must match Kotlin version
 ksp = "2.0.21-1.0.27"
 material3 = "1.4.0"
 foundationLayout = "1.9.4"
