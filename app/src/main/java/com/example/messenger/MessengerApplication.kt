@@ -8,7 +8,9 @@ import javax.inject.Inject
 
 @HiltAndroidApp
 class MessengerApplication : Application(), Configuration.Provider {
-
+    override fun onCreate() {
+        super.onCreate()
+    }
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 

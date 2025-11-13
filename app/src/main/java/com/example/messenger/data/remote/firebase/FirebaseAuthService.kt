@@ -10,7 +10,7 @@ import com.example.messenger.domain.repository.IAuthRepository
 class FirebaseAuthService @Inject constructor() {
     private val auth: FirebaseAuth  = FirebaseAuth.getInstance()
     suspend fun login(email:String? = null, pass: String, number: String? = null): Result<User> {
-
+        return Result.failure(Exception("Not implemented"))
     }
 
 

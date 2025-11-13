@@ -4,19 +4,24 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.messenger.di.AppModule
-import com.example.messenger.domain.usecase.sync.ProcessSyncQueueUseCase
 import com.example.messenger.domain.usecase.sync.SyncAllDataUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import javax.inject.Inject
+
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted private val parameters: WorkerParameters,
     private val syncAllDataUseCase: SyncAllDataUseCase
 ) : CoroutineWorker(context, parameters) {
+
     override suspend fun doWork(): Result {
-        return Result.Success(Unit)
+        return try {
+            // Perform your sync operation
+            // syncAllDataUseCase.execute()
+            Result.success()  // CHANGED: from Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.failure()  // Handle failure case
+        }
     }
 }

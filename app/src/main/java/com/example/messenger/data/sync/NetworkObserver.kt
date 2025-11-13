@@ -11,15 +11,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 
-class NetworkObserver  @Inject constructor(
-    private val context: Context,
-    )
-    :INetworkObserver {
-    private val connectivityManager =
-        context.getSystemService<ConnectivityManager>()
-        override val isConnected: Flow<NetworkUtils<Nothing>>
+class NetworkObserver @Inject constructor(
+    private val context: Context
+) : INetworkObserver {
+
+    private val connectivityManager = context.getSystemService<ConnectivityManager>()
+
+    override val isConnected: Flow<NetworkUtils<Nothing>>
         get() = callbackFlow {
-            val callback = object : ConnectivityManager.NetworkCallback(){
+            val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onCapabilitiesChanged(
                     network: Network,
                     networkCapabilities: NetworkCapabilities
@@ -28,6 +28,10 @@ class NetworkObserver  @Inject constructor(
                     val connected = networkCapabilities.hasCapability(
                         NetworkCapabilities.NET_CAPABILITY_VALIDATED
                     )
+                    // ADDED: Missing trySend
+                    if (connected) {
+                        trySend(NetworkUtils.Available)
+                    }
                 }
 
                 override fun onUnavailable() {

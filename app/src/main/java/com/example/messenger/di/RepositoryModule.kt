@@ -13,10 +13,11 @@ import com.example.messenger.domain.repository.IUserRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module
-@InstallIn(Singleton::class)
+@InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
     @Binds
     @Singleton
@@ -38,13 +39,13 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindConversationRepository(
+    abstract fun bindSyncRepository(
         impl: SyncRepositoryImpl
     ): ISyncRepository
 
     @Binds
     @Singleton
-    abstract fun bindConversationRepository(
+    abstract fun bindUserRepository(
         impl: UserRepositoryImpl
     ): IUserRepository
 

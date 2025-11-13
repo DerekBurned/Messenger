@@ -2,9 +2,10 @@ package com.example.messenger.data.Repository
 
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IAuthRepository
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-class AuthRepositoryImpl: IAuthRepository {
+class AuthRepositoryImpl @Inject constructor(): IAuthRepository {
     override suspend fun login(
         email: String?,
         number: String?,

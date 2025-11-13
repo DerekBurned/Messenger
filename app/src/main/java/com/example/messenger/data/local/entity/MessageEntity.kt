@@ -3,31 +3,40 @@ package com.example.messenger.data.local.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.example.messenger.domain.model.Conversation
+import androidx.room.TypeConverters
+import com.example.messenger.data.local.database.Converters
 import com.example.messenger.domain.model.MessageStatus
-import com.example.messenger.domain.model.PhoneNumber
 
-@Entity(tableName = "messages_table",
+@Entity(
+    tableName = "messages_table",
     foreignKeys = [
         ForeignKey(
-        entity = ConversationEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["conversationId"],
-        onDelete = ForeignKey.CASCADE),
+            entity = ConversationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["conversation_id"],
+            onDelete = ForeignKey.CASCADE
+        ),
         ForeignKey(
-            entity = UserEntity::class, // <-- Parent table is 'users'
-            parentColumns = ["id"], // <-- Parent's Primary Key is 'id'
-            childColumns = ["sender_id"], // <-- Our Foreign Key is 'sender_id'
-            onDelete = ForeignKey.SET_NULL // (Optional: If a user is deleted, don't delete the message, just set sender to null)
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["sender_id"],
+            onDelete = ForeignKey.SET_NULL
         )
-    ])
-data class MessageEntity (
+    ],
+    indices = [
+        Index(value = ["conversation_id"]),
+        Index(value = ["sender_id"])
+    ]
+)
+@TypeConverters(Converters::class)
+data class MessageEntity(
     @PrimaryKey
     val id: String,
-    @ColumnInfo(name = "conversation_id", index = true)
+    @ColumnInfo(name = "conversation_id")
     val conversationId: String,
-    @ColumnInfo(name = "sender_id", index = true)
+    @ColumnInfo(name = "sender_id")
     val senderId: String,
     val text: String,
     val timestamp: Long,
