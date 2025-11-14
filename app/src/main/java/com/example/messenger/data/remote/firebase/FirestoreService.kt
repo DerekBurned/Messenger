@@ -101,7 +101,7 @@ class FirestoreService @Inject constructor(
     }
 
 
-    suspend fun deleteMessage(messageId:String): Result<Unit>{
+    /*suspend fun deleteMessage(messageId:String): Result<Unit>{
         return try {
             conversationsCollection
                 .document(conversationId)
@@ -122,7 +122,7 @@ class FirestoreService @Inject constructor(
             // 2. Call update() with the field name and new value
             .update("status", newStatus)
             .await()
-    }
+    }*/
 /**
  * Listens for real-time updates to messages in a conversation.
  * This is the core of your real-time chat.
