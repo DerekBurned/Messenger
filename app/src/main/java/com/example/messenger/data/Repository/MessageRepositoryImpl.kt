@@ -11,6 +11,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 
 class MessageRepositoryImpl @Inject constructor(
     val messageDao: MessageDao,
@@ -25,19 +26,24 @@ class MessageRepositoryImpl @Inject constructor(
         return messageService.sendMessage(message)
     }
 
-    override suspend fun deleteMessage(messageId: String): Result<Unit> {
+    override suspend fun deleteMessage(message: Message): Result<Unit> {
+        messageService.deleteMessage(message)
+    }
+
+    override suspend fun markMessageAsRead(message: Message): Result<Unit> {
+        messageService.markMessageAsRead(message)
+    }
+
+    override suspend fun markMessagesAsDelivered(conversationId: String, message: Message): Result<Unit> {
         TODO("Not yet implemented")
     }
 
-    override suspend fun markMessageAsRead(messageId: String): Result<Unit> {
-        TODO("Not yet implemented")
-    }
+    override suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>> = flow {
+      try {
 
-    override suspend fun markMessagesAsDelivered(conversationId: String): Result<Unit> {
-        TODO("Not yet implemented")
-    }
+      }catch (e: Exception){
+          emit(Result.failure(e))
 
-    override suspend fun observeRemoteMessages(conversationId: String): Result<Unit> {
-        TODO("Not yet implemented")
+      }
     }
 }

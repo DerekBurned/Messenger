@@ -3,6 +3,7 @@ package com.example.messenger.data.remote.firebase
 import android.R
 import android.util.Log
 import com.example.messenger.domain.model.Message
+import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.User 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -73,6 +74,35 @@ class FirestoreService @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error sending message", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMessage(message: Message): Result<Unit>{
+        return try {
+            conversationsCollection
+                .document(message.conversationId)
+                .collection("messages")
+                .document(message.id).delete()
+            Result.success(Unit)
+        }catch (e: Exception)
+        {
+            Log.e("FirestoreService", "Error deleting message", e)
+            Result.failure(e)
+        }
+    }
+    suspend fun markMessageAsRead(message: Message): Result<Unit>{
+        return try{
+            conversationsCollection
+                .document(message.id)
+                .collection("messages")
+                .document(message.id)
+                
+                .update("status", MessageStatus.READ)
+                .await()
+            Result.success(Unit)
+        }catch (e: Exception){
+            Log.e("FirestoreService", "Error marking message as read", e)
             Result.failure(e)
         }
     }
