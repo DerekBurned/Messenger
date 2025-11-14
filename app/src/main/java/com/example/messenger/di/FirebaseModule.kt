@@ -1,7 +1,6 @@
 package com.example.messenger.di
 
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
-import com.example.messenger.data.remote.firebase.FirebaseDatabase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -15,12 +14,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
-    @Provides
-    @Singleton
-    fun provideDatabase(): FirebaseDatabase{
-        return Fire
-    }
-
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
