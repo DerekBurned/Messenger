@@ -28,7 +28,6 @@ class NetworkObserver @Inject constructor(
                     val connected = networkCapabilities.hasCapability(
                         NetworkCapabilities.NET_CAPABILITY_VALIDATED
                     )
-                    
                     if (connected) {
                         trySend(NetworkUtils.Available)
                     }
