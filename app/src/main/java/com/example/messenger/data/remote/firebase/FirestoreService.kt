@@ -77,29 +77,6 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    suspend fun deleteMessage(messageId:String): Result<Unit>{
-        return try {
-            conversationsCollection
-                .document(conversationId)
-                .collection("messages")
-                .document(messageId).delete()
-            Result.success(Unit)
-        }catch (e: Exception)
-        {
-            Log.e("FirestoreService", "Error deleting message", e)
-            Result.failure(e)
-        }
-    }
-    suspend fun markMessageAsRead(messageId: String, newStatus: String): Result<Unit>{
-        conversationsCollection
-            .document(conversationId)
-            .collection("messages")
-            .document(messageId)
-            
-            .update("status", newStatus)
-            .await()
-    }
-
 fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlow {
         val messagesRef = conversationsCollection
             .document(conversationId)
