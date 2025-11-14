@@ -5,6 +5,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.messenger.data.local.dao.*
 import com.example.messenger.data.local.entity.*
+import javax.inject.Singleton
+
 
 @Database(
     entities = [

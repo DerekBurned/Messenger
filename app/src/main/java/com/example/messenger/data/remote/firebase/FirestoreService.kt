@@ -3,6 +3,7 @@ package com.example.messenger.data.remote.firebase
 import android.R
 import android.util.Log
 import com.example.messenger.domain.model.Message
+import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.User // Import your new domain model
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -101,12 +102,12 @@ class FirestoreService @Inject constructor(
     }
 
 
-    /*suspend fun deleteMessage(messageId:String): Result<Unit>{
+    suspend fun deleteMessage(message: Message): Result<Unit>{
         return try {
             conversationsCollection
-                .document(conversationId)
+                .document(message.conversationId)
                 .collection("messages")
-                .document(messageId).delete()
+                .document(message.id).delete()
             Result.success(Unit)
         }catch (e: Exception)
         {
@@ -114,15 +115,21 @@ class FirestoreService @Inject constructor(
             Result.failure(e)
         }
     }
-    suspend fun markMessageAsRead(messageId: String, newStatus: String): Result<Unit>{
-        conversationsCollection
-            .document(conversationId)
-            .collection("messages")
-            .document(messageId)
-            // 2. Call update() with the field name and new value
-            .update("status", newStatus)
-            .await()
-    }*/
+    suspend fun markMessageAsRead(message: Message): Result<Unit>{
+        return try{
+            conversationsCollection
+                .document(message.id)
+                .collection("messages")
+                .document(message.id)
+                // 2. Call update() with the field name and new value
+                .update("status", MessageStatus.READ)
+                .await()
+            Result.success(Unit)
+        }catch (e: Exception){
+            Log.e("FirestoreService", "Error marking message as read", e)
+            Result.failure(e)
+        }
+    }
 /**
  * Listens for real-time updates to messages in a conversation.
  * This is the core of your real-time chat.

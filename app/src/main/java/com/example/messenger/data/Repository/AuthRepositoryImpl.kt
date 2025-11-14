@@ -1,5 +1,6 @@
 package com.example.messenger.data.Repository
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.User
@@ -13,7 +14,7 @@ import kotlinx.coroutines.flow.flow
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuthService,
-    private val firestore: FirestoreService // You need this to get your User object
+    private val firestore: FirestoreService
 
 ): IAuthRepository {
     override suspend fun loginWithEmail(
@@ -26,6 +27,22 @@ class AuthRepositoryImpl @Inject constructor(
             val firebaseUser = authResult.getOrNull()
             val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
             val user = profileResult?.getOrThrow()
+
+        }catch (e: Exception){
+            emit(Resource.Error("${e.message}, Internal error occurred"))
+        }
+    }
+
+    override suspend fun loginWithPhone(
+        credential: PhoneAuthCredential
+    ): Flow<Resource<List<User>>> = flow {
+        try {
+            emit(Resource.Loading)
+            val result = auth.signInWithPhoneCredential(credential)
+            val firebaseUser =result.getOrNull()
+            val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
+            val user  = profileResult?.getOrThrow()
+            emit(Resource.Success(user))
 
         }catch (e: Exception){
             emit(Resource.Error("${e.message}, Internal error occurred"))
