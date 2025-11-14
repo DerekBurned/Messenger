@@ -35,17 +35,25 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun loginWithPhone(
         credential: PhoneAuthCredential
-    ): Flow<Resource<List<User>>> = flow {
-        try {
-            emit(Resource.Loading)
+    ): Resource<User> {
+        return try {
             val result = auth.signInWithPhoneCredential(credential)
             val firebaseUser =result.getOrNull()
             val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
             val user  = profileResult?.getOrThrow()
-            emit(Resource.Success(user))
-
+            val currentUser = User(
+                id = firebaseUser!!.uid, // This is the crucial link!
+                username = firebaseUser.displayName, // Use the username passed in
+                email = firebaseUser.email,
+                phoneNumber = null, // Will be null until linked
+                avatarUrl = firebaseUser.photoUrl?.toString(), // Use auth profile pic if any
+                lastSeen = System.currentTimeMillis(),
+                isOnline = false, // Or true, depending on your logic
+                fcmToken = null // Token will be updated later
+            )
+            Resource.Success(currentUser)
         }catch (e: Exception){
-            emit(Resource.Error("${e.message}, Internal error occurred"))
+            Resource.Error("${e.message}, Internal error occurred")
         }
     }
 
