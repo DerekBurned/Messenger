@@ -1,12 +1,17 @@
 package com.example.messenger.domain.repository
+import androidx.credentials.Credential
 import com.example.messenger.domain.model.User
+import com.example.messenger.util.Resource
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.PhoneAuthCredential
 import kotlinx.coroutines.flow.Flow
 
 interface IAuthRepository {
-    suspend fun login(email: String? = null,number: String? =null, password: String): Result<User>
-    suspend fun register(email: String, password: String, username: String): Result<User>
-    suspend fun logout(): Result<Unit>
+    suspend fun loginWithEmail(email: String, password: String): Flow<Resource<User>>
+    suspend fun linkPhoneToAccount(credential: PhoneAuthCredential):Flow<Resource<Unit>>
+    suspend fun register(email: String, password: String, username: String): Flow<Resource<User>>
+    suspend fun logout()
     fun getCurrentUser(): User?
-    fun observeAuthState(): Flow<User?>
+    fun observeAuthState(): Flow<FirebaseUser?>
     suspend fun updateUserProfile(username: String, avatarUrl: String?): Result<Unit>
 }

@@ -11,6 +11,7 @@ composeBom = "2025.11.00"
 
 # Firebase - BOM manages all Firebase library versions
 firebaseBom = "34.5.0"
+playServicesAuthPhone = "18.3.0"
 
 # Room
 room = "2.8.3"
@@ -64,7 +65,7 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
-
+google-gms-auth-phone = { module = "com.google.android.gms:play-services-auth-api-phone", version.ref = "playServicesAuthPhone" }
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }

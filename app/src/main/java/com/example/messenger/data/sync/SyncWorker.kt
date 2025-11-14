@@ -17,8 +17,8 @@ class SyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            // Perform your sync operation
-            // syncAllDataUseCase.execute()
+
+            syncAllDataUseCase()
             Result.success()  // CHANGED: from Result.Success(Unit)
         } catch (e: Exception) {
             Result.failure()  // Handle failure case
