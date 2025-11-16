@@ -1,40 +1,28 @@
 package com.example.messenger.domain.usecase.message
 
 import com.example.messenger.domain.repository.IMessageRepository
-import com.example.messenger.util.Resource 
-import kotlinx.coroutines.flow.Flow 
-import kotlinx.coroutines.flow.flow 
-import javax.inject.Inject
+import com.example.messenger.util.Resource
+import jakarta.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class SyncMessagesUseCase @Inject constructor(
     private val messageRepository: IMessageRepository
 ) {
-    operator fun invoke(conversationId: String): Flow<Resource<Unit>> = flow {
-        try {
-            
-            if (conversationId.isBlank()) {
-                emit(Resource.Error("Invalid conversation ID"))
-                return@flow
+    suspend operator fun invoke(conversationId: String): Flow<Resource<Unit>>  {
+
+            val result = messageRepository.observeRemoteMessages(conversationId).collect {
+                result ->
+                try {
+
+                result.fold(
+                    onSuccess = {},
+                    onFailure = {}
+                )}catch (e: Exception){
+
+                }
             }
 
-            emit(Resource.Loading)
-
-            val result = messageRepository.observeRemoteMessages(conversationId)
-
-            result.fold(
-                onSuccess = {
-                    
-                    emit(Resource.Success(Unit))
-                },
-                onFailure = { exception ->
-                    
-                    emit(Resource.Error(exception.message ?: "Sync failed"))
-                }
-            )
-
-        } catch (e: Exception) {
-            
-            emit(Resource.Error(e.message ?: "An unexpected error occurred"))
-        }
+        return TODO("Provide the return value")
     }
 }

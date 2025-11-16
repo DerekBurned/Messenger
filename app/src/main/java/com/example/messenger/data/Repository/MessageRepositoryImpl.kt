@@ -28,10 +28,12 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMessage(message: Message): Result<Unit> {
         messageService.deleteMessage(message)
+            TODO()
     }
 
     override suspend fun markMessageAsRead(message: Message): Result<Unit> {
         messageService.markMessageAsRead(message)
+        TODO()
     }
 
     override suspend fun markMessagesAsDelivered(conversationId: String, message: Message): Result<Unit> {

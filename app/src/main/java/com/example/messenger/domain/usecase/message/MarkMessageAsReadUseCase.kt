@@ -1,5 +1,6 @@
 package com.example.messenger.domain.usecase.message
 
+import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.repository.IMessageRepository
 import com.example.messenger.util.Resource
 import kotlinx.coroutines.flow.Flow
@@ -9,14 +10,10 @@ import javax.inject.Inject
 class MarkMessageAsReadUseCase @Inject constructor(
     private val messageRepository: IMessageRepository
 ) {
-    suspend operator fun invoke(messageId: String): Flow<Resource<Unit>> = flow {
+    suspend operator fun invoke(message: Message): Flow<Resource<Unit>> = flow {
        try {
            emit(Resource.Loading)
-           if(messageId.isBlank()){
-               emit(Resource.Error("Invalid Message ID"))
-               return@flow
-           }
-           val result = messageRepository.markMessageAsRead(messageId)
+           val result = messageRepository.markMessageAsRead(message)
            result.fold(
                onSuccess = {
                    emit(Resource.Success(Unit))
