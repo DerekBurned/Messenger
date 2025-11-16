@@ -1,35 +1,121 @@
 package com.example.messenger.data.remote.firebase
 
+import android.annotation.SuppressLint
 import android.app.Activity
-import com.google.firebase.auth.EmailAuthProvider
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
-import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import androidx.core.net.toUri
+import com.example.messenger.util.VerificationResult
 
 @Singleton
 class FirebaseAuthService @Inject constructor(
     private val auth: FirebaseAuth
 ) {
 
-    suspend fun register(
+    private var verificationId: String? = null
+    private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
+
+    suspend fun sendVerificationCode(
+        phoneNumber: String,
+        activity: Activity
+    ): Result<VerificationResult> = suspendCancellableCoroutine { continuation ->
+
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                
+                if (continuation.isActive) {
+                    continuation.resume(
+                        Result.success(VerificationResult.AutoVerified(credential))
+                    )
+                }
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(e)
+                }
+            }
+
+            override fun onCodeSent(
+                verId: String,
+                token: PhoneAuthProvider.ForceResendingToken
+            ) {
+                verificationId = verId
+                resendToken = token
+
+                if (continuation.isActive) {
+                    continuation.resume(
+                        Result.success(VerificationResult.CodeSent(verId))
+                    )
+                }
+            }
+        }
+
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+            .build()
+
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    suspend fun verifyCode(code: String): Result<PhoneAuthCredential> {
+        return try {
+            val verId = verificationId
+                ?: return Result.failure(Exception("No verification ID found"))
+
+            val credential = PhoneAuthProvider.getCredential(verId, code)
+            Result.success(credential)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun signInWithPhone(credential: PhoneAuthCredential): Result<FirebaseUser> {
+        return try {
+            val result = auth.signInWithCredential(credential).await()
+            val user = result.user ?: throw Exception("Sign in failed")
+            Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyCodeAndSignIn(code: String): Result<FirebaseUser> {
+        return try {
+            val credentialResult = verifyCode(code)
+            if (credentialResult.isFailure) {
+                return Result.failure(credentialResult.exceptionOrNull()!!)
+            }
+
+            val credential = credentialResult.getOrNull()!!
+            signInWithPhone(credential)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun registerWithEmail(
         email: String,
         password: String,
         displayName: String
     ): Result<FirebaseUser> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = result.user ?: throw Exception("User creation failed")
+            val user = result.user ?: throw Exception("Registration failed")
 
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(displayName)
@@ -42,7 +128,7 @@ class FirebaseAuthService @Inject constructor(
         }
     }
 
-    suspend fun login(email: String, password: String): Result<FirebaseUser> {
+    suspend fun loginWithEmail(email: String, password: String): Result<FirebaseUser> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             val user = result.user ?: throw Exception("Login failed")
@@ -61,52 +147,118 @@ class FirebaseAuthService @Inject constructor(
         }
     }
 
-    fun sendVerificationCode(
-        activity: Activity,
-        phoneNumber: String,
-        callbacks: PhoneAuthProvider.OnVerificationStateChangedCallbacks
-    ) {
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(phoneNumber)       
-            .setTimeout(60L, TimeUnit.SECONDS) 
-            .setActivity(activity)             
-            .setCallbacks(callbacks)           
-            .build()
-        PhoneAuthProvider.verifyPhoneNumber(options)
-    }
-
-    suspend fun signInWithPhoneCredential(credential: PhoneAuthCredential): Result<FirebaseUser> {
+    suspend fun linkEmail(email: String, password: String): Result<Unit> {
         return try {
-            val result = auth.signInWithCredential(credential).await()
-            val user = result.user ?: throw Exception("Phone sign-in failed")
-            Result.success(user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+            val user = getCurrentUser()
+                ?: return Result.failure(Exception("No user signed in"))
 
-    suspend fun linkPhoneCredential(credential: PhoneAuthCredential): Result<FirebaseUser> {
-        return try {
-            val user = getCurrentUser() ?: throw Exception("No user is currently signed in")
-            val result = user.linkWithCredential(credential).await()
-            val linkedUser = result.user ?: throw Exception("Failed to link phone credential")
-            Result.success(linkedUser)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+            if (isEmailLinked()) {
+                return Result.failure(Exception("Email already linked to this account"))
+            }
 
-    suspend fun linkEmailCredential(email: String, password: String): Result<FirebaseUser> {
-        return try {
-            val user = getCurrentUser() ?: throw Exception("No user is currently signed in")
             val credential = EmailAuthProvider.getCredential(email, password)
-            val result = user.linkWithCredential(credential).await()
-            val linkedUser = result.user ?: throw Exception("Failed to link email credential")
-            Result.success(linkedUser)
+
+            user.linkWithCredential(credential).await()
+
+            Result.success(Unit)
+        } catch (e: FirebaseAuthUserCollisionException) {
+            
+            Result.failure(Exception("This email is already registered to another account"))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    suspend fun linkPhone(credential: PhoneAuthCredential): Result<Unit> {
+        return try {
+            val user = getCurrentUser()
+                ?: return Result.failure(Exception("No user signed in"))
+
+            if (isPhoneLinked()) {
+                return Result.failure(Exception("Phone already linked to this account"))
+            }
+
+            user.linkWithCredential(credential).await()
+
+            Result.success(Unit)
+        } catch (e: FirebaseAuthUserCollisionException) {
+            
+            Result.failure(Exception("This phone number is already registered to another account"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendVerificationCodeToLink(
+        phoneNumber: String,
+        activity: Activity
+    ): Result<VerificationResult> {
+        
+        return sendVerificationCode(phoneNumber, activity)
+    }
+
+    suspend fun verifyCodeAndLinkPhone(code: String): Result<Unit> {
+        return try {
+            val credentialResult = verifyCode(code)
+            if (credentialResult.isFailure) {
+                return Result.failure(credentialResult.exceptionOrNull()!!)
+            }
+
+            val credential = credentialResult.getOrNull()!!
+            linkPhone(credential)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unlinkEmail(): Result<Unit> {
+        return try {
+            val user = getCurrentUser() ?: throw Exception("No user signed in")
+
+            if (!isEmailLinked()) {
+                return Result.failure(Exception("No email linked to unlink"))
+            }
+
+            user.unlink(EmailAuthProvider.PROVIDER_ID).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unlinkPhone(): Result<Unit> {
+        return try {
+            val user = getCurrentUser() ?: throw Exception("No user signed in")
+
+            if (!isPhoneLinked()) {
+                return Result.failure(Exception("No phone linked to unlink"))
+            }
+
+            user.unlink(PhoneAuthProvider.PROVIDER_ID).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun isEmailLinked(): Boolean {
+        val user = getCurrentUser() ?: return false
+        return user.providerData.any { it.providerId == EmailAuthProvider.PROVIDER_ID }
+    }
+
+    fun isPhoneLinked(): Boolean {
+        val user = getCurrentUser() ?: return false
+        return user.providerData.any { it.providerId == PhoneAuthProvider.PROVIDER_ID }
+    }
+
+    fun getLinkedProviders(): List<String> {
+        val user = getCurrentUser() ?: return emptyList()
+        return user.providerData.map { it.providerId }
+    }
+
+    fun getUserPhoneNumber(): String? = getCurrentUser()?.phoneNumber
+
+    fun getUserEmail(): String? = getCurrentUser()?.email
 
     fun getCurrentUser(): FirebaseUser? = auth.currentUser
 
@@ -125,6 +277,8 @@ class FirebaseAuthService @Inject constructor(
 
     fun logout() {
         auth.signOut()
+        verificationId = null
+        resendToken = null
     }
 
     fun isAuthenticated(): Boolean = auth.currentUser != null
@@ -153,4 +307,56 @@ class FirebaseAuthService @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun resendVerificationCode(
+        phoneNumber: String,
+        activity: Activity
+    ): Result<VerificationResult> = suspendCancellableCoroutine { continuation ->
+
+        val token = resendToken
+            ?: return@suspendCancellableCoroutine continuation.resume(
+                Result.failure(Exception("No resend token available"))
+            )
+
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                if (continuation.isActive) {
+                    continuation.resume(
+                        Result.success(VerificationResult.AutoVerified(credential))
+                    )
+                }
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(e)
+                }
+            }
+
+            override fun onCodeSent(
+                verId: String,
+                newToken: PhoneAuthProvider.ForceResendingToken
+            ) {
+                verificationId = verId
+                resendToken = newToken
+
+                if (continuation.isActive) {
+                    continuation.resume(
+                        Result.success(VerificationResult.CodeSent(verId))
+                    )
+                }
+            }
+        }
+
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+            .setForceResendingToken(token)
+            .build()
+
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
 }
+
