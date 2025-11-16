@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 sealed class Screens(val route: String) {
     object MainScreen : Screens("main_screen")
     object ChatScreen : Screens("chat_screen")
+    object LoginScreen : Screens("login_screen")
 }
 
 @Composable
@@ -55,6 +56,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             ChatScreenWithNav(
                 onBackClick = {
                     navController.popBackStack()
+                }
+            )
+        }
+        composable(route = Screens.LoginScreen.route) {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(Screens.MainScreen.route) {
+                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                    }
                 }
             )
         }

@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MessengerTheme {
-                // Создаём контроллер навигации и передаём в AppNavigation
                 val navController = rememberNavController()
                 AppNavigation(navController = navController)
             }
@@ -152,7 +151,6 @@ fun BottomNavBarM3() {
             colors = itemColors
         )
 
-        // ЗАМЕНИ CustomNavigationBarItem НА ЭТО:
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Email, contentDescription = "Chats") },
             label = { Text("chats") },
@@ -171,7 +169,6 @@ fun BottomNavBarM3() {
     }
 }
 
-// Preview для просмотра в Android Studio
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
