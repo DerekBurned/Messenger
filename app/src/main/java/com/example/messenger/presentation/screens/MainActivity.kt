@@ -43,10 +43,13 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenWithNav(onChatClick: () -> Unit = {}) {
+fun MainScreenWithNav(
+    onChatClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}  
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3() },
+        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },  
         bottomBar = { BottomNavBarM3() }
     ) { innerPadding ->
         LazyColumn(
@@ -64,7 +67,7 @@ fun MainScreenWithNav(onChatClick: () -> Unit = {}) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3() {
+fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -73,11 +76,11 @@ fun TopAppBarContentM3() {
             )
         },
         navigationIcon = {
-            IconButton(onClick = {  }) {
+            IconButton(onClick = onLogoutClick) {  
                 Icon(
-                    imageVector = Icons.Filled.Edit,
+                    imageVector = Icons.Filled.Edit,  
                     tint = Color.White,
-                    contentDescription = "Edit"
+                    contentDescription = "Logout"
                 )
             }
         },
