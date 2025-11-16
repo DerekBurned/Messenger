@@ -44,10 +44,13 @@ class MainActivity : ComponentActivity() {
 // Главный экран со списком чатов
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenWithNav(onChatClick: () -> Unit = {}) {
+fun MainScreenWithNav(
+    onChatClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}  // Добавили параметр!
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3() },
+        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },  // Передали!
         bottomBar = { BottomNavBarM3() }
     ) { innerPadding ->
         LazyColumn(
@@ -66,7 +69,7 @@ fun MainScreenWithNav(onChatClick: () -> Unit = {}) {
 // Верхняя панель
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3() {
+fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  // Добавили параметр!
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -75,11 +78,11 @@ fun TopAppBarContentM3() {
             )
         },
         navigationIcon = {
-            IconButton(onClick = { /* Handle edit click */ }) {
+            IconButton(onClick = onLogoutClick) {  // Теперь вызывает logout!
                 Icon(
-                    imageVector = Icons.Filled.Edit,
+                    imageVector = Icons.Filled.Edit,  // Можешь заменить на Icons.Filled.Logout
                     tint = Color.White,
-                    contentDescription = "Edit"
+                    contentDescription = "Logout"
                 )
             }
         },

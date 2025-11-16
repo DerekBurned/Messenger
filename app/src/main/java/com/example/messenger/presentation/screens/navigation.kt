@@ -18,7 +18,7 @@ sealed class Screens(val route: String) {
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     NavHost(
         navController = navController,
-        startDestination = Screens.MainScreen.route,
+        startDestination = Screens.LoginScreen.route,
         enterTransition = {
             slideInHorizontally(
                 initialOffsetX = { fullWidth -> fullWidth },
@@ -44,10 +44,26 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             ) + fadeOut(animationSpec = tween(300))
         }
     ) {
+        composable(route = Screens.LoginScreen.route) {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(Screens.MainScreen.route) {
+                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(route = Screens.MainScreen.route) {
             MainScreenWithNav(
                 onChatClick = {
                     navController.navigate(Screens.ChatScreen.route)
+                },
+                onLogoutClick = {
+                    // Переход на экран логина
+                    navController.navigate(Screens.LoginScreen.route) {
+                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -56,15 +72,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             ChatScreenWithNav(
                 onBackClick = {
                     navController.popBackStack()
-                }
-            )
-        }
-        composable(route = Screens.LoginScreen.route) {
-            LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(Screens.MainScreen.route) {
-                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
-                    }
                 }
             )
         }
