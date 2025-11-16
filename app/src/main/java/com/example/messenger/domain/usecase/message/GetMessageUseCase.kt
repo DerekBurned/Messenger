@@ -14,7 +14,7 @@ import javax.inject.Inject
 class GetMessagesUseCase @Inject constructor(
     private val messageRepository: IMessageRepository
 ) {
-    operator fun invoke(conversationId: String): Flow<Resource<List<Message>>> {
+    operator fun invoke(conversationId: String): Flow<Resource<*>> {
 
         if (conversationId.isBlank()) {
             return flow { emit(Resource.Error("Invalid conversation ID")) }
@@ -24,10 +24,9 @@ class GetMessagesUseCase @Inject constructor(
 
         return messageStream
             .map { messageList ->
-                Resource.Success(messageList) as Resource<List<Message>>
+                Resource.Success(messageList) as Resource<*>
             }
             .onStart {
-
                 emit(Resource.Loading)
             }
             .catch { exception ->
