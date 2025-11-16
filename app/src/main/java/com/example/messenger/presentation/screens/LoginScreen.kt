@@ -127,7 +127,8 @@ fun LoginScreen(
             Button(
                 onClick = {
                     if (email.isNotBlank() && password.isNotBlank()) {
-                        viewModel.loginWithEmail(email, password)
+                        viewModel.register(email, password, TODO())
+
                     }
                 },
                 modifier = Modifier

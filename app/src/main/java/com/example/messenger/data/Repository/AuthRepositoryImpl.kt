@@ -8,6 +8,7 @@ import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
+import hilt_aggregated_deps._com_example_messenger_di_UseCaseModule
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -27,7 +28,7 @@ class AuthRepositoryImpl @Inject constructor(
             val firebaseUser = authResult.getOrNull()
             val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
             val user = profileResult?.getOrThrow()
-
+            emit(Resource.Success(user) as Resource<User>)
         }catch (e: Exception){
             emit(Resource.Error("${e.message}, Internal error occurred"))
         }
