@@ -74,6 +74,7 @@ dependencies {
     // Room - using KSP
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.compose.runtime.livedata)
     ksp(libs.androidx.room.compiler)
 
     // Hilt - using KSP

@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MessengerTheme {
-                
                 val navController = rememberNavController()
                 AppNavigation(navController = navController)
             }

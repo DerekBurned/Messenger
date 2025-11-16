@@ -35,12 +35,13 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Чат",
+                        text = "user",
                         color = Color.White,
                         fontSize = 16.sp
+
                     )
                 },
                 navigationIcon = {
