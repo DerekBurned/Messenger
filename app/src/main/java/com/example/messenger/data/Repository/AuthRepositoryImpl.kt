@@ -23,7 +23,7 @@ class AuthRepositoryImpl @Inject constructor(
     ): Flow<Resource<User>> = flow {
         try {
             emit(Resource.Loading)
-            val authResult = auth.login(email, password)
+            val authResult = auth.loginWithEmail(email, password)
             val firebaseUser = authResult.getOrNull()
             val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
             val user = profileResult?.getOrThrow()
@@ -37,7 +37,7 @@ class AuthRepositoryImpl @Inject constructor(
         credential: PhoneAuthCredential
     ): Resource<User> {
         return try {
-            val result = auth.signInWithPhoneCredential(credential)
+            val result = auth.signInWithPhone(credential)
             val firebaseUser =result.getOrNull()
             val profileResult = firebaseUser?.let { firestore.getUserProfile(it.uid) }
             val user  = profileResult?.getOrThrow()
@@ -60,7 +60,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun linkPhoneToAccount(credential: PhoneAuthCredential): Flow<Resource<Unit>> =flow {
             try {
                 emit(Resource.Loading)
-                auth.linkPhoneCredential(credential).getOrThrow()
+                auth.linkPhone(credential).getOrThrow()
                 val uid = auth.getCurrentUserId()
                 val phone = credential.signInMethod
                 emit(Resource.Success(Unit))
@@ -78,7 +78,7 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Resource.Loading)
 
             // Step 1: Create the authentication user in Firebase Auth
-            val authResult = auth.register(email, password, username)
+            val authResult = auth.registerWithEmail(email, password, username)
             val firebaseUser = authResult.getOrThrow() // This is your 'onSuccess'
 
             // Step 2: MAP the FirebaseUser to your domain User model
