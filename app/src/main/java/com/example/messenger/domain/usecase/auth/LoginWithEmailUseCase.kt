@@ -6,16 +6,11 @@ import com.example.messenger.util.Resource
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-class RegisterUseCase @Inject constructor(
+class LoginWithEmailUseCase @Inject constructor(
     private val authRepository: IAuthRepository
 ) {
-    suspend operator fun invoke(
-        email: String,
-        password: String,
-        username: String
-    ): Flow<Resource<User>> {
-        // Validation
+    suspend operator fun invoke(email: String, password: String): Flow<Resource<User>> {
 
-        return authRepository.register(email.trim(), password, username.trim())
+        return authRepository.loginWithEmail(email = email.trim(), password =  password)
     }
 }

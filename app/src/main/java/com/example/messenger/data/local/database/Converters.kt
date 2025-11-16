@@ -13,14 +13,12 @@ class Converters {
     // PHONE CONVERTER
     @TypeConverter
     fun fromPhoneNumber(phone: PhoneNumber?): String? {
-        return phone?.let { "${it.number},${it.visibility}" }
+        return phone?.number
     }
 
     @TypeConverter
     fun toPhoneNumber(phoneString: String?): PhoneNumber? {
-        return phoneString?.split(",")?.let {
-            PhoneNumber(number = it[0], visibility = PhoneVisibiliity.valueOf(it[1]))
-        }
+        return null
     }
 
     // LIST<STRING> CONVERTERS (for participantIds, participantNames, etc.)

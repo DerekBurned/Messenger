@@ -1,21 +1,18 @@
 package com.example.messenger.domain.usecase.auth
 
+import androidx.credentials.Credential
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
+import com.google.firebase.auth.PhoneAuthCredential
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-class RegisterUseCase @Inject constructor(
+class LoginWithPhoneNumberUseCase @Inject constructor(
     private val authRepository: IAuthRepository
 ) {
-    suspend operator fun invoke(
-        email: String,
-        password: String,
-        username: String
-    ): Flow<Resource<User>> {
-        // Validation
+    suspend operator fun invoke(credential: PhoneAuthCredential): Resource<User> {
 
-        return authRepository.register(email.trim(), password, username.trim())
+        return authRepository.loginWithPhone(credential)
     }
 }
