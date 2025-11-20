@@ -1,4 +1,10 @@
 package com.example.messenger.presentation.viewmodel
 
-class MesssagesViewModel {
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class MesssagesViewModel @Inject constructor(
+
+){
 }
