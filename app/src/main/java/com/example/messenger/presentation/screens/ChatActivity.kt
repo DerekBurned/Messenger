@@ -42,11 +42,10 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                         text = "user",
                         color = Color.White,
                         fontSize = 16.sp
-
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) { // Кнопка назад
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -83,7 +82,27 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                 verticalArrangement = Arrangement.Bottom
             ) {
                 items(messages) { message ->
-                    MessageBubble(message)
+                    MessageWithContextMenu(
+                        message = message,
+                        onCopy = {
+                            // TODO: Копирование
+                        },
+                        onReply = {
+                            // TODO: Ответ
+                        },
+                        onEdit = {
+                            // TODO: Редактирование
+                        },
+                        onPin = {
+                            // TODO: Закрепление
+                        },
+                        onSend = {
+                            // TODO: Переслать
+                        },
+                        onDelete = {
+                            messages.remove(message)
+                        }
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
@@ -142,7 +161,7 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
     }
 }
 
-// Пузырёк сообщения
+// Пузырёк сообщения (запасной вариант если меню не нужно)
 @Composable
 fun MessageBubble(message: ChatMessage) {
     Row(

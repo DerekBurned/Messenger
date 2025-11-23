@@ -8,40 +8,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.messenger.presentation.components.AuthMethod
+import com.example.messenger.presentation.components.AuthMethodToggle
+import com.example.messenger.presentation.components.AuthInputTextField
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.viewmodel.AuthViewModel
-import com.example.messenger.util.Resource
 
 @Composable
 fun LoginScreen(
-    viewModel: AuthViewModel = hiltViewModel(),
-    onLoginSuccess: () -> Unit = {}
+    onNavigateToRegister: () -> Unit = {}
 ) {
+    var authMethod by remember { mutableStateOf(AuthMethod.EMAIL) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-
-    val loginState by viewModel.loginState.observeAsState()
-    val context = LocalContext.current
-
-    // Следим за состоянием логина
-    LaunchedEffect(loginState) {
-        when (loginState) {
-            is Resource.Success -> {
-                onLoginSuccess()
-            }
-            else -> {}
-        }
-    }
+    var phoneNumber by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -55,82 +43,46 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .padding(32.dp)
         ) {
-            // Круглый аватар
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .background(Color(0xFFD3D3D3), CircleShape)
+            // Переключатель Email / Phone (Используется из AuthComponents.kt)
+            AuthMethodToggle(
+                selectedMethod = authMethod,
+                onMethodSelected = { authMethod = it }
             )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Поле для email
-            TextField(
-                value = email,
-                onValueChange = { email = it },
-                placeholder = {
-                    Text(
-                        "enter email or phone number",
-                        color = Color.Gray
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(4.dp),
-                singleLine = true,
-                enabled = loginState !is Resource.Loading
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Поле для пароля
-            TextField(
-                value = password,
-                onValueChange = { password = it },
-                placeholder = {
-                    Text(
-                        "enter your password",
-                        color = Color.Gray
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                visualTransformation = PasswordVisualTransformation(),
-                shape = RoundedCornerShape(4.dp),
-                singleLine = true,
-                enabled = loginState !is Resource.Loading
-            )
-
-
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Кнопка Sign up (логин через email)
-            Button(
-                onClick = {
-                    if (email.isNotBlank() && password.isNotBlank()) {
-                        viewModel.register(email, password, TODO())
+            // Поля ввода
+            when (authMethod) {
+                AuthMethod.EMAIL -> {
+                    AuthInputTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        placeholder = "enter email",
+                        keyboardType = KeyboardType.Email,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AuthInputTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        placeholder = "enter your password",
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                }
+                AuthMethod.PHONE -> {
+                    AuthInputTextField(
+                        value = phoneNumber,
+                        onValueChange = { phoneNumber = it },
+                        placeholder = "enter phone number",
+                        keyboardType = KeyboardType.Phone,
+                    )
+                }
+            }
 
-                    }
-                },
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Кнопка входа
+            Button(
+                onClick = { /* ... */ },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -138,29 +90,21 @@ fun LoginScreen(
                     containerColor = Color.White
                 ),
                 shape = RoundedCornerShape(8.dp),
-                enabled = loginState !is Resource.Loading
+                enabled = true
             ) {
-                if (loginState is Resource.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color(0xFF5B8DEE)
-                    )
-                } else {
-                    Text(
-                        "Sign up",
-                        color = Color(0xFF5B8DEE),
-                        fontSize = 16.sp
-                    )
-                }
+                Text(
+                    text = if (authMethod == AuthMethod.EMAIL) "Login with Email" else "Login with Phone",
+                    color = Color(0xFF5B8DEE),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Кнопка Google Sign In (пока заглушка)
+            // Кнопка Google Sign In
             OutlinedButton(
-                onClick = {
-                    // TODO: Добавить Google Sign In позже
-                },
+                onClick = { /* ... */ },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -173,7 +117,7 @@ fun LoginScreen(
                     width = 2.dp
                 ),
                 shape = RoundedCornerShape(8.dp),
-                enabled = loginState !is Resource.Loading
+                enabled = true
             ) {
                 Icon(
                     imageVector = Icons.Default.Email,
@@ -186,6 +130,15 @@ fun LoginScreen(
                     "Sign in with Google",
                     color = Color.White,
                     fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = onNavigateToRegister) {
+                Text(
+                    text = "Don't have an account? Register",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
                 )
             }
         }

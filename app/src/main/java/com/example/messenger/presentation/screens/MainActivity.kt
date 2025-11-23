@@ -25,7 +25,9 @@ import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.material.icons.filled.Email
+
+// --- МАРШРУТЫ ---
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,24 +35,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MessengerTheme {
-                val navController = rememberNavController()
-                AppNavigation(navController = navController)
-            }
+            MessengerTheme{}
         }
     }
 }
 
-// Главный экран со списком чатов
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWithNav(
     onChatClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}  // Добавили параметр!
+    onLogoutClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },  // Передали!
+        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },
         bottomBar = { BottomNavBarM3() }
     ) { innerPadding ->
         LazyColumn(
@@ -66,10 +66,10 @@ fun MainScreenWithNav(
     }
 }
 
-// Верхняя панель
+// Верхняя панель (ИЗМЕНЕНО: иконка на Icons.Filled.Logout)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  // Добавили параметр!
+fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -78,9 +78,10 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  // Добавили п
             )
         },
         navigationIcon = {
-            IconButton(onClick = onLogoutClick) {  // Теперь вызывает logout!
+            IconButton(onClick = onLogoutClick) {
+                // Иконка выхода
                 Icon(
-                    imageVector = Icons.Filled.Edit,  // Можешь заменить на Icons.Filled.Logout
+                    imageVector = Icons.Filled.Logout,
                     tint = Color.White,
                     contentDescription = "Logout"
                 )
@@ -102,14 +103,14 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  // Добавили п
     )
 }
 
-// Элемент списка чата
+// Элемент списка чата (оставлен без изменений)
 @Composable
 fun ChatListItemM3(onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .clickable { onClick() } // При клике вызываем переход
+            .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -127,9 +128,10 @@ fun ChatListItemM3(onClick: () -> Unit = {}) {
                 .background(LightGray)
         )
     }
-    HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))}
+    HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))
+}
 
-// Нижняя навигация
+// Нижняя навигация (оставлена без изменений)
 @Composable
 fun BottomNavBarM3() {
     var selectedItem by remember { mutableStateOf(1) }
@@ -172,6 +174,7 @@ fun BottomNavBarM3() {
     }
 }
 
+// Preview (оставлен без изменений)
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {

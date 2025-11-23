@@ -1,5 +1,5 @@
 [versions]
-agp = "8.11.2"
+agp = "8.13.1"
 kotlin = "2.2.21"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -8,6 +8,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2025.11.00"
+compose-ui = "1.6.0"
 
 # Firebase - BOM manages all Firebase library versions
 firebaseBom = "34.6.0"
@@ -42,8 +43,10 @@ datastore = "1.1.7"
 # KSP (Kotlin Symbol Processing) - must match Kotlin version
 ksp = "2.2.21-RC-2.0.4"
 runtimeLivedata = "1.9.4"
+foundation = "1.9.5"
 
 [libraries]
+androidx-ui-text-android = { module = "androidx.compose.ui:ui-text-android", version.ref = "compose-ui" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -104,6 +107,7 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 # Gson (for type converters in Room)
 google-gson = { group = "com.google.code.gson", name = "gson", version = "2.11.0" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
