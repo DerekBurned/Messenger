@@ -1,4 +1,4 @@
-package com.example.messenger.presentation.screens
+package com.example.messenger.presentation.navigation
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -45,8 +45,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
     ) {
         composable(route = Screens.LoginScreen.route) {
-            LoginScreen(
-                onLoginSuccess = {
+            _root_ide_package_.com.example.messenger.presentation.screens.LoginScreen(
+                onNavigateToRegister = {
                     navController.navigate(Screens.MainScreen.route) {
                         popUpTo(Screens.LoginScreen.route) { inclusive = true }
                     }
@@ -55,7 +55,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
 
         composable(route = Screens.MainScreen.route) {
-            MainScreenWithNav(
+            _root_ide_package_.com.example.messenger.presentation.screens.MainScreenWithNav(
                 onChatClick = {
                     navController.navigate(Screens.ChatScreen.route)
                 },
@@ -69,7 +69,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
 
         composable(route = Screens.ChatScreen.route) {
-            ChatScreenWithNav(
+            _root_ide_package_.com.example.messenger.presentation.screens.ChatScreenWithNav(
                 onBackClick = {
                     navController.popBackStack()
                 }

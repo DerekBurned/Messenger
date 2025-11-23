@@ -25,7 +25,6 @@ import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.material.icons.filled.Email
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,10 +32,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MessengerTheme {
-                val navController = rememberNavController()
-                AppNavigation(navController = navController)
-            }
+            MessengerTheme{}
         }
     }
 }
@@ -45,11 +41,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenWithNav(
     onChatClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}  
+    onLogoutClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },  
+        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },
         bottomBar = { BottomNavBarM3() }
     ) { innerPadding ->
         LazyColumn(
@@ -67,7 +63,7 @@ fun MainScreenWithNav(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {  
+fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -76,9 +72,10 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
             )
         },
         navigationIcon = {
-            IconButton(onClick = onLogoutClick) {  
+            IconButton(onClick = onLogoutClick) {
+                
                 Icon(
-                    imageVector = Icons.Filled.Edit,  
+                    imageVector = Icons.Filled.Logout,
                     tint = Color.White,
                     contentDescription = "Logout"
                 )
@@ -106,7 +103,7 @@ fun ChatListItemM3(onClick: () -> Unit = {}) {
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .clickable { onClick() } 
+            .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -124,7 +121,8 @@ fun ChatListItemM3(onClick: () -> Unit = {}) {
                 .background(LightGray)
         )
     }
-    HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))}
+    HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))
+}
 
 @Composable
 fun BottomNavBarM3() {

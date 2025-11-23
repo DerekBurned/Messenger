@@ -59,10 +59,12 @@ dependencies {
     // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.text.android)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+
 
     // Firebase - BOM manages all versions
     implementation(platform(libs.firebase.bom))
@@ -75,6 +77,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.androidx.compose.foundation)
     ksp(libs.androidx.room.compiler)
 
     // Hilt - using KSP
