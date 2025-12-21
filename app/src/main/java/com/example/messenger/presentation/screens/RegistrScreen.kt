@@ -22,7 +22,8 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
 @Composable
 fun RegisterScreen(
-    onNavigateToLogin: () -> Unit = {}
+    onNavigateToLogin: () -> Unit = {},
+    onRegisterSuccess: () -> Unit = {}
 ) {
     var authMethod by remember { mutableStateOf(AuthMethod.EMAIL) }
     var username by remember { mutableStateOf("") }
@@ -96,7 +97,7 @@ fun RegisterScreen(
 
                 // Кнопка "Register"
                 Button(
-                    onClick = { /* ... */ },
+                    onClick = { onRegisterSuccess() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -117,7 +118,7 @@ fun RegisterScreen(
 
                 // Кнопка "Sign up with Google"
                 OutlinedButton(
-                    onClick = { /* ... */ },
+                    onClick = { onRegisterSuccess() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
