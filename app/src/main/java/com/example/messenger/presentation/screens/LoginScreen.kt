@@ -24,7 +24,8 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
 @Composable
 fun LoginScreen(
-    onNavigateToRegister: () -> Unit = {}
+    onNavigateToRegister: () -> Unit = {},
+    onLoginSuccess: () -> Unit = {}
 ) {
     var authMethod by remember { mutableStateOf(AuthMethod.EMAIL) }
     var email by remember { mutableStateOf("") }
@@ -80,7 +81,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = {  },
+                onClick = { onLoginSuccess() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -101,7 +102,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
-                onClick = {  },
+                onClick = { onLoginSuccess() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
+import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -32,7 +33,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MessengerTheme{}
+            MessengerTheme {
+                val navController = rememberNavController()
+                AppNavigation(navController = navController)
+            }
         }
     }
 }
@@ -41,12 +45,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenWithNav(
     onChatClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },
-        bottomBar = { BottomNavBarM3() }
+        bottomBar = { BottomNavBarM3(onProfileClick = onProfileClick) }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -73,7 +78,6 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
         },
         navigationIcon = {
             IconButton(onClick = onLogoutClick) {
-                
                 Icon(
                     imageVector = Icons.Filled.Logout,
                     tint = Color.White,
@@ -125,7 +129,7 @@ fun ChatListItemM3(onClick: () -> Unit = {}) {
 }
 
 @Composable
-fun BottomNavBarM3() {
+fun BottomNavBarM3(onProfileClick: () -> Unit = {}) {
     var selectedItem by remember { mutableStateOf(1) }
 
     NavigationBar(
@@ -157,10 +161,13 @@ fun BottomNavBarM3() {
         )
 
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
-            label = { Text("settings") },
+            icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
+            label = { Text("profile") },
             selected = selectedItem == 2,
-            onClick = { selectedItem = 2 },
+            onClick = {
+                selectedItem = 2
+                onProfileClick()
+            },
             colors = itemColors
         )
     }

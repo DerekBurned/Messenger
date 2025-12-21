@@ -7,11 +7,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.messenger.presentation.screens.*
 
 sealed class Screens(val route: String) {
+    object LoginScreen : Screens("login_screen")
+    object RegisterScreen : Screens("register_screen")
     object MainScreen : Screens("main_screen")
     object ChatScreen : Screens("chat_screen")
-    object LoginScreen : Screens("login_screen")
+    object ProfileScreen : Screens("profile_screen")
 }
 
 @Composable
@@ -21,32 +24,49 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         startDestination = Screens.LoginScreen.route,
         enterTransition = {
             slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth },
+                initialOffsetX = { 1000 },
                 animationSpec = tween(300)
             ) + fadeIn(animationSpec = tween(300))
         },
         exitTransition = {
             slideOutHorizontally(
-                targetOffsetX = { fullWidth -> -fullWidth },
+                targetOffsetX = { -1000 },
                 animationSpec = tween(300)
             ) + fadeOut(animationSpec = tween(300))
         },
         popEnterTransition = {
             slideInHorizontally(
-                initialOffsetX = { fullWidth -> -fullWidth },
+                initialOffsetX = { -1000 },
                 animationSpec = tween(300)
             ) + fadeIn(animationSpec = tween(300))
         },
         popExitTransition = {
             slideOutHorizontally(
-                targetOffsetX = { fullWidth -> fullWidth },
+                targetOffsetX = { 1000 },
                 animationSpec = tween(300)
             ) + fadeOut(animationSpec = tween(300))
         }
     ) {
+        
         composable(route = Screens.LoginScreen.route) {
-            _root_ide_package_.com.example.messenger.presentation.screens.LoginScreen(
+            LoginScreen(
                 onNavigateToRegister = {
+                    navController.navigate(Screens.RegisterScreen.route)
+                },
+                onLoginSuccess = {
+                    navController.navigate(Screens.MainScreen.route) {
+                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(route = Screens.RegisterScreen.route) {
+            RegisterScreen(
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                onRegisterSuccess = {
                     navController.navigate(Screens.MainScreen.route) {
                         popUpTo(Screens.LoginScreen.route) { inclusive = true }
                     }
@@ -55,23 +75,38 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
 
         composable(route = Screens.MainScreen.route) {
-            _root_ide_package_.com.example.messenger.presentation.screens.MainScreenWithNav(
+            MainScreenWithNav(
                 onChatClick = {
                     navController.navigate(Screens.ChatScreen.route)
                 },
                 onLogoutClick = {
-                    
                     navController.navigate(Screens.LoginScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
+                },
+                onProfileClick = {
+                    navController.navigate(Screens.ProfileScreen.route)
                 }
             )
         }
 
         composable(route = Screens.ChatScreen.route) {
-            _root_ide_package_.com.example.messenger.presentation.screens.ChatScreenWithNav(
+            ChatScreenWithNav(
                 onBackClick = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        composable(route = Screens.ProfileScreen.route) {
+            ProfileScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onLogoutClick = {
+                    navController.navigate(Screens.LoginScreen.route) {
+                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                    }
                 }
             )
         }
