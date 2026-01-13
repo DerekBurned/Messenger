@@ -12,16 +12,19 @@ import dagger.assisted.AssistedInject
 class SyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted private val parameters: WorkerParameters,
+    // INJECT YOUR USE CASE HERE
     private val syncAllDataUseCase: SyncAllDataUseCase
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
-        return try {
+        // Execute the sync logic
+        val result = syncAllDataUseCase()
 
-            syncAllDataUseCase()
-            Result.success()  // CHANGED: from Result.Success(Unit)
-        } catch (e: Exception) {
-            Result.failure()  // Handle failure case
+        return if (result.isSuccess) {
+            Result.success()
+        } else {
+            // If sync fails, tell WorkManager to try again later
+            Result.retry()
         }
     }
 }
