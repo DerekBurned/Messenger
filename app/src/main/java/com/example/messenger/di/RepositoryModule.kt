@@ -1,10 +1,10 @@
 package com.example.messenger.di
 
-import com.example.messenger.data.Repository.AuthRepositoryImpl
-import com.example.messenger.data.Repository.ConversationRepositoryImpl
-import com.example.messenger.data.Repository.MessageRepositoryImpl
-import com.example.messenger.data.Repository.SyncRepositoryImpl
-import com.example.messenger.data.Repository.UserRepositoryImpl
+import com.example.messenger.data.repository.AuthRepositoryImpl
+import com.example.messenger.data.repository.ConversationRepositoryImpl
+import com.example.messenger.data.repository.MessageRepositoryImpl
+import com.example.messenger.data.repository.SyncRepositoryImpl
+import com.example.messenger.data.repository.UserRepositoryImpl
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.IMessageRepository

@@ -1,6 +1,5 @@
-package com.example.messenger.data.Repository
+package com.example.messenger.data.repository
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.User
@@ -8,7 +7,6 @@ import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
-import hilt_aggregated_deps._com_example_messenger_di_UseCaseModule
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
