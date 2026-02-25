@@ -15,8 +15,7 @@ class MessageRepositoryImpl @Inject constructor(
     val messageService: FirestoreService
 ): IMessageRepository{
     override fun getMessagesStream(conversationId: String): Flow<List<MessageWithSender>> {
-        return messageDao.getMessagesWithSenders(conversationId)
-            .distinctUntilChanged()
+        return messageDao.getMessagesWithSendersDesc(conversationId)
     }
 
     override suspend fun sendMessage(message: Message): Result<Unit> {

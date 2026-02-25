@@ -25,7 +25,7 @@ data class ProfileEntity(
     val id: String,
     val username: String?,
     val email: String? = null,
-    @ColumnInfo(name = "phone_Id")
+    @ColumnInfo(name = "user_id")
     val userId : String,
     val avatarUrl: String? = null,
     val lastSeen: Long = 0L,
