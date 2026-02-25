@@ -36,7 +36,7 @@ fun MessageWithContextMenu(
     onReply: () -> Unit = {},
     onEdit: () -> Unit = {},
     onPin: () -> Unit = {},
-    onSend: () -> Unit = {},
+    onForward: () -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -109,7 +109,7 @@ fun MessageWithContextMenu(
                                 showMenu = false
                             }),
                             MessageAction("send", Icons.Default.Send, onClick = {
-                                onSend()
+                                onForward()
                                 showMenu = false
                             }),
                             MessageAction("delete...", Icons.Default.Delete, color = Color.Red, onClick = {

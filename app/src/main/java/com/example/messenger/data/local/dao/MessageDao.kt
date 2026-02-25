@@ -10,6 +10,6 @@ import kotlinx.coroutines.flow.Flow
 interface MessageDao {
 
     @Transaction
-    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp ASC")
-    fun getMessagesWithSenders(conversationId: String): Flow<List<MessageWithSender>>
+    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp DESC")
+    fun getMessagesWithSendersDesc(conversationId: String): Flow<List<MessageWithSender>>
 }

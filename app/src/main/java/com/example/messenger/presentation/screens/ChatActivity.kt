@@ -96,7 +96,7 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                         onPin = {
                             // TODO: Закрепление
                         },
-                        onSend = {
+                        onForward = {
                             // TODO: Переслать
                         },
                         onDelete = {

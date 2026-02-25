@@ -8,6 +8,6 @@ class SyncConversationsUseCase @Inject constructor(
     private val conversationRepository: IConversationRepository
 ) {
     suspend operator fun invoke() {
-        conversationRepository.observeRemoteConversations()
+        conversationRepository.syncConversations()
     }
 }

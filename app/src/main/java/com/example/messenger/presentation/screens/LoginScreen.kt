@@ -83,7 +83,9 @@ fun LoginScreen(
 
             // Кнопка входа
             Button(
-                onClick = { onLoginSuccess() },
+                onClick = {
+                    onLoginSuccess()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -144,6 +146,16 @@ fun LoginScreen(
             }
         }
     }
+    /*val uiState = repository.getData()
+    .map { resource ->
+        resource.fold(
+            onSuccess = { data -> UiState(items = data, isLoading = false) },
+            onError = { msg -> UiState(error = msg, isLoading = false) },
+            onFailure = { ex -> UiState(error = ex.message, isLoading = false) },
+            onLoading = { UiState(isLoading = true) }
+        )
+    }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())*/
 }
 
 @Preview(showBackground = true, showSystemUi = true)
