@@ -154,6 +154,7 @@ Thumbs.db
 
 atlassian-ide-plugin.xml
 google-services.json
+app/google-services.json
 .idea/mongoSettings.xml
 
 com_crashlytics_export_strings.xml
