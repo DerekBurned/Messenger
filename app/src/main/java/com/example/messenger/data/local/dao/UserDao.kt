@@ -3,11 +3,12 @@ package com.example.messenger.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import com.example.messenger.data.local.entity.UserEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
     @Query ("SELECT * FROM users_table")
-    fun getAllUsers(): List<UserEntity>
+    fun getAllUsers():Flow<List<UserEntity>>
     @Query ("SELECT * FROM users_table WHERE id = :id")
     fun getUserById(id: Int): UserEntity
     @Query ("SELECT * FROM users_table WHERE phoneNumber = :phone")
