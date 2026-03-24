@@ -1,5 +1,7 @@
 package com.example.messenger.di
 
+import com.example.messenger.data.local.repository.ILocalRepository
+import com.example.messenger.data.local.repository.LocalRepositoryImpl
 import com.example.messenger.data.repository.AuthRepositoryImpl
 import com.example.messenger.data.repository.ConversationRepositoryImpl
 import com.example.messenger.data.repository.MessageRepositoryImpl
@@ -48,5 +50,10 @@ abstract class RepositoryModule {
     abstract fun bindUserRepository(
         impl: UserRepositoryImpl
     ): IUserRepository
+    @Binds
+    @Singleton
+    abstract fun bindLocalRepository(
+        impl: LocalRepositoryImpl
+    ): ILocalRepository
 
 }
