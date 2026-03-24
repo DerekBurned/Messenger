@@ -9,7 +9,6 @@ class LogoutUseCase @Inject constructor(
     private val userRepository: IUserRepository
 ) {
     suspend operator fun invoke() {
-        
         userRepository.updateUserStatus(isOnline = false)
         return authRepository.logout()
     }

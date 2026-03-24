@@ -2,6 +2,7 @@ package com.example.messenger.data.remote.firebase
 
 import android.R
 import android.util.Log
+import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.User 
@@ -107,7 +108,7 @@ class FirestoreService @Inject constructor(
         }
     }
 
-fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlow {
+    fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlow {
         val messagesRef = conversationsCollection
             .document(conversationId)
             .collection("messages")
@@ -131,4 +132,29 @@ fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlo
 
         awaitClose { listener.remove() }
     }
+    fun getAllConversations(): Flow<List<Conversation>> = callbackFlow {
+        val conversationsRef = conversationsCollection
+            .document()
+            .collection("conversations")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+
+        val listener = conversationsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.w("FirestoreService", "Listen failed.", error)
+                close(error) 
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val  conversations =
+                    snapshot.toObjects(Conversation::class.java).mapIndexed { index, conversation ->
+                        
+                        conversation.copy(id = snapshot.documents[index].id)
+                    }
+                trySend(conversations) 
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
 }

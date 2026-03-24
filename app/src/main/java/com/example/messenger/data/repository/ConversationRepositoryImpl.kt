@@ -1,19 +1,27 @@
 package com.example.messenger.data.repository
 
 import androidx.compose.foundation.layout.FlowRow
+import com.example.messenger.data.local.dao.ConversationDao
+import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.data.sync.NetworkObserver
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
+import com.example.messenger.util.NetworkUtils
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.fold
 
 class ConversationRepositoryImpl @Inject constructor(
-    private val networkObserver: NetworkObserver
+    private val firestore: FirestoreService,
+    private val dao: ConversationDao
 ): IConversationRepository {
+
     override fun getAllConversations(): Flow<List<Conversation>> {
+
         TODO("Not yet implemented")
     }
 
