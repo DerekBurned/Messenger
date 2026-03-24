@@ -19,5 +19,9 @@ interface ConversationDao {
     SELECT * FROM conversations_table 
     ORDER BY lastMessageTimestamp DESC
 """)
-    fun getInboxFlow(): Flow<List<ConversationSummary>>
+    fun getAllConversations(): Flow<List<ConversationSummary>>
+
+
 }
+
+
