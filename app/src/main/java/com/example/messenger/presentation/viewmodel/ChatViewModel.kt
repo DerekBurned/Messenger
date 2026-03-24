@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-private val sendMessageUseCase: SendMessageUseCase,
+    private val sendMessageUseCase: SendMessageUseCase,
     private val getMessagesUseCase: GetMessagesUseCase
 ): ViewModel() {
    /* private val _loginState = MutableLiveData<Resource<User>>()
