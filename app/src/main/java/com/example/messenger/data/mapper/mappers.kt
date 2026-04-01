@@ -9,7 +9,7 @@ import com.example.messenger.data.remote.dto.UserDTO
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
-import com.example.messenger.domain.model.PhoneVisibiliity
+import com.example.messenger.domain.model.PhoneVisibility
 import com.example.messenger.domain.model.User
 import java.util.Date
 
@@ -28,7 +28,7 @@ fun UserEntity.toDomain(): User {
         lastSeen = lastSeen,
         isOnline = isOnline,
         // Defaults for fields missing in Entity but present in Domain
-        phoneVisibility = PhoneVisibiliity.HIDDEN,
+        phoneVisibility = PhoneVisibility.HIDDEN,
         fcmToken = null
     )
 }
@@ -61,9 +61,9 @@ fun UserDTO.toDomain(): User {
         lastSeen = lastSeen,
         isOnline = isOnline,
         phoneVisibility = try {
-            PhoneVisibiliity.valueOf(phoneVisibility)
+            PhoneVisibility.valueOf(phoneVisibility)
         } catch (e: IllegalArgumentException) {
-            PhoneVisibiliity.HIDDEN
+            PhoneVisibility.HIDDEN
         },
         fcmToken = fcmToken
     )

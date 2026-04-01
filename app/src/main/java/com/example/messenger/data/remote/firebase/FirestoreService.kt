@@ -1,6 +1,5 @@
 package com.example.messenger.data.remote.firebase
 
-import android.R
 import android.util.Log
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message

@@ -15,21 +15,34 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.components.AuthInputTextField
 import com.example.messenger.presentation.components.AuthMethod
 import com.example.messenger.presentation.components.AuthMethodToggle
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.viewmodel.AuthViewModel
 
 @Composable
 fun RegisterScreen(
+    viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToLogin: () -> Unit = {},
     onRegisterSuccess: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     var authMethod by remember { mutableStateOf(AuthMethod.EMAIL) }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
+
+    LaunchedEffect(uiState.registerSuccess) {
+        if (uiState.registerSuccess) {
+            viewModel.onRegisterNavigated()
+            onRegisterSuccess()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize()
@@ -47,7 +60,6 @@ fun RegisterScreen(
                     .fillMaxWidth()
                     .padding(32.dp)
             ) {
-                // Переключатель Email / Phone
                 AuthMethodToggle(
                     selectedMethod = authMethod,
                     onMethodSelected = { authMethod = it }
@@ -55,7 +67,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Поле "Username"
                 AuthInputTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -64,7 +75,6 @@ fun RegisterScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // поле Email ИЛИ Phone
                 when (authMethod) {
                     AuthMethod.EMAIL -> {
                         AuthInputTextField(
@@ -85,7 +95,6 @@ fun RegisterScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Поле "Password"
                 AuthInputTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -93,32 +102,45 @@ fun RegisterScreen(
                     visualTransformation = PasswordVisualTransformation(),
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Кнопка "Register"
-                Button(
-                    onClick = { onRegisterSuccess() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    enabled = true
-                ) {
+                if (uiState.error != null) {
                     Text(
-                        "Register",
-                        color = Color(0xFF5B8DEE),
-                        fontSize = 16.sp
+                        text = uiState.error!!,
+                        color = Color.Red,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Кнопка "Sign up with Google"
+                Button(
+                    onClick = {
+                        viewModel.register(email, password, username)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !uiState.isLoading
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color(0xFF5B8DEE),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Register", color = Color(0xFF5B8DEE), fontSize = 16.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedButton(
-                    onClick = { onRegisterSuccess() },
+                    onClick = { /* TODO: Google sign up */ },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -131,7 +153,7 @@ fun RegisterScreen(
                         width = 2.dp
                     ),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = true
+                    enabled = !uiState.isLoading
                 ) {
                     Icon(
                         imageVector = Icons.Default.Email,
@@ -140,11 +162,7 @@ fun RegisterScreen(
                         tint = Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Sign up with Google",
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
+                    Text("Sign up with Google", color = Color.White, fontSize = 16.sp)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

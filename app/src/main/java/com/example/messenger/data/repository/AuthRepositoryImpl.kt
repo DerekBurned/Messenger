@@ -7,7 +7,7 @@ import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 

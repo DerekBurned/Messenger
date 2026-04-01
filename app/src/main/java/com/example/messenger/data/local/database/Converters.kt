@@ -3,7 +3,7 @@ package com.example.messenger.data.local.database
 import androidx.room.TypeConverter
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PhoneNumber
-import com.example.messenger.domain.model.PhoneVisibiliity
+import com.example.messenger.domain.model.PhoneVisibility
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 

@@ -15,14 +15,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    viewModel: ProfileViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -58,7 +64,6 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Аватар
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -76,20 +81,19 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "User Name",
+                text = uiState.user?.username ?: "User Name",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
-                text = "user@example.com",
+                text = uiState.user?.email ?: "",
                 fontSize = 16.sp,
                 color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Настройки
             ProfileMenuItem(
                 icon = Icons.Default.Edit,
                 title = "Edit Profile",
@@ -116,9 +120,11 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Кнопка выхода
             Button(
-                onClick = onLogoutClick,
+                onClick = {
+                    viewModel.logout()
+                    onLogoutClick()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)

@@ -1,25 +1,25 @@
 package com.example.messenger.presentation.viewmodel
 
 import android.app.Activity
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
-import com.example.messenger.domain.model.User
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithEmailUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.auth.ObserveAuthStateUseCase
 import com.example.messenger.domain.usecase.auth.RegisterUseCase
+import com.example.messenger.presentation.state.AuthUiState
 import com.example.messenger.util.Resource
 import com.example.messenger.util.VerificationResult
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,20 +34,9 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService
 ) : ViewModel() {
 
-    // State
-    private val _loginState = MutableLiveData<Resource<User>>()
-    val loginState: LiveData<Resource<User>> = _loginState
+    private val _uiState = MutableStateFlow(AuthUiState())
+    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    private val _registerState = MutableLiveData<Resource<User>>()
-    val registerState: LiveData<Resource<User>> = _registerState
-
-    private val _linkState = MutableLiveData<Resource<Unit>>()
-    val linkState: LiveData<Resource<Unit>> = _linkState
-
-    private val _authState = MutableLiveData<FirebaseUser?>()
-    val authState: LiveData<FirebaseUser?> = _authState
-
-    // Phone Auth Data
     private var verificationId: String? = null
 
     init {
@@ -56,70 +45,87 @@ class AuthViewModel @Inject constructor(
 
     private fun observeAuthStatus() {
         viewModelScope.launch {
-            observeAuthStateUseCase().collectLatest { user ->
-                _authState.value = user
+            observeAuthStateUseCase().collectLatest { firebaseUser ->
+                _uiState.update { it.copy(isAuthenticated = firebaseUser != null) }
             }
         }
     }
 
     fun loginWithEmail(email: String, pass: String) {
         viewModelScope.launch {
-            loginWithEmailUseCase(email, pass).collect { _loginState.value = it }
+            loginWithEmailUseCase(email, pass).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
+                    is Resource.Success -> _uiState.update {
+                        it.copy(isLoading = false, currentUser = resource.data, loginSuccess = true, error = null)
+                    }
+                    is Resource.Error -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.message)
+                    }
+                    is Resource.Failure -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.exception.message)
+                    }
+                }
+            }
         }
     }
 
     fun register(email: String, pass: String, username: String) {
         viewModelScope.launch {
-            registerUseCase(email, pass, username).collect { _registerState.value = it }
+            registerUseCase(email, pass, username).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
+                    is Resource.Success -> _uiState.update {
+                        it.copy(isLoading = false, currentUser = resource.data, registerSuccess = true, error = null)
+                    }
+                    is Resource.Error -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.message)
+                    }
+                    is Resource.Failure -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.exception.message)
+                    }
+                }
+            }
         }
     }
 
     fun logout() {
         viewModelScope.launch {
             logoutUseCase()
+            _uiState.update { AuthUiState() }
         }
     }
 
-
-
     fun sendVerificationCode(activity: Activity, phoneNumber: String) {
-        _loginState.value = Resource.Loading
+        _uiState.update { it.copy(isLoading = true, error = null, codeSent = false) }
 
         viewModelScope.launch {
-            // Call the suspend function directly! No callbacks needed here.
             val result = firebaseAuthService.sendVerificationCode(phoneNumber, activity)
 
             if (result.isSuccess) {
-                val verifyResult = result.getOrThrow()
-                when (verifyResult) {
+                when (val verifyResult = result.getOrThrow()) {
                     is VerificationResult.CodeSent -> {
-                        // SMS Sent. Store ID and tell UI to show OTP input
                         verificationId = verifyResult.verificationId
-                        // Ideally, emit a "CodeSent" state here if you have one
-                        // For now, keeping it Loading implies waiting for user input
+                        _uiState.update { it.copy(isLoading = false, codeSent = true) }
                     }
                     is VerificationResult.AutoVerified -> {
-                        // Instant login (e.g. device recognized)
                         signInWithPhone(verifyResult.credential)
                     }
                 }
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Verification Failed"
-                _loginState.value = Resource.Error(errorMsg)
+                _uiState.update { it.copy(isLoading = false, error = errorMsg) }
             }
         }
     }
 
     fun verifyOtpAndLogin(otpCode: String) {
         viewModelScope.launch {
-            // Use the new service helper to get the credential from code
             val credentialResult = firebaseAuthService.verifyCode(otpCode)
-
             if (credentialResult.isSuccess) {
-                val credential = credentialResult.getOrThrow()
-                signInWithPhone(credential)
+                signInWithPhone(credentialResult.getOrThrow())
             } else {
-                _loginState.value = Resource.Error("Invalid Code")
+                _uiState.update { it.copy(error = "Invalid Code") }
             }
         }
     }
@@ -128,26 +134,54 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             val credentialResult = firebaseAuthService.verifyCode(otpCode)
             if (credentialResult.isSuccess) {
-                val credential = credentialResult.getOrThrow()
-                linkPhone(credential)
+                linkPhone(credentialResult.getOrThrow())
             } else {
-                _linkState.value = Resource.Error("Invalid Code")
+                _uiState.update { it.copy(error = "Invalid Code") }
             }
         }
     }
 
     private fun signInWithPhone(credential: PhoneAuthCredential) {
         viewModelScope.launch {
-            _loginState.value = Resource.Loading
-            // This UseCase calls the Repository, which calls Service.signInWithPhone
+            _uiState.update { it.copy(isLoading = true) }
             val result = loginWithPhoneNumberUseCase(credential)
-            _loginState.value = result
+            when (result) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(isLoading = false, currentUser = result.data, loginSuccess = true, error = null)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(isLoading = false, error = result.message)
+                }
+                is Resource.Failure -> _uiState.update {
+                    it.copy(isLoading = false, error = result.exception.message)
+                }
+                is Resource.Loading -> {}
+            }
         }
     }
 
     private fun linkPhone(credential: PhoneAuthCredential) {
         viewModelScope.launch {
-            linkPhoneUseCase(credential).collect { _linkState.value = it }
+            linkPhoneUseCase(credential).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
+                    is Resource.Success -> _uiState.update { it.copy(isLoading = false, error = null) }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message) }
+                    is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message) }
+                }
+            }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun onLoginNavigated() {
+        _uiState.update { it.copy(loginSuccess = false) }
+    }
+
+    fun onRegisterNavigated() {
+        _uiState.update { it.copy(registerSuccess = false) }
     }
 }

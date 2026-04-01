@@ -18,9 +18,10 @@ class SyncManager @Inject constructor(
             .build()
 
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            15, TimeUnit.MINUTES // Run every 15 minutes
+            15, TimeUnit.MINUTES
         )
             .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
             .build()
 
         // Enqueue unique work prevents duplicate workers
@@ -38,6 +39,7 @@ class SyncManager @Inject constructor(
 
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
             .build()
 
         workManager.enqueue(request)

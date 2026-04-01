@@ -1,6 +1,6 @@
 package com.example.messenger.domain.model
 
-enum class PhoneVisibiliity {
+enum class PhoneVisibility {
     VISIBLE,
     HIDDEN,
     FRIENDSONLY
