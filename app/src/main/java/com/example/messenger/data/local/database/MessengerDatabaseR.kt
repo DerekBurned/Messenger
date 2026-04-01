@@ -14,7 +14,7 @@ import javax.inject.Singleton
         MessageEntity::class,
         SyncQueueEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false  
 )
 @TypeConverters(Converters::class)  

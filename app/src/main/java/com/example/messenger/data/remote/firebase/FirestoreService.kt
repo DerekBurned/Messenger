@@ -95,11 +95,10 @@ class FirestoreService @Inject constructor(
     suspend fun markMessageAsRead(message: Message): Result<Unit>{
         return try{
             conversationsCollection
-                .document(message.id)
+                .document(message.conversationId)
                 .collection("messages")
                 .document(message.id)
-                
-                .update("status", MessageStatus.READ)
+                .update("status", MessageStatus.READ.name)
                 .await()
             Result.success(Unit)
         }catch (e: Exception){
@@ -132,11 +131,10 @@ class FirestoreService @Inject constructor(
 
         awaitClose { listener.remove() }
     }
-    fun getAllConversations(): Flow<List<Conversation>> = callbackFlow {
+    fun getAllConversations(userId: String): Flow<List<Conversation>> = callbackFlow {
         val conversationsRef = conversationsCollection
-            .document()
-            .collection("conversations")
-            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .whereArrayContains("participantIds", userId)
+            .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
 
         val listener = conversationsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {

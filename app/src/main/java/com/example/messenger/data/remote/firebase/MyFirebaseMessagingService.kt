@@ -11,20 +11,20 @@ import androidx.core.app.NotificationCompat
 import com.example.messenger.presentation.screens.MainActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.example.messenger.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-class MyFirebaseMessagingService @Inject constructor(
-
-): FirebaseMessagingService() {
+class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private val TAG = "MyFirebaseMsgService"
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Refreshed token: $token")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Refreshed token: $token")
+        }
 
         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
 

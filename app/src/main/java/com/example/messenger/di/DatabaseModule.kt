@@ -28,6 +28,7 @@ object DatabaseModule {
             MessengerDatabase::class.java,  
             "messenger_database.db"
         )
+            .fallbackToDestructiveMigration()
             .build()
     }
 

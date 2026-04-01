@@ -46,7 +46,7 @@ class AuthViewModel @Inject constructor(
     private val _authState = MutableLiveData<FirebaseUser?>()
     val authState: LiveData<FirebaseUser?> = _authState
 
-    var verificationId: String? = null
+    private var verificationId: String? = null
 
     init {
         observeAuthStatus()
