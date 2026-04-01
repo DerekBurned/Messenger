@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,13 +19,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.example.messenger.domain.model.Conversation
 import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -44,23 +51,55 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWithNav(
-    onChatClick: () -> Unit = {},
+    viewModel: ConversationsViewModel = hiltViewModel(),
+    onChatClick: (String) -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },
         bottomBar = { BottomNavBarM3(onProfileClick = onProfileClick) }
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(Color.White)
         ) {
-            items(8) {
-                ChatListItemM3(onClick = onChatClick)
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = PrimaryBlue
+                    )
+                }
+                uiState.error != null -> {
+                    Text(
+                        text = uiState.error!!,
+                        color = Color.Red,
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                    )
+                }
+                uiState.conversations.isEmpty() -> {
+                    Text(
+                        text = "No conversations yet",
+                        color = Color.Gray,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(uiState.conversations) { conversation ->
+                            ChatListItemM3(
+                                conversation = conversation,
+                                onClick = { onChatClick(conversation.id) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -102,7 +141,10 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
 }
 
 @Composable
-fun ChatListItemM3(onClick: () -> Unit = {}) {
+fun ChatListItemM3(
+    conversation: Conversation = Conversation(),
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,15 +157,37 @@ fun ChatListItemM3(onClick: () -> Unit = {}) {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(LightGray)
-        )
+                .background(LightGray),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = conversation.participantNames.firstOrNull()?.take(1)?.uppercase() ?: "?",
+                fontWeight = FontWeight.Bold,
+                color = PrimaryBlue
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(20.dp)
-                .background(LightGray)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = conversation.participantNames.firstOrNull() ?: "Unknown",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = conversation.lastMessage ?: "",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (conversation.unreadCount > 0) {
+            Badge(containerColor = PrimaryBlue) {
+                Text(conversation.unreadCount.toString())
+            }
+        }
     }
     HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))
 }

@@ -8,6 +8,6 @@ data class Profile(
     val avatarUrl: String? = null,
     val lastSeen: Long = 0L,
     val isOnline: Boolean = false,
-    val phoneVisibility: PhoneVisibiliity = PhoneVisibiliity.HIDDEN,
+    val phoneVisibility: PhoneVisibility = PhoneVisibility.HIDDEN,
     val fcmToken: String? = null) {
 }

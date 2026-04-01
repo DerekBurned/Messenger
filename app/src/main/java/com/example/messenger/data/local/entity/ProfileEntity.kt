@@ -6,7 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.messenger.domain.model.PhoneNumber
-import com.example.messenger.domain.model.PhoneVisibiliity
+import com.example.messenger.domain.model.PhoneVisibility
 
 @Entity(tableName = "profiles",
     foreignKeys = [
@@ -30,7 +30,7 @@ data class ProfileEntity(
     val avatarUrl: String? = null,
     val lastSeen: Long = 0L,
     val isOnline: Boolean = false,
-    val phoneVisibility: PhoneVisibiliity = PhoneVisibiliity.HIDDEN,
+    val phoneVisibility: PhoneVisibility = PhoneVisibility.HIDDEN,
     val fcmToken: String? = null
 ) {
 }

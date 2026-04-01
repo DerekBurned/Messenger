@@ -9,7 +9,7 @@ import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.User
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map

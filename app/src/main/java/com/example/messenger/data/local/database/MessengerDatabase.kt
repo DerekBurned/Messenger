@@ -12,9 +12,10 @@ import javax.inject.Singleton
         UserEntity::class,
         ConversationEntity::class,
         MessageEntity::class,
-        SyncQueueEntity::class
+        SyncQueueEntity::class,
+        ProfileEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false  
 )
 @TypeConverters(Converters::class)  
@@ -23,4 +24,5 @@ abstract class MessengerDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDao
     abstract fun messageDao(): MessageDao
     abstract fun syncQueueDao(): SyncQueueDao
+    abstract fun profileDao(): ProfileDao
 }

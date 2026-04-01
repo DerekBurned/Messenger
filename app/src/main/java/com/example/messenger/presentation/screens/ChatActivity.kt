@@ -20,17 +20,24 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.viewmodel.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
+fun ChatScreenWithNav(
+    viewModel: ChatViewModel = hiltViewModel(),
+    onBackClick: () -> Unit = {}
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage("Привет! Как дела?", false),
-            ChatMessage("Отлично, спасибо!", true)
-        )
+
+    val chatMessages = remember(uiState.messages) {
+        uiState.messages.map { msg ->
+            ChatMessage(text = msg.text, isMe = msg.senderId == "currentUser") // TODO: compare with actual user ID
+        }
     }
 
     Scaffold(
@@ -38,7 +45,7 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "user",
+                        text = "Chat",
                         color = Color.White,
                         fontSize = 16.sp
                     )
@@ -72,37 +79,44 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                items(messages) { message ->
-                    MessageWithContextMenu(
-                        message = message,
-                        onCopy = {
-                            // TODO: Копирование
-                        },
-                        onReply = {
-                            // TODO: Ответ
-                        },
-                        onEdit = {
-                            // TODO: Редактирование
-                        },
-                        onPin = {
-                            // TODO: Закрепление
-                        },
-                        onForward = {
-                            // TODO: Переслать
-                        },
-                        onDelete = {
-                            messages.remove(message)
+            when {
+                uiState.isLoading && chatMessages.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF5B8DEE))
+                    }
+                }
+                uiState.error != null && chatMessages.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = uiState.error!!, color = Color.Red)
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        items(chatMessages) { message ->
+                            MessageWithContextMenu(
+                                message = message,
+                                onCopy = { },
+                                onReply = { },
+                                onEdit = { },
+                                onPin = { },
+                                onForward = { },
+                                onDelete = { }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
 
@@ -114,7 +128,7 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = {  },
+                    onClick = { },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
@@ -142,11 +156,12 @@ fun ChatScreenWithNav(onBackClick: () -> Unit = {}) {
                 IconButton(
                     onClick = {
                         if (messageText.isNotBlank()) {
-                            messages.add(ChatMessage(messageText, true))
+                            viewModel.sendMessage(messageText)
                             messageText = ""
                         }
                     },
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp),
+                    enabled = !uiState.isSending
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Send,
