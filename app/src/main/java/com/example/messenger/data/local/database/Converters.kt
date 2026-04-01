@@ -13,12 +13,12 @@ class Converters {
     // PHONE CONVERTER
     @TypeConverter
     fun fromPhoneNumber(phone: PhoneNumber?): String? {
-        return phone?.number
+        return if (phone != null) gson.toJson(phone) else null
     }
 
     @TypeConverter
     fun toPhoneNumber(phoneString: String?): PhoneNumber? {
-        return null
+        return if (phoneString != null) gson.fromJson(phoneString, PhoneNumber::class.java) else null
     }
 
     // LIST<STRING> CONVERTERS (for participantIds, participantNames, etc.)

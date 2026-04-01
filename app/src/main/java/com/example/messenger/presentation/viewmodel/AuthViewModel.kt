@@ -48,7 +48,7 @@ class AuthViewModel @Inject constructor(
     val authState: LiveData<FirebaseUser?> = _authState
 
     // Phone Auth Data
-    var verificationId: String? = null
+    private var verificationId: String? = null
 
     init {
         observeAuthStatus()

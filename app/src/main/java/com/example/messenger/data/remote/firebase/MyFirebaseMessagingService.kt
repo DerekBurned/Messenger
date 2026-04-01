@@ -11,42 +11,20 @@ import androidx.core.app.NotificationCompat
 import com.example.messenger.presentation.screens.MainActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.example.messenger.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-/**
- * This class handles receiving push notifications (FCM).
- * It needs to be registered in your AndroidManifest.xml.
- *
- * <service
- * android:name=".data.remote.firebase.MyFirebaseMessagingService"
- * android:exported="false">
- * <intent-filter>
- * <action android:name="com.google.firebase.MESSAGING_EVENT" />
- * </intent-filter>
- * </service>
- *
- * (Note: The class name in the manifest must match this class name)
- */
-class MyFirebaseMessagingService @Inject constructor(
-
-): FirebaseMessagingService() {
-
-    // Note: @Inject doesn't work directly in a Service constructor
-    // You would typically use @AndroidEntryPoint if using Hilt for this.
-    // For this example, we'll keep it simple.
+class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private val TAG = "MyFirebaseMsgService"
 
-    /**
-     * Called when a new FCM registration token is generated.
-     * This token is the "address" for sending a notification to this specific device.
-     */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Refreshed token: $token")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Refreshed token: $token")
+        }
 
         // Get the current User ID (Assuming you use Firebase Auth)
         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid

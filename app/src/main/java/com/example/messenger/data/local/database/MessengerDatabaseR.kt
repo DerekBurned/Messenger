@@ -15,7 +15,7 @@ import javax.inject.Singleton
         MessageEntity::class,
         SyncQueueEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false  // Set to false to avoid schema export warning
 )
 @TypeConverters(Converters::class)  // Register type converters at database level

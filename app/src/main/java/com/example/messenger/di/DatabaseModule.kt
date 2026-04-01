@@ -28,6 +28,7 @@ object DatabaseModule {
             MessengerDatabase::class.java,  // CHANGED: removed 'R'
             "messenger_database.db"
         )
+            .fallbackToDestructiveMigration()
             .build()
     }
 
