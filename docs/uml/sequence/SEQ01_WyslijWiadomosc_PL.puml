@@ -1,0 +1,117 @@
+@startuml SEQ01_WyslijWiadomosc_PL
+!theme plain
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipant underline
+
+title Diagram Sekwencji: Wyslij Wiadomosc Tekstowa
+
+actor "Uzytkownik" as user
+participant "Ekran Czatu\n(Compose UI)" as ui
+participant "Model Widoku\nCzatu" as vm
+participant "Przypadek Uzycia\nWyslij Wiadomosc" as uc
+participant "Przypadek Uzycia\nPobierz Uzytkownika" as gcu
+participant "Repozytorium\nAutoryzacji" as auth
+participant "Implementacja\nRepozytorium\nWiadomosci" as repo
+participant "DAO Wiadomosci\n(Room)" as dao
+participant "Usluga\nFirestore" as firestore
+
+autonumber
+
+user -> ui : Wpisuje tekst wiadomosci\ni naciska przycisk Wyslij
+activate ui
+
+ui -> vm : sendMessage(text)
+activate vm
+
+vm -> vm : _uiState.update { copy(isSending = true) }
+
+vm -> uc : invoke(conversationId, text)
+activate uc
+
+note over uc : Rozpoczecie emisji Flow<Resource<Unit>>
+
+' === Walidacja ===
+alt text.isBlank()
+    uc --> vm : emit Resource.Error("Wiadomosc jest pusta")
+    vm -> vm : _uiState.update { copy(isSending = false, error = msg) }
+    vm --> ui : StateFlow<ChatUiState> rekompozycja
+    ui --> user : Wyswietl blad
+else text.length > 5000
+    uc --> vm : emit Resource.Error("Wiadomosc jest za dluga")
+    vm -> vm : _uiState.update { copy(isSending = false, error = msg) }
+    vm --> ui : StateFlow<ChatUiState> rekompozycja
+    ui --> user : Wyswietl blad
+else Poprawny tekst
+    ' === Pobierz biezacego uzytkownika ===
+    uc -> gcu : invoke()
+    activate gcu
+    gcu -> auth : getCurrentUser()
+    activate auth
+    auth --> gcu : User?
+    deactivate auth
+    gcu --> uc : User?
+    deactivate gcu
+
+    alt currentUser == null
+        uc --> vm : emit Resource.Error("Uzytkownik niezalogowany")
+        vm -> vm : _uiState.update { copy(isSending = false, error = msg) }
+        vm --> ui : StateFlow<ChatUiState> rekompozycja
+        ui --> user : Wyswietl blad
+    else Uzytkownik uwierzytelniony
+        ' === Utworz wiadomosc ===
+        uc -> uc : Utworz Message(\n  id = UUID.randomUUID(),\n  conversationId,\n  senderId = currentUser.id,\n  text = text.trim(),\n  timestamp = currentTimeMillis(),\n  status = SENDING\n)
+
+        ' === Wyslij przez repozytorium ===
+        uc -> repo : sendMessage(message)
+        activate repo
+
+        note right of repo : Optymistyczny zapis lokalny\nze statusem SENDING
+
+        repo -> dao : insertMessage(message.toEntity())
+        activate dao
+        dao --> repo : Unit
+        deactivate dao
+
+        repo -> firestore : sendMessage(message)
+        activate firestore
+
+        alt Sukces Firestore
+            firestore --> repo : Result.success(Unit)
+            deactivate firestore
+
+            repo -> dao : updateMessageStatus(message.id, SENT)
+            activate dao
+            dao --> repo : Unit
+            deactivate dao
+
+            repo --> uc : Result.success(Unit)
+            deactivate repo
+
+            uc --> vm : emit Resource.Success(Unit)
+
+            vm -> vm : _uiState.update {\n  copy(isSending = false, error = null)\n}
+
+            vm --> ui : StateFlow<ChatUiState> rekompozycja
+            ui --> user : Wiadomosc pojawia sie\nna liscie czatu ze statusem SENT
+
+        else Blad Firestore
+            firestore --> repo : Result.failure(wyjatek)
+
+            repo --> uc : Result.failure(wyjatek)
+            deactivate repo
+
+            uc --> vm : emit Resource.Error("Nie udalo sie wyslac wiadomosci")
+
+            vm -> vm : _uiState.update {\n  copy(isSending = false, error = msg)\n}
+
+            vm --> ui : StateFlow<ChatUiState> rekompozycja
+            ui --> user : Wiadomosc pokazuje status FAILED\nlub komunikat bledu
+        end
+    end
+end
+
+deactivate uc
+deactivate vm
+deactivate ui
+
+@enduml
