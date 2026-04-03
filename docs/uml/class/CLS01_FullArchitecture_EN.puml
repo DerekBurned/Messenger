@@ -1,0 +1,672 @@
+@startuml CLS01_FullArchitecture_EN
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+title Class Diagram: Full Architecture (Clean Architecture)
+
+' ============================================================
+' DOMAIN LAYER
+' ============================================================
+package "Domain Layer" as domain #LightBlue {
+
+    package "Models" {
+        class User {
+            + id: String
+            + username: String?
+            + email: String?
+            + phoneNumber: PhoneNumber?
+            + avatarUrl: String?
+            + lastSeen: Long
+            + isOnline: Boolean
+            + phoneVisibility: PhoneVisibility
+            + fcmToken: String?
+        }
+
+        class Message {
+            + id: String
+            + conversationId: String
+            + senderId: String
+            + text: String
+            + timestamp: Long
+            + status: MessageStatus
+            + isRead: Boolean
+        }
+
+        class Conversation {
+            + id: String
+            + participantIds: List<String>
+            + participantNames: List<String>
+            + participantAvatars: List<String?>
+            + lastMessage: String?
+            + lastMessageTimestamp: Long
+            + unreadCount: Int
+        }
+
+        class Profile {
+            + id: String
+            + username: String?
+            + email: String?
+            + userId: String
+            + avatarUrl: String?
+            + lastSeen: Long
+            + isOnline: Boolean
+            + phoneVisibility: PhoneVisibility
+            + fcmToken: String?
+        }
+
+        class PhoneNumber {
+            + countryCode: String
+            + number: String
+            + getFullNumber(): String
+        }
+
+        enum MessageStatus {
+            SENDING
+            SENT
+            DELIVERED
+            READ
+            FAILED
+        }
+
+        enum PhoneVisibility {
+            VISIBLE
+            HIDDEN
+            FRIENDSONLY
+        }
+
+        enum SyncStatus {
+            SYNCED
+            PENDING
+            SYNCING
+            FAILED
+        }
+    }
+
+    package "Repository Interfaces" {
+        interface IAuthRepository <<interface>> {
+            + register(email, password, username): Flow<Resource<User>>
+            + loginWithEmail(email, password): Flow<Resource<User>>
+            + loginWithPhone(credential): Resource<User>
+            + linkPhoneToAccount(credential): Flow<Resource<Unit>>
+            + logout(): Unit
+            + getCurrentUser(): User?
+            + observeAuthState(): Flow<FirebaseUser?>
+            + updateUserProfile(username, avatarUrl): Result<Unit>
+        }
+
+        interface IMessageRepository <<interface>> {
+            + getMessagesStream(conversationId): Flow<List<MessageWithSender>>
+            + sendMessage(message): Result<Unit>
+            + deleteMessage(message): Result<Unit>
+            + markMessageAsRead(message): Result<Unit>
+            + markMessagesAsDelivered(conversationId, message): Result<Unit>
+            + observeRemoteMessages(conversationId): Flow<Result<Message>>
+        }
+
+        interface IConversationRepository <<interface>> {
+            + getAllConversations(): Flow<List<Conversation>>
+            + getConversationById(id): Result<Conversation?>
+            + getConversationsForProfile(profile): Result<List<Conversation>>
+            + createConversation(participantIds): Result<Conversation>
+            + deleteConversation(id): Result<Unit>
+            + markConversationAsRead(id): Result<Unit>
+            + observeRemoteConversations(): Flow<List<Conversation>>
+            + syncConversations(): Unit
+        }
+
+        interface IUserRepository <<interface>> {
+            + getUserById(userId): Result<User?>
+            + searchUsers(query): Result<List<User>>
+            + observeUser(userId): Flow<User?>
+            + updateUserStatus(isOnline): Result<Unit>
+            + updateLastSeen(): Result<Unit>
+        }
+
+        interface ISyncRepository <<interface>> {
+            + syncAllData(): Result<Unit>
+            + processSyncQueue(): Result<Unit>
+            + observeSyncStatus(): Flow<SyncStatus>
+            + getSyncQueueCount(): Int
+        }
+
+        interface ILocalRepository <<interface>> {
+            + getAllConversations(): Flow<List<ConversationSummary>>
+            + getAllMessages(conversationId): Flow<List<MessageWithSender>>
+            + getAllUsers(): Flow<List<User>>
+        }
+    }
+
+    package "Use Cases" {
+        class LoginWithEmailUseCase {
+            + invoke(email, password): Flow<Resource<User>>
+        }
+        class LoginWithPhoneNumberUseCase {
+            + invoke(credential): Resource<User>
+        }
+        class RegisterUseCase {
+            + invoke(email, password, username): Flow<Resource<User>>
+        }
+        class LogoutUseCase {
+            + invoke(): Unit
+        }
+        class LinkPhoneUseCase {
+            + invoke(credential): Flow<Resource<Unit>>
+        }
+        class ObserveAuthStateUseCase {
+            + invoke(): Flow<FirebaseUser?>
+        }
+        class GetCurrentUserUseCase {
+            + invoke(): User?
+        }
+        class SendMessageUseCase {
+            + invoke(conversationId, text): Flow<Resource<Unit>>
+        }
+        class GetMessagesUseCase {
+            + invoke(conversationId): Flow<Resource<List<Message>>>
+        }
+        class DeleteMessageUseCase {
+            + invoke(message): Flow<Resource<Unit>>
+        }
+        class MarkMessageAsReadUseCase {
+            + invoke(message): Flow<Resource<Unit>>
+        }
+        class GetConversationsUseCase {
+            + invoke(): Flow<Resource<List<Conversation>>>
+        }
+        class CreateConversationUseCase {
+            + invoke(participantId): Flow<Resource<Conversation>>
+        }
+        class DeleteConversationUseCase {
+            + invoke(conversationId): Flow<Resource<Unit>>
+        }
+        class SyncConversationsUseCase {
+            + invoke(): Flow<Resource<Unit>>
+        }
+        class SearchUsersUseCase {
+            + invoke(query): Flow<Resource<List<User>>>
+        }
+        class GetUserByIdUseCase {
+            + invoke(userId): Flow<Resource<User?>>
+        }
+        class SyncAllDataUseCase {
+            + invoke(): Result<Unit>
+        }
+        class SyncMessagesUseCase {
+            + invoke(): Result<Unit>
+        }
+        class ProcessSyncQueueUseCase {
+            + invoke(): Result<Unit>
+        }
+        class ObserveNetworkUseCase {
+            + invoke(): Flow<NetworkUtils>
+        }
+    }
+}
+
+' ============================================================
+' DATA LAYER
+' ============================================================
+package "Data Layer" as data #LightGreen {
+
+    package "Room Entities" {
+        class UserEntity <<Entity>> {
+            + id: String <<PK>>
+            + username: String
+            + email: String?
+            + phoneNumber: PhoneNumber?
+            + avatarUrl: String?
+            + lastSeen: Long
+            + isOnline: Boolean
+        }
+
+        class MessageEntity <<Entity>> {
+            + id: String <<PK>>
+            + conversationId: String <<FK>>
+            + senderId: String <<FK>>
+            + text: String
+            + timestamp: Long
+            + status: MessageStatus
+            + isRead: Boolean
+        }
+
+        class ConversationEntity <<Entity>> {
+            + id: String <<PK>>
+            + participantIds: List<String>
+            + participantNames: List<String>
+            + participantAvatars: List<String?>
+            + lastMessage: String?
+            + lastMessageTimestamp: Long
+            + unreadCount: Int
+        }
+
+        class ProfileEntity <<Entity>> {
+            + id: String <<PK>>
+            + username: String?
+            + email: String?
+            + userId: String <<FK>>
+            + avatarUrl: String?
+            + lastSeen: Long
+            + isOnline: Boolean
+            + phoneVisibility: PhoneVisibility
+            + fcmToken: String?
+        }
+
+        class SyncQueueEntity <<Entity>> {
+            + id: Long <<PK, auto>>
+            + entityType: String
+            + entityId: String
+            + action: String
+            + timestamp: Long
+            + retryCount: Int
+        }
+    }
+
+    package "Relationship Models" {
+        class MessageWithSender {
+            + message: MessageEntity
+            + sender: UserEntity?
+        }
+
+        class ConversationWithMessages {
+            + conversation: ConversationEntity
+            + messages: List<MessageEntity>
+        }
+
+        class ConversationSummary {
+            + conversation: ConversationEntity
+            + lastMessage: MessageEntity?
+        }
+    }
+
+    package "DAOs" {
+        interface UserDao <<interface>> {
+            + getAllUsers(): Flow<List<UserEntity>>
+            + getUserById(id): UserEntity?
+            + getUserByPhone(phone): UserEntity?
+            + getUserByEmail(email): UserEntity?
+            + getUserByUsername(username): UserEntity?
+            + insertUser(user): Unit
+            + insertUsers(users): Unit
+            + updateUser(user): Unit
+            + deleteUser(user): Unit
+        }
+
+        interface MessageDao <<interface>> {
+            + getMessagesWithSendersDesc(conversationId): Flow<List<MessageWithSender>>
+            + insertMessage(message): Unit
+            + insertMessages(messages): Unit
+            + deleteMessage(message): Unit
+            + updateMessageStatus(messageId, status): Unit
+            + markAsRead(messageId): Unit
+        }
+
+        interface ConversationDao <<interface>> {
+            + getConversationWithMessages(id): Flow<ConversationWithMessages>
+            + getAllConversations(): Flow<List<ConversationSummary>>
+            + getConversationById(id): ConversationEntity?
+            + insertConversation(conversation): Unit
+            + insertConversations(conversations): Unit
+            + deleteConversation(conversation): Unit
+            + deleteConversationById(id): Unit
+        }
+
+        interface ProfileDao <<interface>> {
+            + getProfileByUserId(userId): Flow<ProfileEntity?>
+            + getProfileByUserIdOnce(userId): ProfileEntity?
+        }
+
+        interface SyncQueueDao <<interface>> {
+            + insert(item): Unit
+            + getAllPending(): List<SyncQueueEntity>
+            + getCount(): Int
+            + delete(item): Unit
+            + deleteAll(): Unit
+            + incrementRetryCount(id): Unit
+        }
+    }
+
+    package "DTOs" {
+        class UserDTO {
+            + id: String
+            + username: String?
+            + email: String?
+            + phoneNumber: PhoneNumber?
+            + avatarUrl: String?
+            + lastSeen: Long
+            + isOnline: Boolean
+            + fcmToken: String?
+            + phoneVisibility: String
+        }
+
+        class MessageDTO {
+            + id: String
+            + conversationId: String
+            + senderId: String
+            + text: String
+            + timestamp: Long
+            + status: String
+            + isRead: Boolean
+        }
+
+        class ConversationDTO {
+            + id: String
+            + participantIds: List<String>
+            + participantNames: List<String>
+            + participantAvatars: List<String?>
+            + lastMessage: String?
+            + lastMessageTimestamp: Long
+            + unreadCount: Int
+        }
+    }
+
+    package "Firebase Services" {
+        class FirebaseAuthService <<Singleton>> {
+            + sendVerificationCode(phone, activity): Result<VerificationResult>
+            + verifyCode(code): Result<PhoneAuthCredential>
+            + signInWithPhone(credential): Result<FirebaseUser>
+            + verifyCodeAndSignIn(code): Result<FirebaseUser>
+            + registerWithEmail(email, password, name): Result<FirebaseUser>
+            + loginWithEmail(email, password): Result<FirebaseUser>
+            + resetPassword(email): Result<Unit>
+            + linkEmail(email, password): Result<Unit>
+            + linkPhone(credential): Result<Unit>
+            + unlinkEmail(): Result<Unit>
+            + unlinkPhone(): Result<Unit>
+            + isEmailLinked(): Boolean
+            + isPhoneLinked(): Boolean
+            + getLinkedProviders(): List<String>
+            + getCurrentUser(): FirebaseUser?
+            + getCurrentUserId(): String?
+            + observeAuthState(): Flow<FirebaseUser?>
+            + updateProfile(displayName, photoUrl): Result<Unit>
+            + deleteAccount(): Result<Unit>
+            + logout(): Unit
+        }
+
+        class FirestoreService <<Singleton>> {
+            + createUserProfile(user): Result<Unit>
+            + getUserProfile(uid): Result<User>
+            + updateUserProfile(uid, updates): Result<Unit>
+            + updateFcmToken(uid, token): Result<Unit>
+            + sendMessage(message): Result<Unit>
+            + deleteMessage(message): Result<Unit>
+            + markMessageAsRead(message): Result<Unit>
+            + getMessagesStream(conversationId): Flow<List<Message>>
+            + getAllConversations(userId): Flow<List<Conversation>>
+        }
+
+        class FirebaseStorageService <<Singleton>> {
+            + uploadProfileImage(uid, imageUri): Result<String>
+            + deleteProfileImages(uid): Result<Unit>
+        }
+
+        class MyFirebaseMessagingService {
+            + onNewToken(token): Unit
+            + onMessageReceived(remoteMessage): Unit
+            - sendNotification(title, body): Unit
+            - createNotificationChannel(): Unit
+        }
+    }
+
+    package "Repository Implementations" {
+        class AuthRepositoryImpl {
+            - auth: FirebaseAuthService
+            - firestore: FirestoreService
+        }
+        class MessageRepositoryImpl {
+            - messageDao: MessageDao
+            - messageService: FirestoreService
+        }
+        class ConversationRepositoryImpl {
+            - firestoreService: FirestoreService
+            - dao: ConversationDao
+            - authService: FirebaseAuthService
+        }
+        class UserRepositoryImpl {
+            - userDao: UserDao
+            - firestoreService: FirestoreService
+            - authService: FirebaseAuthService
+        }
+        class SyncRepositoryImpl {
+            - syncQueueDao: SyncQueueDao
+        }
+        class LocalRepositoryImpl {
+            - conversationDao: ConversationDao
+            - messageDao: MessageDao
+            - userDao: UserDao
+        }
+    }
+
+    package "Sync" {
+        class SyncManager {
+            + schedulePeriodicSync(): Unit
+            + triggerOneTimeSync(): Unit
+        }
+
+        class SyncWorker {
+            + doWork(): Result
+        }
+
+        class NetworkObserver {
+            + isConnected: Flow<NetworkUtils>
+        }
+    }
+
+    class Converters <<TypeConverter>> {
+        + fromPhoneNumber(phone): String?
+        + toPhoneNumber(str): PhoneNumber?
+        + fromStringList(list): String?
+        + toStringList(str): List<String>?
+        + fromMessageStatus(status): String
+        + toMessageStatus(str): MessageStatus
+    }
+
+    class MessengerDatabase <<Database>> {
+        + userDao(): UserDao
+        + conversationDao(): ConversationDao
+        + messageDao(): MessageDao
+        + syncQueueDao(): SyncQueueDao
+        + profileDao(): ProfileDao
+    }
+}
+
+' ============================================================
+' PRESENTATION LAYER
+' ============================================================
+package "Presentation Layer" as presentation #LightYellow {
+
+    package "ViewModels" {
+        class AuthViewModel <<HiltViewModel>> {
+            + uiState: StateFlow<AuthUiState>
+            + loginWithEmail(email, pass): Unit
+            + register(email, pass, username): Unit
+            + logout(): Unit
+            + sendVerificationCode(activity, phone): Unit
+            + verifyOtpAndLogin(otpCode): Unit
+            + verifyOtpAndLink(otpCode): Unit
+            + clearError(): Unit
+        }
+
+        class ChatViewModel <<HiltViewModel>> {
+            + uiState: StateFlow<ChatUiState>
+            + conversationId: String
+            + sendMessage(text): Unit
+            + markAsRead(message): Unit
+            + clearError(): Unit
+        }
+
+        class ConversationsViewModel <<HiltViewModel>> {
+            + uiState: StateFlow<ConversationsUiState>
+            + deleteConversation(id): Unit
+            + createConversation(participantId): Unit
+            + refresh(): Unit
+            + clearError(): Unit
+        }
+
+        class ProfileViewModel <<HiltViewModel>> {
+            + uiState: StateFlow<ProfileUiState>
+            + logout(): Unit
+            + clearError(): Unit
+        }
+    }
+
+    package "UI States" {
+        class AuthUiState <<data>> {
+            + isLoading: Boolean
+            + currentUser: User?
+            + error: String?
+            + isAuthenticated: Boolean
+            + codeSent: Boolean
+            + loginSuccess: Boolean
+            + registerSuccess: Boolean
+        }
+
+        class ChatUiState <<data>> {
+            + isLoading: Boolean
+            + messages: List<Message>
+            + error: String?
+            + isSending: Boolean
+        }
+
+        class ConversationsUiState <<data>> {
+            + isLoading: Boolean
+            + conversations: List<Conversation>
+            + error: String?
+        }
+
+        class ProfileUiState <<data>> {
+            + isLoading: Boolean
+            + user: User?
+            + error: String?
+            + isEditing: Boolean
+            + updateSuccess: Boolean
+        }
+    }
+}
+
+' ============================================================
+' UTILITY
+' ============================================================
+package "Utility" as utility #Lavender {
+    abstract class Resource<T> <<sealed>> {
+        + Success<T>(data: T)
+        + Error(message: String)
+        + Failure(exception: Exception)
+        + Loading
+    }
+
+    abstract class NetworkUtils <<sealed>> {
+        + Available
+        + UnAvailable
+        + Lost
+        + Losing
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- Domain model relationships ---
+User *-- PhoneNumber
+User --> PhoneVisibility
+User --> MessageStatus : (via Message)
+Message --> MessageStatus
+Profile --> PhoneVisibility
+
+' --- Entity foreign keys ---
+MessageEntity --> ConversationEntity : FK conversationId\n(CASCADE)
+MessageEntity --> UserEntity : FK senderId\n(SET_NULL)
+ProfileEntity --> UserEntity : FK userId\n(CASCADE)
+
+' --- Relationship models ---
+MessageWithSender --> MessageEntity
+MessageWithSender --> UserEntity
+ConversationWithMessages --> ConversationEntity
+ConversationWithMessages --> MessageEntity
+ConversationSummary --> ConversationEntity
+ConversationSummary --> MessageEntity
+
+' --- Database provides DAOs ---
+MessengerDatabase --> UserDao
+MessengerDatabase --> MessageDao
+MessengerDatabase --> ConversationDao
+MessengerDatabase --> SyncQueueDao
+MessengerDatabase --> ProfileDao
+
+' --- Repository implements interface ---
+AuthRepositoryImpl ..|> IAuthRepository
+MessageRepositoryImpl ..|> IMessageRepository
+ConversationRepositoryImpl ..|> IConversationRepository
+UserRepositoryImpl ..|> IUserRepository
+SyncRepositoryImpl ..|> ISyncRepository
+LocalRepositoryImpl ..|> ILocalRepository
+
+' --- Repository dependencies ---
+AuthRepositoryImpl --> FirebaseAuthService
+AuthRepositoryImpl --> FirestoreService
+MessageRepositoryImpl --> MessageDao
+MessageRepositoryImpl --> FirestoreService
+ConversationRepositoryImpl --> ConversationDao
+ConversationRepositoryImpl --> FirestoreService
+ConversationRepositoryImpl --> FirebaseAuthService
+UserRepositoryImpl --> UserDao
+UserRepositoryImpl --> FirestoreService
+UserRepositoryImpl --> FirebaseAuthService
+SyncRepositoryImpl --> SyncQueueDao
+LocalRepositoryImpl --> ConversationDao
+LocalRepositoryImpl --> MessageDao
+LocalRepositoryImpl --> UserDao
+
+' --- Use case dependencies ---
+SendMessageUseCase --> IMessageRepository
+SendMessageUseCase --> GetCurrentUserUseCase
+GetMessagesUseCase --> IMessageRepository
+DeleteMessageUseCase --> IMessageRepository
+MarkMessageAsReadUseCase --> IMessageRepository
+LoginWithEmailUseCase --> IAuthRepository
+RegisterUseCase --> IAuthRepository
+LogoutUseCase --> IAuthRepository
+LinkPhoneUseCase --> IAuthRepository
+ObserveAuthStateUseCase --> IAuthRepository
+GetCurrentUserUseCase --> IAuthRepository
+GetConversationsUseCase --> IConversationRepository
+CreateConversationUseCase --> IConversationRepository
+CreateConversationUseCase --> GetCurrentUserUseCase
+DeleteConversationUseCase --> IConversationRepository
+SyncConversationsUseCase --> IConversationRepository
+SearchUsersUseCase --> IUserRepository
+GetUserByIdUseCase --> IUserRepository
+SyncAllDataUseCase --> ISyncRepository
+ProcessSyncQueueUseCase --> ISyncRepository
+
+' --- ViewModel dependencies ---
+AuthViewModel --> LoginWithEmailUseCase
+AuthViewModel --> RegisterUseCase
+AuthViewModel --> LoginWithPhoneNumberUseCase
+AuthViewModel --> LinkPhoneUseCase
+AuthViewModel --> LogoutUseCase
+AuthViewModel --> ObserveAuthStateUseCase
+AuthViewModel --> FirebaseAuthService
+ChatViewModel --> SendMessageUseCase
+ChatViewModel --> GetMessagesUseCase
+ChatViewModel --> MarkMessageAsReadUseCase
+ConversationsViewModel --> GetConversationsUseCase
+ConversationsViewModel --> DeleteConversationUseCase
+ConversationsViewModel --> CreateConversationUseCase
+ConversationsViewModel --> SyncConversationsUseCase
+ProfileViewModel --> GetCurrentUserUseCase
+ProfileViewModel --> LogoutUseCase
+
+' --- ViewModel to UI State ---
+AuthViewModel --> AuthUiState
+ChatViewModel --> ChatUiState
+ConversationsViewModel --> ConversationsUiState
+ProfileViewModel --> ProfileUiState
+
+' --- Sync ---
+SyncWorker --> SyncAllDataUseCase
+SyncManager --> SyncWorker
+
+@enduml
