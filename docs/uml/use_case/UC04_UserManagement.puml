@@ -1,0 +1,49 @@
+@startuml UC04_UserManagement
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: User Management
+left to right direction
+
+actor "User" as user
+actor "Firebase" as firebase
+
+rectangle "Messenger App - User Management" {
+
+    usecase "Search Users" as UC1
+    usecase "View User Profile" as UC2
+    usecase "Get Current User" as UC3
+    usecase "Get User by ID" as UC4
+}
+
+' === User associations ===
+user --> UC1
+user --> UC2
+user --> UC3
+
+' === Firebase associations ===
+firebase --> UC4
+firebase --> UC1
+
+' === Notes ===
+note right of UC1
+  Query must be at least
+  2 characters long
+end note
+
+note right of UC2
+  Displays: username, email,
+  phone (if visible), avatar,
+  online status, last seen
+end note
+
+@enduml

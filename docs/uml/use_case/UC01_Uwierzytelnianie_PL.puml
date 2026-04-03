@@ -1,0 +1,91 @@
+@startuml UC01_Uwierzytelnianie_PL
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Diagram Przypadkow Uzycia: Uwierzytelnianie
+left to right direction
+
+actor "Uzytkownik" as user
+actor "Firebase" as firebase
+
+rectangle "Aplikacja Messenger - Uwierzytelnianie" {
+
+    usecase "Rejestracja przez\nEmail/Haslo" as UC1
+    usecase "Rejestracja przez\nTelefon (OTP)" as UC2
+    usecase "Logowanie przez\nEmail/Haslo" as UC3
+    usecase "Logowanie przez\nTelefon (OTP)" as UC4
+    usecase "Wyslij Kod\nWeryfikacyjny" as UC5
+    usecase "Zweryfikuj\nKod OTP" as UC6
+    usecase "Polacz Email z\nKontem Telefonicznym" as UC7
+    usecase "Polacz Telefon z\nKontem Email" as UC8
+    usecase "Odlacz Dostawce\nEmail" as UC9
+    usecase "Odlacz Dostawce\nTelefon" as UC10
+    usecase "Wyloguj sie" as UC11
+    usecase "Resetuj Haslo" as UC12
+    usecase "Usun Konto" as UC13
+    usecase "Aktualizuj Profil" as UC14
+    usecase "Obserwuj Stan\nUwierzytelniania" as UC15
+}
+
+' === Powiazania Uzytkownika ===
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC7
+user --> UC8
+user --> UC9
+user --> UC10
+user --> UC11
+user --> UC12
+user --> UC13
+user --> UC14
+
+' === Powiazania Firebase ===
+firebase --> UC5
+firebase --> UC6
+firebase --> UC1
+firebase --> UC3
+firebase --> UC15
+
+' === Relacje <<include>> ===
+UC2 ..> UC5 : <<include>>
+UC2 ..> UC6 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC4 ..> UC6 : <<include>>
+UC8 ..> UC5 : <<include>>
+UC8 ..> UC6 : <<include>>
+
+' === Relacje <<extend>> ===
+UC12 ..> UC3 : <<extend>>
+
+' === Notatki ===
+note right of UC5
+  Firebase wysyla SMS z kodem
+  weryfikacyjnym na numer
+  telefonu uzytkownika
+end note
+
+note right of UC15
+  System automatycznie
+  monitoruje zmiany stanu
+  uwierzytelniania i
+  odpowiednio nawiguje
+end note
+
+note bottom of UC1
+  Ustawia nazwe wyswietlana przez
+  Firebase UserProfileChangeRequest.
+  Tworzy profil uzytkownika w Firestore.
+end note
+
+@enduml

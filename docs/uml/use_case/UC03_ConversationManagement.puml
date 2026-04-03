@@ -1,0 +1,66 @@
+@startuml UC03_ConversationManagement
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: Conversation Management
+left to right direction
+
+actor "User" as user
+actor "Firebase" as firebase
+
+rectangle "Messenger App - Conversation Management" {
+
+    usecase "View Conversations List" as UC1
+    usecase "Open Chat" as UC2
+    usecase "Create Conversation" as UC3
+    usecase "Validate Participant" as UC4
+    usecase "Delete Conversation" as UC5
+    usecase "Sync Conversations" as UC6
+    usecase "Mark Conversation\nas Read" as UC7
+    usecase "Observe Conversation\nChanges" as UC8
+}
+
+' === User associations ===
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC5
+user --> UC6
+user --> UC7
+
+' === Firebase associations ===
+firebase --> UC8
+firebase --> UC6
+
+' === <<include>> relationships ===
+UC3 ..> UC4 : <<include>>
+
+' === Notes ===
+note right of UC4
+  Validates that participant
+  is not the current user
+  (cannot chat with self)
+end note
+
+note right of UC1
+  Conversations ordered by
+  lastMessageTimestamp DESC.
+  Shows unread count badge.
+end note
+
+note bottom of UC8
+  Firestore query filters by
+  participantIds array
+  containing current user ID
+end note
+
+@enduml

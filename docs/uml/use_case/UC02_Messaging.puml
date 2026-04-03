@@ -1,0 +1,79 @@
+@startuml UC02_Messaging
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: Messaging
+left to right direction
+
+actor "User" as user
+actor "Firebase" as firebase
+
+rectangle "Messenger App - Messaging" {
+
+    usecase "View Messages" as UC1
+    usecase "Send Text Message" as UC2
+    usecase "Validate Message" as UC3
+    usecase "View Message Status" as UC4
+    usecase "Mark Message as Read" as UC5
+    usecase "Mark Message\nas Delivered" as UC6
+    usecase "Delete Message" as UC7
+    usecase "Copy Message" as UC8
+    usecase "Reply to Message" as UC9
+    usecase "Edit Message" as UC10
+    usecase "Pin Message" as UC11
+    usecase "Forward Message" as UC12
+    usecase "Receive Messages\nin Real-Time" as UC13
+}
+
+' === User associations ===
+user --> UC1
+user --> UC2
+user --> UC5
+user --> UC6
+user --> UC7
+user --> UC8
+user --> UC9
+user --> UC10
+user --> UC11
+user --> UC12
+
+' === Firebase associations ===
+firebase --> UC13
+
+' === <<include>> relationships ===
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+UC9 ..> UC2 : <<include>>
+UC12 ..> UC2 : <<include>>
+UC10 ..> UC3 : <<include>>
+
+' === Notes ===
+note right of UC3
+  Validation rules:
+  - Text must not be blank
+  - Max 5000 characters
+end note
+
+note right of UC4
+  Status flow:
+  SENDING -> SENT ->
+  DELIVERED -> READ
+  (or FAILED)
+end note
+
+note bottom of UC13
+  Firestore snapshot listener
+  pushes new messages to
+  local Room database
+end note
+
+@enduml

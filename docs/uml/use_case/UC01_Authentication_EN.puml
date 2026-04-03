@@ -1,0 +1,91 @@
+@startuml UC01_Authentication_EN
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: Authentication
+left to right direction
+
+actor "User" as user
+actor "Firebase" as firebase
+
+rectangle "Messenger App - Authentication" {
+
+    usecase "Register with Email/Password" as UC1
+    usecase "Register with Phone (OTP)" as UC2
+    usecase "Login with Email/Password" as UC3
+    usecase "Login with Phone (OTP)" as UC4
+    usecase "Send Verification Code" as UC5
+    usecase "Verify OTP Code" as UC6
+    usecase "Link Email to\nPhone Account" as UC7
+    usecase "Link Phone to\nEmail Account" as UC8
+    usecase "Unlink Email Provider" as UC9
+    usecase "Unlink Phone Provider" as UC10
+    usecase "Logout" as UC11
+    usecase "Reset Password" as UC12
+    usecase "Delete Account" as UC13
+    usecase "Update Profile" as UC14
+    usecase "Observe Auth State" as UC15
+}
+
+' === User associations ===
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC7
+user --> UC8
+user --> UC9
+user --> UC10
+user --> UC11
+user --> UC12
+user --> UC13
+user --> UC14
+
+' === Firebase associations ===
+firebase --> UC5
+firebase --> UC6
+firebase --> UC1
+firebase --> UC3
+firebase --> UC15
+
+' === <<include>> relationships ===
+UC2 ..> UC5 : <<include>>
+UC2 ..> UC6 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC4 ..> UC6 : <<include>>
+UC8 ..> UC5 : <<include>>
+UC8 ..> UC6 : <<include>>
+
+' === <<extend>> relationships ===
+UC12 ..> UC3 : <<extend>>
+
+' === Notes ===
+note right of UC5
+  Firebase sends SMS with
+  verification code to the
+  user's phone number
+end note
+
+note right of UC15
+  System automatically
+  monitors authentication
+  state changes and
+  navigates accordingly
+end note
+
+note bottom of UC1
+  Sets display name via
+  Firebase UserProfileChangeRequest.
+  Creates user profile in Firestore.
+end note
+
+@enduml

@@ -1,0 +1,66 @@
+@startuml UC05_SyncAndBackground
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: Sync & Background
+left to right direction
+
+actor "System/App" as system
+actor "Firebase" as firebase
+
+rectangle "Messenger App - Sync & Background" {
+
+    usecase "Periodic Background\nSync (15 min)" as UC1
+    usecase "One-Time Sync" as UC2
+    usecase "Monitor Network State" as UC3
+    usecase "Sync Messages" as UC4
+    usecase "Sync All Data" as UC5
+    usecase "Process Sync Queue" as UC6
+}
+
+' === System associations ===
+system --> UC1
+system --> UC2
+system --> UC3
+
+' === Firebase associations ===
+firebase --> UC4
+firebase --> UC5
+
+' === <<include>> relationships ===
+UC1 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+
+' === <<extend>> relationships ===
+UC2 ..> UC3 : <<extend>>
+
+' === Notes ===
+note right of UC1
+  WorkManager with
+  NetworkType.CONNECTED constraint.
+  Exponential backoff on failure.
+end note
+
+note right of UC6
+  Processes pending operations
+  from sync_queue_table.
+  Retries with incrementing
+  retry count.
+end note
+
+note bottom of UC3
+  Emits: Available,
+  Unavailable, Lost, Losing
+  via ConnectivityManager
+end note
+
+@enduml

@@ -1,0 +1,61 @@
+@startuml UC06_PushNotifications
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam rectangle {
+    BackgroundColor WhiteSmoke
+    BorderColor DarkBlue
+}
+
+title Use Case Diagram: Push Notifications
+left to right direction
+
+actor "User" as user
+actor "Firebase" as firebase
+actor "System/App" as system
+
+rectangle "Messenger App - Push Notifications" {
+
+    usecase "Receive Push\nNotification" as UC1
+    usecase "Show In-App\nNotification" as UC2
+    usecase "Handle Foreground\nNotification" as UC3
+    usecase "Handle Background\nNotification" as UC4
+    usecase "Manage FCM Token" as UC5
+}
+
+' === Associations ===
+firebase --> UC1
+firebase --> UC5
+system --> UC3
+system --> UC4
+user --> UC2
+
+' === <<include>> relationships ===
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC4 : <<include>>
+UC3 ..> UC2 : <<include>>
+
+' === Notes ===
+note right of UC5
+  Token generated per device.
+  Updated in Firestore on
+  onNewToken() callback.
+end note
+
+note right of UC2
+  Uses NotificationCompat
+  with IMPORTANCE_HIGH.
+  Channel: "chat_messages_channel"
+end note
+
+note bottom of UC4
+  System tray handles
+  notification display when
+  app is in background
+end note
+
+@enduml
