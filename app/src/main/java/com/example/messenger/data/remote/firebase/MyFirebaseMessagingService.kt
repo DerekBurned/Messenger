@@ -42,7 +42,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
 
         if (remoteMessage.data.isNotEmpty()) {
-            
+            val conversationId = remoteMessage.data["conversationId"]
+            val timestamp = remoteMessage.data["timestamp"]?.toLongOrNull()
+            if (conversationId != null && timestamp != null) {
+                val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                if (currentUid != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val database = com.google.firebase.database.FirebaseDatabase.getInstance()
+                            database.getReference("receipts")
+                                .child(conversationId)
+                                .child(currentUid)
+                                .child("lastDeliveredTimestamp")
+                                .setValue(timestamp)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to send delivery receipt", e)
+                        }
+                    }
+                }
+            }
         }
 
         remoteMessage.notification?.let {
