@@ -37,13 +37,25 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
-            
+            val currentUserId = authService.getCurrentUserId()
+
             val localUser = userDao.getUserByUsername(query)
-            if (localUser != null) {
-                Result.success(listOf(localUser.toDomain()))
-            } else {
-                Result.success(emptyList())
+            if (localUser != null && localUser.id != currentUserId) {
+                return Result.success(listOf(localUser.toDomain()))
             }
+
+            val remoteResult = firestoreService.searchUsers(query)
+            remoteResult.fold(
+                onSuccess = { users ->
+                    val filtered = users.filter { it.id != currentUserId }
+                    
+                    if (filtered.isNotEmpty()) {
+                        userDao.insertUsers(filtered.map { it.toEntity() })
+                    }
+                    Result.success(filtered)
+                },
+                onFailure = { e -> Result.failure(e) }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -68,6 +80,31 @@ class UserRepositoryImpl @Inject constructor(
         return try {
             val uid = authService.getCurrentUserId() ?: return Result.failure(Exception("Not logged in"))
             firestoreService.updateUserProfile(uid, mapOf("lastSeen" to System.currentTimeMillis()))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUserProfile(updates: Map<String, Any>): Result<Unit> {
+        return try {
+            val uid = authService.getCurrentUserId() ?: return Result.failure(Exception("Not logged in"))
+            val result = firestoreService.updateUserProfile(uid, updates)
+            result.onSuccess {
+                
+                val localUser = userDao.getUserById(uid)
+                if (localUser != null) {
+                    var updated = localUser
+                    updates.forEach { (key, value) ->
+                        when (key) {
+                            "username" -> updated = updated?.copy(username = value as String)
+                            "email" -> updated = updated?.copy(email = value as? String)
+                            "avatarUrl" -> updated = updated?.copy(avatarUrl = value as? String)
+                        }
+                    }
+                    userDao.updateUser(updated!!)
+                }
+            }
+            result
         } catch (e: Exception) {
             Result.failure(e)
         }

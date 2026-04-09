@@ -44,17 +44,36 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun createConversation(participantIds: List<String>): Result<Conversation> {
         return try {
+            
+            val existingResult = firestoreService.findExistingConversation(participantIds)
+            existingResult.getOrNull()?.let { existing ->
+                return Result.success(existing)
+            }
+
+            val names = mutableListOf<String>()
+            val avatars = mutableListOf<String?>()
+            for (id in participantIds) {
+                val userResult = firestoreService.getUserProfile(id)
+                val user = userResult.getOrNull()
+                names.add(user?.username ?: "Unknown")
+                avatars.add(user?.avatarUrl)
+            }
+
             val conversation = Conversation(
                 id = "",
                 participantIds = participantIds,
-                participantNames = emptyList(),
-                participantAvatars = emptyList(),
+                participantNames = names,
+                participantAvatars = avatars,
                 lastMessage = null,
                 lastMessageTimestamp = System.currentTimeMillis()
             )
-            
-            dao.insertConversation(conversation.toEntity())
-            Result.success(conversation)
+
+            val createResult = firestoreService.createConversation(conversation)
+            val firestoreId = createResult.getOrThrow()
+            val savedConversation = conversation.copy(id = firestoreId)
+
+            dao.insertConversation(savedConversation.toEntity())
+            Result.success(savedConversation)
         } catch (e: Exception) {
             Result.failure(e)
         }
