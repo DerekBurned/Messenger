@@ -2,6 +2,7 @@ package com.example.messenger.di
 
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
@@ -36,5 +37,11 @@ object FirebaseModule {
     @Singleton
     fun provideFirebaseMessaging(): FirebaseMessaging {
         return FirebaseMessaging.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseDatabase(): FirebaseDatabase {
+        return FirebaseDatabase.getInstance()
     }
 }
