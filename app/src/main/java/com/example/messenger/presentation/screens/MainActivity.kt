@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,14 +59,24 @@ fun MainScreenWithNav(
     viewModel: ConversationsViewModel = hiltViewModel(),
     onChatClick: (String, String, String) -> Unit = { _, _, _ -> },
     onLogoutClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick) },
-        bottomBar = { BottomNavBarM3(onProfileClick = onProfileClick) }
+        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick, onSearchClick = onSearchClick) },
+        bottomBar = { BottomNavBarM3(onProfileClick = onProfileClick) },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onSearchClick,
+                containerColor = PrimaryBlue,
+                contentColor = Color.White
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New Chat")
+            }
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -81,11 +92,22 @@ fun MainScreenWithNav(
                     )
                 }
                 uiState.error != null -> {
-                    Text(
-                        text = uiState.error!!,
-                        color = Color.Red,
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                    )
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = uiState.error!!,
+                            color = Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.refresh() },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                        ) {
+                            Text("Retry")
+                        }
+                    }
                 }
                 uiState.conversations.isEmpty() -> {
                     Text(
@@ -96,18 +118,24 @@ fun MainScreenWithNav(
                 }
                 else -> {
                     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(uiState.conversations) { conversation ->
-                            val otherUserId = conversation.participantIds
-                                .firstOrNull { it != currentUserId } ?: ""
-                            val otherUserName = conversation.participantNames
-                                .firstOrNull() ?: "Unknown"
-                            val presence = uiState.presenceMap[otherUserId]
-                            ChatListItemM3(
-                                conversation = conversation,
-                                presence = presence,
-                                onClick = { onChatClick(conversation.id, otherUserId, otherUserName) }
-                            )
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(uiState.conversations) { conversation ->
+                                val otherUserId = conversation.participantIds
+                                    .firstOrNull { it != currentUserId } ?: ""
+                                val otherUserName = conversation.participantNames
+                                    .firstOrNull() ?: "Unknown"
+                                val presence = uiState.presenceMap[otherUserId]
+                                ChatListItemM3(
+                                    conversation = conversation,
+                                    presence = presence,
+                                    onClick = { onChatClick(conversation.id, otherUserId, otherUserName) }
+                                )
+                            }
                         }
                     }
                 }
@@ -118,7 +146,7 @@ fun MainScreenWithNav(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
+fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}, onSearchClick: () -> Unit = {}) {
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -136,7 +164,7 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
             }
         },
         actions = {
-            IconButton(onClick = { /* Handle search click */ }) {
+            IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Filled.Search,
                     contentDescription = "Search"
