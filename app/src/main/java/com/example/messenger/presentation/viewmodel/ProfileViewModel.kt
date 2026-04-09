@@ -2,6 +2,7 @@ package com.example.messenger.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.presentation.state.ProfileUiState
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val logoutUseCase: LogoutUseCase,
+    private val presenceManager: PresenceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -34,6 +36,7 @@ class ProfileViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
+            presenceManager.disconnect(viewModelScope)
             logoutUseCase()
             _uiState.update { ProfileUiState() }
         }
