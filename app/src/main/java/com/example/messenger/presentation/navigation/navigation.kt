@@ -26,6 +26,7 @@ sealed class Screens(val route: String) {
         }
     }
     object ProfileScreen : Screens("profile_screen")
+    object SearchScreen : Screens("search_screen")
 }
 
 @Composable
@@ -108,6 +109,22 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 },
                 onProfileClick = {
                     navController.navigate(Screens.ProfileScreen.route)
+                },
+                onSearchClick = {
+                    navController.navigate(Screens.SearchScreen.route)
+                }
+            )
+        }
+
+        composable(route = Screens.SearchScreen.route) {
+            SearchUsersScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onConversationCreated = { conversationId, partnerId, partnerName ->
+                    navController.navigate(Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)) {
+                        popUpTo(Screens.SearchScreen.route) { inclusive = true }
+                    }
                 }
             )
         }
