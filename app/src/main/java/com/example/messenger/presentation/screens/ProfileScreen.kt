@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.domain.model.PresenceState
+import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.viewmodel.ProfileViewModel
 
@@ -64,17 +66,25 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .background(Color(0xFFD3D3D3), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Avatar",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.White
+            Box(contentAlignment = Alignment.BottomEnd) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .background(Color(0xFFD3D3D3), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Avatar",
+                        modifier = Modifier.size(60.dp),
+                        tint = Color.White
+                    )
+                }
+                PresenceIndicator(
+                    state = PresenceState.ONLINE,
+                    size = 20.dp,
+                    borderWidth = 3.dp,
+                    modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
                 )
             }
 
