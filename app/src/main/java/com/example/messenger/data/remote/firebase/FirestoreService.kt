@@ -158,6 +158,50 @@ class FirestoreService @Inject constructor(
         // This block is called when the flow is cancelled
         awaitClose { listener.remove() }
     }
+    suspend fun searchUsers(query: String): Result<List<User>> {
+        return try {
+            val snapshot = usersCollection
+                .whereGreaterThanOrEqualTo("username", query)
+                .whereLessThanOrEqualTo("username", query + "\uf8ff")
+                .get()
+                .await()
+            val users = snapshot.toObjects(User::class.java)
+            Result.success(users)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error searching users", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun findExistingConversation(participantIds: List<String>): Result<Conversation?> {
+        return try {
+            val snapshot = conversationsCollection
+                .whereArrayContains("participantIds", participantIds[0])
+                .get()
+                .await()
+            val conversations = snapshot.toObjects(Conversation::class.java).mapIndexed { index, conversation ->
+                conversation.copy(id = snapshot.documents[index].id)
+            }
+            val existing = conversations.find { conv ->
+                conv.participantIds.size == 2 && conv.participantIds.containsAll(participantIds)
+            }
+            Result.success(existing)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error finding existing conversation", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createConversation(conversation: Conversation): Result<String> {
+        return try {
+            val docRef = conversationsCollection.add(conversation).await()
+            Result.success(docRef.id)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error creating conversation", e)
+            Result.failure(e)
+        }
+    }
+
     fun getAllConversations(userId: String): Flow<List<Conversation>> = callbackFlow {
         val conversationsRef = conversationsCollection
             .whereArrayContains("participantIds", userId)
