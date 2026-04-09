@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.database)
     implementation(libs.google.gms.auth.phone)
     // Room - using KSP
     implementation(libs.androidx.room.runtime)
@@ -104,6 +105,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process)
 
     // Coil for image loading
     implementation(libs.coil.compose)
