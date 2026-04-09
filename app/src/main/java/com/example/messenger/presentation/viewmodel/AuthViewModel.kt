@@ -3,6 +3,7 @@ package com.example.messenger.presentation.viewmodel
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithEmailUseCase
@@ -31,7 +32,8 @@ class AuthViewModel @Inject constructor(
     private val linkPhoneUseCase: LinkPhoneUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
-    private val firebaseAuthService: FirebaseAuthService
+    private val firebaseAuthService: FirebaseAuthService,
+    private val presenceManager: PresenceManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -91,6 +93,7 @@ class AuthViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
+            presenceManager.disconnect(viewModelScope)
             logoutUseCase()
             _uiState.update { AuthUiState() }
         }

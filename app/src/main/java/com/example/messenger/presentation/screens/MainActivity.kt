@@ -27,11 +27,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.example.messenger.domain.model.Conversation
+import com.example.messenger.domain.model.PresenceState
+import com.example.messenger.domain.model.UserPresence
+import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -52,7 +56,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenWithNav(
     viewModel: ConversationsViewModel = hiltViewModel(),
-    onChatClick: (String) -> Unit = {},
+    onChatClick: (String, String, String) -> Unit = { _, _, _ -> },
     onLogoutClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
@@ -91,11 +95,18 @@ fun MainScreenWithNav(
                     )
                 }
                 else -> {
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(uiState.conversations) { conversation ->
+                            val otherUserId = conversation.participantIds
+                                .firstOrNull { it != currentUserId } ?: ""
+                            val otherUserName = conversation.participantNames
+                                .firstOrNull() ?: "Unknown"
+                            val presence = uiState.presenceMap[otherUserId]
                             ChatListItemM3(
                                 conversation = conversation,
-                                onClick = { onChatClick(conversation.id) }
+                                presence = presence,
+                                onClick = { onChatClick(conversation.id, otherUserId, otherUserName) }
                             )
                         }
                     }
@@ -143,6 +154,7 @@ fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}) {
 @Composable
 fun ChatListItemM3(
     conversation: Conversation = Conversation(),
+    presence: UserPresence? = null,
     onClick: () -> Unit = {}
 ) {
     Row(
@@ -153,18 +165,26 @@ fun ChatListItemM3(
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(LightGray),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = conversation.participantNames.firstOrNull()?.take(1)?.uppercase() ?: "?",
-                fontWeight = FontWeight.Bold,
-                color = PrimaryBlue
-            )
+        Box(contentAlignment = Alignment.BottomEnd) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(LightGray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = conversation.participantNames.firstOrNull()?.take(1)?.uppercase() ?: "?",
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryBlue
+                )
+            }
+            if (presence != null) {
+                PresenceIndicator(
+                    state = presence.state,
+                    size = 14.dp
+                )
+            }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
