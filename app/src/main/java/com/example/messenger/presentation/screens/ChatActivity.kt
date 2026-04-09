@@ -1,9 +1,13 @@
 package com.example.messenger.presentation.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -11,13 +15,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +52,7 @@ fun ChatScreenWithNav(
     var messageText by remember { mutableStateOf("") }
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
+    val context = LocalContext.current
     val chatMessages = remember(uiState.messages) {
         uiState.messages.map { msg ->
             ChatMessage(
@@ -157,15 +166,27 @@ fun ChatScreenWithNav(
                             .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.Bottom
                     ) {
-                        items(chatMessages) { message ->
+                        items(uiState.messages.size) { index ->
+                            val originalMessage = uiState.messages[index]
+                            val chatMessage = chatMessages[index]
                             MessageWithContextMenu(
-                                message = message,
-                                onCopy = { },
-                                onReply = { },
+                                message = chatMessage,
+                                onCopy = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("message", originalMessage.text))
+                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                },
+                                onReply = {
+                                    viewModel.setReplyTo(originalMessage)
+                                },
                                 onEdit = { },
                                 onPin = { },
                                 onForward = { },
-                                onDelete = { }
+                                onDelete = {
+                                    if (originalMessage.senderId == currentUserId) {
+                                        viewModel.deleteMessage(originalMessage)
+                                    }
+                                }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -180,6 +201,44 @@ fun ChatScreenWithNav(
                         listOf(uiState.partnerUsername.ifBlank { "User" })
                     }
                 )
+            }
+
+            // Reply preview
+            if (uiState.replyingTo != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFE8EEF8))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Reply,
+                        contentDescription = null,
+                        tint = Color(0xFF5B8DEE),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = uiState.replyingTo!!.text,
+                        color = Color.DarkGray,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.clearReply() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel reply",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             // Input bar
@@ -222,7 +281,13 @@ fun ChatScreenWithNav(
                 IconButton(
                     onClick = {
                         if (messageText.isNotBlank()) {
-                            viewModel.sendMessage(messageText)
+                            val textToSend = if (uiState.replyingTo != null) {
+                                "> ${uiState.replyingTo!!.text}\n\n$messageText"
+                            } else {
+                                messageText
+                            }
+                            viewModel.sendMessage(textToSend)
+                            viewModel.clearReply()
                             messageText = ""
                         }
                     },

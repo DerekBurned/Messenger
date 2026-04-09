@@ -110,27 +110,27 @@ fun MessageWithContextMenu(
                 ) {
                     ContextMenuContent(
                         actions = listOf(
-                            MessageAction("copy", Icons.Default.ContentCopy, onClick = {
+                            MessageAction("Copy", Icons.Default.ContentCopy, onClick = {
                                 onCopy()
                                 showMenu = false
                             }),
-                            MessageAction("reply", Icons.Default.Reply, onClick = {
+                            MessageAction("Reply", Icons.Default.Reply, onClick = {
                                 onReply()
                                 showMenu = false
                             }),
-                            MessageAction("edit", Icons.Default.Edit, onClick = {
+                            MessageAction("Edit", Icons.Default.Edit, onClick = {
                                 onEdit()
                                 showMenu = false
                             }),
-                            MessageAction("pin", Icons.Default.PushPin, onClick = {
+                            MessageAction("Pin", Icons.Default.PushPin, onClick = {
                                 onPin()
                                 showMenu = false
                             }),
-                            MessageAction("send", Icons.Default.Send, onClick = {
+                            MessageAction("Send", Icons.Default.Send, onClick = {
                                 onForward()
                                 showMenu = false
                             }),
-                            MessageAction("delete...", Icons.Default.Delete, color = Color.Red, onClick = {
+                            MessageAction("Delete", Icons.Default.Delete, color = Color.Red, onClick = {
                                 onDelete()
                                 showMenu = false
                             })
@@ -217,12 +217,12 @@ fun ContextMenuPreview() {
         ) {
             ContextMenuContent(
                 actions = listOf(
-                    MessageAction("copy", Icons.Default.ContentCopy, onClick = {}),
-                    MessageAction("reply", Icons.Default.Reply, onClick = {}),
-                    MessageAction("edit", Icons.Default.Edit, onClick = {}),
-                    MessageAction("pin", Icons.Default.PushPin, onClick = {}),
-                    MessageAction("send", Icons.Default.Send, onClick = {}),
-                    MessageAction("delete...", Icons.Default.Delete, color = Color.Red, onClick = {})
+                    MessageAction("Copy", Icons.Default.ContentCopy, onClick = {}),
+                    MessageAction("Reply", Icons.Default.Reply, onClick = {}),
+                    MessageAction("Edit", Icons.Default.Edit, onClick = {}),
+                    MessageAction("Pin", Icons.Default.PushPin, onClick = {}),
+                    MessageAction("Send", Icons.Default.Send, onClick = {}),
+                    MessageAction("Delete...", Icons.Default.Delete, color = Color.Red, onClick = {})
                 )
             )
         }
