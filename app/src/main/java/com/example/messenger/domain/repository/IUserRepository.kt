@@ -9,4 +9,5 @@ interface IUserRepository {
     fun observeUser(userId: String): Flow<User?>
     suspend fun updateUserStatus(isOnline: Boolean): Result<Unit>
     suspend fun updateLastSeen(): Result<Unit>
+    suspend fun updateUserProfile(updates: Map<String, Any>): Result<Unit>
 }

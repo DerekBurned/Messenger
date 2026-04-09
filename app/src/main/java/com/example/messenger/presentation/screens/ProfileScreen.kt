@@ -107,7 +107,7 @@ fun ProfileScreen(
             ProfileMenuItem(
                 icon = Icons.Default.Edit,
                 title = "Edit Profile",
-                onClick = { /* TODO */ }
+                onClick = { viewModel.startEditing() }
             )
 
             ProfileMenuItem(
@@ -154,6 +154,40 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    // Edit Profile Dialog
+    if (uiState.isEditing) {
+        var editedUsername by remember { mutableStateOf(uiState.user?.username ?: "") }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelEditing() },
+            title = { Text("Edit Profile") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = editedUsername,
+                        onValueChange = { editedUsername = it },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.updateProfile(editedUsername) },
+                    enabled = !uiState.isLoading
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelEditing() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
