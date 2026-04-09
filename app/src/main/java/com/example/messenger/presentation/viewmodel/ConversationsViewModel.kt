@@ -96,7 +96,9 @@ class ConversationsViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
             syncConversationsUseCase()
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
