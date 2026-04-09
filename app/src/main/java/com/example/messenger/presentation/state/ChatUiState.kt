@@ -11,5 +11,6 @@ data class ChatUiState(
     val partnerPresence: UserPresence = UserPresence(),
     val partnerUsername: String = "",
     val typingUsernames: List<String> = emptyList(),
-    val isPartnerTyping: Boolean = false
+    val isPartnerTyping: Boolean = false,
+    val replyingTo: Message? = null
 )

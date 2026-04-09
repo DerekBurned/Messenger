@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.ReceiptInfo
+import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
@@ -32,6 +33,7 @@ class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getMessagesUseCase: GetMessagesUseCase,
     private val markMessageAsReadUseCase: MarkMessageAsReadUseCase,
+    private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val observeTypingUseCase: ObserveTypingUseCase,
     private val observeReceiptsUseCase: ObserveReceiptsUseCase,
@@ -193,6 +195,26 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try { receiptService.sendReadReceipt(conversationId, latestTimestamp) } catch (_: Exception) {}
         }
+    }
+
+    fun deleteMessage(message: Message) {
+        viewModelScope.launch {
+            deleteMessageUseCase(message).collect { resource ->
+                when (resource) {
+                    is Resource.Error -> _uiState.update { it.copy(error = resource.message) }
+                    is Resource.Failure -> _uiState.update { it.copy(error = resource.exception.message) }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun setReplyTo(message: Message) {
+        _uiState.update { it.copy(replyingTo = message) }
+    }
+
+    fun clearReply() {
+        _uiState.update { it.copy(replyingTo = null) }
     }
 
     fun clearError() {
