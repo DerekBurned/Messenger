@@ -17,13 +17,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.domain.model.MessageStatus
+import com.example.messenger.domain.model.PresenceState
+import com.example.messenger.presentation.components.MessageStatusIcon
+import com.example.messenger.presentation.components.PresenceIndicator
+import com.example.messenger.presentation.components.TypingIndicator
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.screens.ui.theme.OnlineGreen
 import com.example.messenger.presentation.viewmodel.ChatViewModel
+import com.example.messenger.util.DateUtils
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,23 +42,59 @@ fun ChatScreenWithNav(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    // Map domain messages to UI ChatMessage model
     val chatMessages = remember(uiState.messages) {
         uiState.messages.map { msg ->
-            ChatMessage(text = msg.text, isMe = msg.senderId == "currentUser") // TODO: compare with actual user ID
+            ChatMessage(
+                text = msg.text,
+                isMe = msg.senderId == currentUserId,
+                status = msg.status,
+                timestamp = msg.timestamp
+            )
         }
+    }
+
+    // Send read receipt when messages are loaded
+    LaunchedEffect(uiState.messages) {
+        val latestReceivedTimestamp = uiState.messages
+            .filter { it.senderId != currentUserId }
+            .maxOfOrNull { it.timestamp }
+        if (latestReceivedTimestamp != null) {
+            viewModel.sendReadReceipt(latestReceivedTimestamp)
+        }
+    }
+
+    val presenceStatusText = when {
+        uiState.isPartnerTyping -> "typing..."
+        uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
+        uiState.partnerPresence.state == PresenceState.AWAY -> "Away"
+        else -> DateUtils.formatLastSeen(uiState.partnerPresence.lastSeen)
+    }
+
+    val statusColor = when {
+        uiState.isPartnerTyping -> OnlineGreen
+        uiState.partnerPresence.state == PresenceState.ONLINE -> OnlineGreen
+        else -> Color.White.copy(alpha = 0.7f)
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = "Chat",
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = uiState.partnerUsername.ifBlank { "Chat" },
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = presenceStatusText,
+                            color = statusColor,
+                            fontSize = 12.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -61,12 +106,19 @@ fun ChatScreenWithNav(
                     }
                 },
                 actions = {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .padding(8.dp)
-                            .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                    )
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .padding(8.dp)
+                                .background(Color.White.copy(alpha = 0.3f), CircleShape)
+                        )
+                        PresenceIndicator(
+                            state = uiState.partnerPresence.state,
+                            size = 12.dp,
+                            modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF5B8DEE)
@@ -121,6 +173,15 @@ fun ChatScreenWithNav(
                 }
             }
 
+            // Typing indicator
+            if (uiState.isPartnerTyping) {
+                TypingIndicator(
+                    usernames = uiState.typingUsernames.ifEmpty {
+                        listOf(uiState.partnerUsername.ifBlank { "User" })
+                    }
+                )
+            }
+
             // Input bar
             Row(
                 modifier = Modifier
@@ -142,7 +203,10 @@ fun ChatScreenWithNav(
 
                 BasicTextField(
                     value = messageText,
-                    onValueChange = { messageText = it },
+                    onValueChange = { newText ->
+                        messageText = newText
+                        viewModel.onTextChanged(newText)
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .background(Color.White, RoundedCornerShape(20.dp))
@@ -182,32 +246,51 @@ fun MessageBubble(message: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .background(
-                    color = Color(0xFF9DB4E8),
-                    shape = RoundedCornerShape(
-                        topStart = 20.dp,
-                        topEnd = 20.dp,
-                        bottomStart = if (message.isMe) 20.dp else 4.dp,
-                        bottomEnd = if (message.isMe) 4.dp else 20.dp
+        Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .background(
+                        color = Color(0xFF9DB4E8),
+                        shape = RoundedCornerShape(
+                            topStart = 20.dp,
+                            topEnd = 20.dp,
+                            bottomStart = if (message.isMe) 20.dp else 4.dp,
+                            bottomEnd = if (message.isMe) 4.dp else 20.dp
+                        )
                     )
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = message.text,
+                    color = Color.White,
+                    fontSize = 15.sp
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Text(
-                text = message.text,
-                color = Color.White,
-                fontSize = 15.sp
-            )
+            }
+            // Timestamp and status row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
+            ) {
+                Text(
+                    text = DateUtils.formatMessageTime(message.timestamp),
+                    color = Color.Gray,
+                    fontSize = 11.sp
+                )
+                if (message.isMe) {
+                    MessageStatusIcon(status = message.status)
+                }
+            }
         }
     }
 }
 
 data class ChatMessage(
     val text: String,
-    val isMe: Boolean
+    val isMe: Boolean,
+    val status: MessageStatus = MessageStatus.SENT,
+    val timestamp: Long = 0L
 )
 
 @Preview(showBackground = true)

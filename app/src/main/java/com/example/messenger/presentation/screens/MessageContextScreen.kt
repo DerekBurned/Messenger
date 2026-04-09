@@ -19,7 +19,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
+import com.example.messenger.presentation.components.MessageStatusIcon
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.util.DateUtils
 
 // Данные для пункта меню
 data class MessageAction(
@@ -42,7 +44,7 @@ fun MessageWithContextMenu(
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
-        // Сообщение с обработкой долгого нажатия
+        // Message bubble with long press handler
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -55,25 +57,41 @@ fun MessageWithContextMenu(
                 },
             horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
         ) {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 280.dp)
-                    .background(
-                        color = Color(0xFF9DB4E8),
-                        shape = RoundedCornerShape(
-                            topStart = 20.dp,
-                            topEnd = 20.dp,
-                            bottomStart = if (message.isMe) 20.dp else 4.dp,
-                            bottomEnd = if (message.isMe) 4.dp else 20.dp
+            Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 280.dp)
+                        .background(
+                            color = Color(0xFF9DB4E8),
+                            shape = RoundedCornerShape(
+                                topStart = 20.dp,
+                                topEnd = 20.dp,
+                                bottomStart = if (message.isMe) 20.dp else 4.dp,
+                                bottomEnd = if (message.isMe) 4.dp else 20.dp
+                            )
                         )
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = message.text,
+                        color = Color.White,
+                        fontSize = 15.sp
                     )
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = message.text,
-                    color = Color.White,
-                    fontSize = 15.sp
-                )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
+                ) {
+                    Text(
+                        text = DateUtils.formatMessageTime(message.timestamp),
+                        color = Color.Gray,
+                        fontSize = 11.sp
+                    )
+                    if (message.isMe) {
+                        MessageStatusIcon(status = message.status)
+                    }
+                }
             }
         }
 

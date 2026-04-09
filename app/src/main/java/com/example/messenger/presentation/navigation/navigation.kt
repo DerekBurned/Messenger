@@ -19,8 +19,11 @@ sealed class Screens(val route: String) {
     object LoginScreen : Screens("login_screen")
     object RegisterScreen : Screens("register_screen")
     object MainScreen : Screens("main_screen")
-    object ChatScreen : Screens("chat_screen/{conversationId}") {
-        fun createRoute(conversationId: String) = "chat_screen/$conversationId"
+    object ChatScreen : Screens("chat_screen/{conversationId}/{partnerId}/{partnerName}") {
+        fun createRoute(conversationId: String, partnerId: String, partnerName: String): String {
+            val encodedName = java.net.URLEncoder.encode(partnerName, "UTF-8")
+            return "chat_screen/$conversationId/$partnerId/$encodedName"
+        }
     }
     object ProfileScreen : Screens("profile_screen")
 }
@@ -94,8 +97,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
         composable(route = Screens.MainScreen.route) {
             MainScreenWithNav(
-                onChatClick = { conversationId ->
-                    navController.navigate(Screens.ChatScreen.createRoute(conversationId))
+                onChatClick = { conversationId, partnerId, partnerName ->
+                    navController.navigate(Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName))
                 },
                 onLogoutClick = {
                     authViewModel.logout()
@@ -111,7 +114,11 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
         composable(
             route = Screens.ChatScreen.route,
-            arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType },
+                navArgument("partnerId") { type = NavType.StringType; defaultValue = "" },
+                navArgument("partnerName") { type = NavType.StringType; defaultValue = "" }
+            )
         ) {
             ChatScreenWithNav(
                 onBackClick = {
