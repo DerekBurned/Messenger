@@ -1,4 +1,4 @@
-package com.example.messenger.presentation.navigation
+ package com.example.messenger.presentation.navigation
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -19,6 +19,7 @@ sealed class Screens(val route: String) {
     object LoginScreen : Screens("login_screen")
     object RegisterScreen : Screens("register_screen")
     object MainScreen : Screens("main_screen")
+    object SearchUsersScreen : Screens("search_users_screen")
     object ChatScreen : Screens("chat_screen/{conversationId}/{partnerId}/{partnerName}") {
         fun createRoute(conversationId: String, partnerId: String, partnerName: String): String {
             val encodedName = java.net.URLEncoder.encode(partnerName, "UTF-8")
@@ -27,6 +28,7 @@ sealed class Screens(val route: String) {
     }
     object ProfileScreen : Screens("profile_screen")
     object SearchScreen : Screens("search_screen")
+
 }
 
 @Composable
@@ -144,17 +146,5 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         }
 
-        composable(route = Screens.ProfileScreen.route) {
-            ProfileScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onLogoutClick = {
-                    navController.navigate(Screens.LoginScreen.route) {
-                        popUpTo(Screens.MainScreen.route) { inclusive = true }
-                    }
-                }
-            )
-        }
     }
 }

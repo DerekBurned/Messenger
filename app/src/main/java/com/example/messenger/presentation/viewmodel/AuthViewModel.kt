@@ -35,7 +35,6 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val presenceManager: PresenceManager
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
