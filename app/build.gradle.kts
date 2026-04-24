@@ -1,18 +1,19 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
+    // alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
 }
 
 android {
     namespace = "com.example.messenger"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.messenger"
-        minSdk = 29
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -37,11 +38,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlin{
-        target{
-            compilerOptions {
-                optIn.add("kotlin.RequiresOptIn")
-            }
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "21"
+            freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
         }
     }
     buildFeatures {
@@ -87,6 +87,7 @@ dependencies {
     // Hilt - using KSP
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.work)
 
@@ -109,7 +110,6 @@ dependencies {
 
     // Coil for image loading
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)

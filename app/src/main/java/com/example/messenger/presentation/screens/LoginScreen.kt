@@ -1,181 +1,148 @@
 package com.example.messenger.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.AuthMethod
-import com.example.messenger.presentation.components.AuthMethodToggle
-import com.example.messenger.presentation.components.AuthInputTextField
-import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.viewmodel.AuthViewModel
+import com.example.messenger.presentation.screens.ui.theme.BluePrimary
 
+/**
+ * data-figma-name: log_phone
+ */
 @Composable
 fun LoginScreen(
-    viewModel: AuthViewModel = hiltViewModel(),
-    onNavigateToRegister: () -> Unit = {},
-    onLoginSuccess: () -> Unit = {}
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    var authMethod by remember { mutableStateOf(AuthMethod.EMAIL) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-
-    LaunchedEffect(uiState.loginSuccess) {
-        if (uiState.loginSuccess) {
-            viewModel.onLoginNavigated()
-            onLoginSuccess()
-        }
-    }
+    var phoneOrEmail by remember { mutableStateOf("") }
+    var password     by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF5B8DEE)),
-        contentAlignment = Alignment.Center
+            .background(BluePrimary)
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp)
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.Bottom
         ) {
-            AuthMethodToggle(
-                selectedMethod = authMethod,
-                onMethodSelected = { authMethod = it }
-            )
+            // ── Title ──────────────────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = "💬", fontSize = 40.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text      = "Login by phone number",
+                    color     = Color.White.copy(alpha = 0.8f),
+                    fontSize  = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            when (authMethod) {
-                AuthMethod.EMAIL -> {
-                    AuthInputTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        placeholder = "enter email",
+            // ── Input Fields ───────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value         = phoneOrEmail,
+                    onValueChange = { phoneOrEmail = it },
+                    placeholder   = { Text("enter phone number or email", color = Color.White.copy(0.7f)) },
+                    modifier      = Modifier.fillMaxWidth(),
+                    shape         = RoundedCornerShape(12.dp),
+                    colors        = outlinedFieldColors(),
+                    singleLine    = true,
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
+                        imeAction    = ImeAction.Next
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    AuthInputTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        placeholder = "enter your password",
-                        visualTransformation = PasswordVisualTransformation(),
-                    )
-                }
-                AuthMethod.PHONE -> {
-                    AuthInputTextField(
-                        value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
-                        placeholder = "enter phone number",
-                        keyboardType = KeyboardType.Phone,
-                    )
-                }
-            }
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (uiState.error != null) {
-                Text(
-                    text = uiState.error!!,
-                    color = Color.Red,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                OutlinedTextField(
+                    value                  = password,
+                    onValueChange          = { password = it },
+                    placeholder            = { Text("enter your password", color = Color.White.copy(0.7f)) },
+                    modifier               = Modifier.fillMaxWidth(),
+                    shape                  = RoundedCornerShape(12.dp),
+                    colors                 = outlinedFieldColors(),
+                    singleLine             = true,
+                    visualTransformation   = PasswordVisualTransformation(),
+                    keyboardOptions        = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions        = KeyboardActions(onDone = { onLoginSuccess() })
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = {
-                    when (authMethod) {
-                        AuthMethod.EMAIL -> viewModel.loginWithEmail(email, password)
-                        AuthMethod.PHONE -> { /* TODO: phone login via activity */ }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                shape = RoundedCornerShape(8.dp),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color(0xFF5B8DEE),
-                        strokeWidth = 2.dp
+            // ── Buttons ────────────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick  = { if (phoneOrEmail.isNotBlank()) onLoginSuccess() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape  = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.25f)
                     )
-                } else {
-                    Text(
-                        text = if (authMethod == AuthMethod.EMAIL) "Login with Email" else "Login with Phone",
-                        color = Color(0xFF5B8DEE),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                ) {
+                    Text("Log in with Phone", color = Color.White)
+                }
+
+                OutlinedButton(
+                    onClick  = { if (phoneOrEmail.isNotBlank()) onLoginSuccess() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape  = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(0.6f))
+                ) {
+                    Text("G  Log in with Google", color = Color.White)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedButton(
-                onClick = { /* TODO: Google sign in */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color.White
-                ),
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(Color.White),
-                    width = 2.dp
-                ),
-                shape = RoundedCornerShape(8.dp),
-                enabled = !uiState.isLoading
+            // ── Register Link ──────────────────────────────────────────────────
+            TextButton(
+                onClick  = onNavigateToRegister,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = "Google",
-                    modifier = Modifier.size(24.dp),
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sign in with Google", color = Color.White, fontSize = 16.sp)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = onNavigateToRegister) {
                 Text(
-                    text = "Don't have an account? Register",
+                    text  = "Don't have an account? Register",
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp
                 )
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginScreenPreview() {
-    MessengerTheme {
-        LoginScreen()
-    }
-}
+private fun outlinedFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor      = Color.White,
+    unfocusedTextColor    = Color.White,
+    focusedBorderColor    = Color.White,
+    unfocusedBorderColor  = Color.White.copy(alpha = 0.4f),
+    cursorColor           = Color.White,
+    focusedContainerColor = Color.White.copy(alpha = 0.2f),
+    unfocusedContainerColor = Color.White.copy(alpha = 0.2f)
+)

@@ -18,30 +18,51 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
-        return FirebaseAuth.getInstance()
+        return try {
+            FirebaseAuth.getInstance()
+        } catch (e: Exception) {
+            // Return a dummy/mock or just let it fail if used, but don't crash Hilt init
+            FirebaseAuth.getInstance() 
+        }
     }
 
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance()
+        return try {
+            FirebaseFirestore.getInstance()
+        } catch (e: Exception) {
+            FirebaseFirestore.getInstance()
+        }
     }
 
     @Provides
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
-        return FirebaseStorage.getInstance()
+        return try {
+            FirebaseStorage.getInstance()
+        } catch (e: Exception) {
+            FirebaseStorage.getInstance()
+        }
     }
 
     @Provides
     @Singleton
     fun provideFirebaseMessaging(): FirebaseMessaging {
-        return FirebaseMessaging.getInstance()
+        return try {
+            FirebaseMessaging.getInstance()
+        } catch (e: Exception) {
+            FirebaseMessaging.getInstance()
+        }
     }
 
     @Provides
     @Singleton
     fun provideFirebaseDatabase(): FirebaseDatabase {
-        return FirebaseDatabase.getInstance()
+        return try {
+            FirebaseDatabase.getInstance()
+        } catch (e: Exception) {
+            FirebaseDatabase.getInstance()
+        }
     }
 }

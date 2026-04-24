@@ -2,233 +2,90 @@ package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.domain.model.PresenceState
-import com.example.messenger.presentation.components.PresenceIndicator
-import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.viewmodel.ProfileViewModel
+import com.example.messenger.data.UserProfile
+import com.example.messenger.presentation.components.Avatar
+import com.example.messenger.presentation.screens.ui.theme.*
 
+/**
+ * data-figma-name: profile
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = hiltViewModel(),
-    onBackClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    user: UserProfile,
+    onBackClick: () -> Unit,
+    onEditClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Profile",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+            TopAppBar(
+                title = { Text("profile", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF5B8DEE)
-                )
+                actions = {
+                    IconButton(onClick = onEditClick) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BluePrimary)
             )
         }
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(Color.White),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues)
+                .background(Color.White)
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Box(contentAlignment = Alignment.BottomEnd) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .background(Color(0xFFD3D3D3), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Avatar",
-                        modifier = Modifier.size(60.dp),
-                        tint = Color.White
-                    )
-                }
-                PresenceIndicator(
-                    state = PresenceState.ONLINE,
-                    size = 20.dp,
-                    borderWidth = 3.dp,
-                    modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = uiState.user?.username ?: "User Name",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = uiState.user?.email ?: "",
-                fontSize = 16.sp,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            ProfileMenuItem(
-                icon = Icons.Default.Edit,
-                title = "Edit Profile",
-                onClick = { viewModel.startEditing() }
-            )
-
-            ProfileMenuItem(
-                icon = Icons.Default.Notifications,
-                title = "Notifications",
-                onClick = { /* TODO */ }
-            )
-
-            ProfileMenuItem(
-                icon = Icons.Default.Lock,
-                title = "Privacy",
-                onClick = { /* TODO */ }
-            )
-
-            ProfileMenuItem(
-                icon = Icons.Default.Settings,
-                title = "Settings",
-                onClick = { /* TODO */ }
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    viewModel.logout()
-                    onLogoutClick()
-                },
+            // Avatar + name
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Blue
-                )
+                    .padding(vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Logout",
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Logout", color = Color.White, fontSize = 16.sp)
+                Avatar(name = user.name, size = 90.dp)
+                Spacer(Modifier.height(12.dp))
+                Text(text = user.name, color = TextPrimary, fontSize = 20.sp)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // Info fields
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                InfoField(label = "phone number",  value = user.phone)
+                InfoField(label = "user name",     value = "@${user.username}")
+                InfoField(label = "data of birth", value = user.dob)
+            }
         }
-    }
-
-    // Edit Profile Dialog
-    if (uiState.isEditing) {
-        var editedUsername by remember { mutableStateOf(uiState.user?.username ?: "") }
-
-        AlertDialog(
-            onDismissRequest = { viewModel.cancelEditing() },
-            title = { Text("Edit Profile") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = editedUsername,
-                        onValueChange = { editedUsername = it },
-                        label = { Text("Username") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.updateProfile(editedUsername) },
-                    enabled = !uiState.isLoading
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.cancelEditing() }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 
 @Composable
-fun ProfileMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    onClick: () -> Unit
-) {
-    Row(
+private fun InfoField(label: String, value: String) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(BluePrimary, RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = Color(0xFF5B8DEE),
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Go",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    MessengerTheme {
-        ProfileScreen()
+        Text(text = label, color = Color.White.copy(0.7f), fontSize = 11.sp)
+        Spacer(Modifier.height(2.dp))
+        Text(text = value, color = Color.White, fontSize = 14.sp)
     }
 }

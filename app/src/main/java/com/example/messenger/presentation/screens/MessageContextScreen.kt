@@ -6,6 +6,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +21,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
+import com.example.messenger.data.Message
 import com.example.messenger.presentation.components.MessageStatusIcon
+import com.example.messenger.presentation.screens.ui.theme.BluePrimary
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.util.DateUtils
 
@@ -33,7 +37,7 @@ data class MessageAction(
 
 @Composable
 fun MessageWithContextMenu(
-    message: ChatMessage,
+    message: Message,
     onCopy: () -> Unit = {},
     onReply: () -> Unit = {},
     onEdit: () -> Unit = {},
@@ -55,26 +59,26 @@ fun MessageWithContextMenu(
                         }
                     )
                 },
-            horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
+            horizontalArrangement = if (message.isOwn) Arrangement.End else Arrangement.Start
         ) {
-            Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
+            Column(horizontalAlignment = if (message.isOwn) Alignment.End else Alignment.Start) {
                 Box(
                     modifier = Modifier
                         .widthIn(max = 280.dp)
                         .background(
-                            color = Color(0xFF9DB4E8),
+                            color = if (message.isOwn) BluePrimary else Color(0xFFE9E9EB),
                             shape = RoundedCornerShape(
                                 topStart = 20.dp,
                                 topEnd = 20.dp,
-                                bottomStart = if (message.isMe) 20.dp else 4.dp,
-                                bottomEnd = if (message.isMe) 4.dp else 20.dp
+                                bottomStart = if (message.isOwn) 20.dp else 4.dp,
+                                bottomEnd = if (message.isOwn) 4.dp else 20.dp
                             )
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Text(
                         text = message.text,
-                        color = Color.White,
+                        color = if (message.isOwn) Color.White else Color.Black,
                         fontSize = 15.sp
                     )
                 }
@@ -84,12 +88,19 @@ fun MessageWithContextMenu(
                     modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
                 ) {
                     Text(
-                        text = DateUtils.formatMessageTime(message.timestamp),
+                        text = DateUtils.formatMessageTime(message.timestamp.time),
                         color = Color.Gray,
                         fontSize = 11.sp
                     )
-                    if (message.isMe) {
-                        MessageStatusIcon(status = message.status)
+                    if (message.isOwn) {
+                        // Маппинг статуса из data в domain, если они отличаются пакетами
+                        // Но в данном проекте они имеют одинаковые имена enum-констант
+                        val domainStatus = try {
+                            com.example.messenger.domain.model.MessageStatus.valueOf(message.status.name)
+                        } catch (e: Exception) {
+                            com.example.messenger.domain.model.MessageStatus.SENT
+                        }
+                        MessageStatusIcon(status = domainStatus)
                     }
                 }
             }
@@ -105,7 +116,9 @@ fun MessageWithContextMenu(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.3f))
-                        .clickable { showMenu = false },
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { showMenu = false })
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     ContextMenuContent(
@@ -114,7 +127,7 @@ fun MessageWithContextMenu(
                                 onCopy()
                                 showMenu = false
                             }),
-                            MessageAction("Reply", Icons.Default.Reply, onClick = {
+                            MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, onClick = {
                                 onReply()
                                 showMenu = false
                             }),
@@ -126,7 +139,7 @@ fun MessageWithContextMenu(
                                 onPin()
                                 showMenu = false
                             }),
-                            MessageAction("Send", Icons.Default.Send, onClick = {
+                            MessageAction("Send", Icons.AutoMirrored.Filled.Send, onClick = {
                                 onForward()
                                 showMenu = false
                             }),
@@ -218,10 +231,10 @@ fun ContextMenuPreview() {
             ContextMenuContent(
                 actions = listOf(
                     MessageAction("Copy", Icons.Default.ContentCopy, onClick = {}),
-                    MessageAction("Reply", Icons.Default.Reply, onClick = {}),
+                    MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, onClick = {}),
                     MessageAction("Edit", Icons.Default.Edit, onClick = {}),
                     MessageAction("Pin", Icons.Default.PushPin, onClick = {}),
-                    MessageAction("Send", Icons.Default.Send, onClick = {}),
+                    MessageAction("Send", Icons.AutoMirrored.Filled.Send, onClick = {}),
                     MessageAction("Delete...", Icons.Default.Delete, color = Color.Red, onClick = {})
                 )
             )
