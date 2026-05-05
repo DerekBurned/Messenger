@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -53,6 +55,13 @@ fun ChatScreenWithNav(
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     val context = LocalContext.current
+    val attachmentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            Toast.makeText(context, "Attachment selected: $uri (upload coming soon)", Toast.LENGTH_SHORT).show()
+        }
+    }
     val chatMessages = remember(uiState.messages) {
         uiState.messages.map { msg ->
             ChatMessage(
@@ -178,9 +187,15 @@ fun ChatScreenWithNav(
                                 onReply = {
                                     viewModel.setReplyTo(originalMessage)
                                 },
-                                onEdit = { },
-                                onPin = { },
-                                onForward = { },
+                                onEdit = {
+                                    Toast.makeText(context, "Edit coming soon", Toast.LENGTH_SHORT).show()
+                                },
+                                onPin = {
+                                    Toast.makeText(context, "Pin coming soon", Toast.LENGTH_SHORT).show()
+                                },
+                                onForward = {
+                                    Toast.makeText(context, "Forward coming soon", Toast.LENGTH_SHORT).show()
+                                },
                                 onDelete = {
                                     if (originalMessage.senderId == currentUserId) {
                                         viewModel.deleteMessage(originalMessage)
@@ -246,7 +261,7 @@ fun ChatScreenWithNav(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { },
+                    onClick = { attachmentPicker.launch(arrayOf("*/*")) },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(

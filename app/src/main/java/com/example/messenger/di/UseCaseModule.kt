@@ -8,11 +8,9 @@ import com.example.messenger.domain.repository.ISyncRepository
 import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
-import com.example.messenger.domain.usecase.auth.LoginWithEmailUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.auth.ObserveAuthStateUseCase
-import com.example.messenger.domain.usecase.auth.RegisterUseCase
 import com.example.messenger.domain.usecase.conversation.CreateConversationUseCase
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
@@ -43,12 +41,6 @@ object UseCaseModule {
         return GetCurrentUserUseCase(repository)
     }
     @Provides
-    fun provideLoginWithEmailUseCase(
-        repository: IAuthRepository
-    ): LoginWithEmailUseCase {
-        return LoginWithEmailUseCase(repository)
-    }
-    @Provides
     fun provideLoginWithPhoneNumberUseCase(
         repository: IAuthRepository
     ): LoginWithPhoneNumberUseCase{
@@ -74,13 +66,6 @@ object UseCaseModule {
         authRepository: IAuthRepository
     ): ObserveAuthStateUseCase {
         return ObserveAuthStateUseCase(authRepository)
-    }
-
-    @Provides
-    fun provideRegisterUseCase(
-        authRepository: IAuthRepository
-    ): RegisterUseCase {
-        return RegisterUseCase(authRepository)
     }
 
     @Provides

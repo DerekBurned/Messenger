@@ -6,11 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.firebase.FirebaseAuthService
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
-import com.example.messenger.domain.usecase.auth.LoginWithEmailUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.auth.ObserveAuthStateUseCase
-import com.example.messenger.domain.usecase.auth.RegisterUseCase
 import com.example.messenger.presentation.state.AuthUiState
 import com.example.messenger.util.Resource
 import com.example.messenger.util.VerificationResult
@@ -26,19 +24,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val loginWithEmailUseCase: LoginWithEmailUseCase,
-    private val registerUseCase: RegisterUseCase,
     private val loginWithPhoneNumberUseCase: LoginWithPhoneNumberUseCase,
     private val linkPhoneUseCase: LinkPhoneUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val firebaseAuthService: FirebaseAuthService,
-    private val presenceManager: PresenceManager
+    private val presenceManager: PresenceManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    private var verificationId: String? = null
+    private var pendingUsername: String? = null
 
     init {
         observeAuthStatus()
@@ -52,44 +48,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun loginWithEmail(email: String, pass: String) {
-        viewModelScope.launch {
-            loginWithEmailUseCase(email, pass).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
-                    is Resource.Success -> _uiState.update {
-                        it.copy(isLoading = false, currentUser = resource.data, loginSuccess = true, error = null)
-                    }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.message)
-                    }
-                    is Resource.Failure -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.exception.message)
-                    }
-                }
-            }
-        }
-    }
-
-    fun register(email: String, pass: String, username: String) {
-        viewModelScope.launch {
-            registerUseCase(email, pass, username).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
-                    is Resource.Success -> _uiState.update {
-                        it.copy(isLoading = false, currentUser = resource.data, registerSuccess = true, error = null)
-                    }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.message)
-                    }
-                    is Resource.Failure -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.exception.message)
-                    }
-                }
-            }
-        }
-    }
-
     fun logout() {
         viewModelScope.launch {
             presenceManager.disconnect(viewModelScope)
@@ -98,7 +56,8 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun sendVerificationCode(activity: Activity, phoneNumber: String) {
+    fun sendVerificationCode(activity: Activity, phoneNumber: String, username: String? = null) {
+        pendingUsername = username
         _uiState.update { it.copy(isLoading = true, error = null, codeSent = false) }
 
         viewModelScope.launch {
@@ -107,7 +66,6 @@ class AuthViewModel @Inject constructor(
             if (result.isSuccess) {
                 when (val verifyResult = result.getOrThrow()) {
                     is VerificationResult.CodeSent -> {
-                        verificationId = verifyResult.verificationId
                         _uiState.update { it.copy(isLoading = false, codeSent = true) }
                     }
                     is VerificationResult.AutoVerified -> {
@@ -146,10 +104,17 @@ class AuthViewModel @Inject constructor(
     private fun signInWithPhone(credential: PhoneAuthCredential) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = loginWithPhoneNumberUseCase(credential)
+            val result = loginWithPhoneNumberUseCase(credential, pendingUsername)
+            pendingUsername = null
             when (result) {
                 is Resource.Success -> _uiState.update {
-                    it.copy(isLoading = false, currentUser = result.data, loginSuccess = true, error = null)
+                    it.copy(
+                        isLoading = false,
+                        currentUser = result.data,
+                        loginSuccess = true,
+                        registerSuccess = true,
+                        error = null,
+                    )
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(isLoading = false, error = result.message)

@@ -4,6 +4,11 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.kotlin.serialization)
+    // Realm Kotlin plugin is disabled: realm-kotlin 3.0.0 is incompatible with Kotlin 2.3.10
+    // (compiler API NoSuchMethodError on FirResolvedTypeRef.getType()). Re-enable once Realm
+    // ships a Kotlin 2.3-compatible release, then complete Phase 2 of the integration plan.
+    // alias(libs.plugins.realm.kotlin)
 }
 
 android {
@@ -78,11 +83,16 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.database)
     implementation(libs.google.gms.auth.phone)
-    // Room - using KSP
+
+    // Room (kept during Room→Realm transition; Realm is primary cache per tech spec)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.compose.foundation)
     ksp(libs.androidx.room.compiler)
+
+    // Realm Kotlin SDK is declared in libs.versions.toml but not wired here — blocked by
+    // Kotlin 2.3 incompatibility; see plugins block comment.
+    // implementation(libs.realm.base)
+    implementation(libs.androidx.compose.foundation)
 
     // Hilt - using KSP
     implementation(libs.hilt.android)
@@ -90,8 +100,12 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.work)
 
-    // Navigation
+    // Navigation (Nav2 kept during transition; Nav3 primary per tech spec)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.json)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)

@@ -1,6 +1,5 @@
 package com.example.messenger.data.remote.firebase
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.*
@@ -33,7 +32,6 @@ class FirebaseAuthService @Inject constructor(
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
 
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                
                 if (continuation.isActive) {
                     continuation.resume(
                         Result.success(VerificationResult.AutoVerified(credential))
@@ -100,70 +98,7 @@ class FirebaseAuthService @Inject constructor(
             if (credentialResult.isFailure) {
                 return Result.failure(credentialResult.exceptionOrNull()!!)
             }
-
-            val credential = credentialResult.getOrNull()!!
-            signInWithPhone(credential)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun registerWithEmail(
-        email: String,
-        password: String,
-        displayName: String
-    ): Result<FirebaseUser> {
-        return try {
-            val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = result.user ?: throw Exception("Registration failed")
-
-            val profileUpdates = UserProfileChangeRequest.Builder()
-                .setDisplayName(displayName)
-                .build()
-            user.updateProfile(profileUpdates).await()
-
-            Result.success(user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun loginWithEmail(email: String, password: String): Result<FirebaseUser> {
-        return try {
-            val result = auth.signInWithEmailAndPassword(email, password).await()
-            val user = result.user ?: throw Exception("Login failed")
-            Result.success(user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun resetPassword(email: String): Result<Unit> {
-        return try {
-            auth.sendPasswordResetEmail(email).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun linkEmail(email: String, password: String): Result<Unit> {
-        return try {
-            val user = getCurrentUser()
-                ?: return Result.failure(Exception("No user signed in"))
-
-            if (isEmailLinked()) {
-                return Result.failure(Exception("Email already linked to this account"))
-            }
-
-            val credential = EmailAuthProvider.getCredential(email, password)
-
-            user.linkWithCredential(credential).await()
-
-            Result.success(Unit)
-        } catch (e: FirebaseAuthUserCollisionException) {
-            
-            Result.failure(Exception("This email is already registered to another account"))
+            signInWithPhone(credentialResult.getOrNull()!!)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -173,77 +108,16 @@ class FirebaseAuthService @Inject constructor(
         return try {
             val user = getCurrentUser()
                 ?: return Result.failure(Exception("No user signed in"))
-
             if (isPhoneLinked()) {
                 return Result.failure(Exception("Phone already linked to this account"))
             }
-
             user.linkWithCredential(credential).await()
-
             Result.success(Unit)
         } catch (e: FirebaseAuthUserCollisionException) {
-            
             Result.failure(Exception("This phone number is already registered to another account"))
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    suspend fun sendVerificationCodeToLink(
-        phoneNumber: String,
-        activity: Activity
-    ): Result<VerificationResult> {
-        
-        return sendVerificationCode(phoneNumber, activity)
-    }
-
-    suspend fun verifyCodeAndLinkPhone(code: String): Result<Unit> {
-        return try {
-            val credentialResult = verifyCode(code)
-            if (credentialResult.isFailure) {
-                return Result.failure(credentialResult.exceptionOrNull()!!)
-            }
-
-            val credential = credentialResult.getOrNull()!!
-            linkPhone(credential)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun unlinkEmail(): Result<Unit> {
-        return try {
-            val user = getCurrentUser() ?: throw Exception("No user signed in")
-
-            if (!isEmailLinked()) {
-                return Result.failure(Exception("No email linked to unlink"))
-            }
-
-            user.unlink(EmailAuthProvider.PROVIDER_ID).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun unlinkPhone(): Result<Unit> {
-        return try {
-            val user = getCurrentUser() ?: throw Exception("No user signed in")
-
-            if (!isPhoneLinked()) {
-                return Result.failure(Exception("No phone linked to unlink"))
-            }
-
-            user.unlink(PhoneAuthProvider.PROVIDER_ID).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    fun isEmailLinked(): Boolean {
-        val user = getCurrentUser() ?: return false
-        return user.providerData.any { it.providerId == EmailAuthProvider.PROVIDER_ID }
     }
 
     fun isPhoneLinked(): Boolean {
@@ -251,14 +125,7 @@ class FirebaseAuthService @Inject constructor(
         return user.providerData.any { it.providerId == PhoneAuthProvider.PROVIDER_ID }
     }
 
-    fun getLinkedProviders(): List<String> {
-        val user = getCurrentUser() ?: return emptyList()
-        return user.providerData.map { it.providerId }
-    }
-
     fun getUserPhoneNumber(): String? = getCurrentUser()?.phoneNumber
-
-    fun getUserEmail(): String? = getCurrentUser()?.email
 
     fun getCurrentUser(): FirebaseUser? = auth.currentUser
 
@@ -269,7 +136,6 @@ class FirebaseAuthService @Inject constructor(
             trySend(auth.currentUser)
         }
         auth.addAuthStateListener(listener)
-
         awaitClose {
             auth.removeAuthStateListener(listener)
         }
@@ -359,4 +225,3 @@ class FirebaseAuthService @Inject constructor(
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 }
-

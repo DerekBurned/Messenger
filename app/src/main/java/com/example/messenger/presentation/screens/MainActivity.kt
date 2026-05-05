@@ -53,6 +53,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+enum class MainTab { CHATS, CALLS, CONTACTS, SETTINGS }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWithNav(
@@ -60,21 +62,48 @@ fun MainScreenWithNav(
     onChatClick: (String, String, String) -> Unit = { _, _, _ -> },
     onLogoutClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onSearchClick: () -> Unit = {}
+    onSearchClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
 ) {
+    var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBarContentM3(onLogoutClick = onLogoutClick, onSearchClick = onSearchClick) },
-        bottomBar = { BottomNavBarM3(onProfileClick = onProfileClick) },
+        topBar = {
+            TopAppBarContentM3(
+                title = when (selectedTab) {
+                    MainTab.CHATS -> "Chats"
+                    MainTab.CALLS -> "Calls"
+                    MainTab.CONTACTS -> "Contacts"
+                    MainTab.SETTINGS -> "Settings"
+                },
+                onLogoutClick = onLogoutClick,
+                onSearchClick = onSearchClick,
+                showSearch = selectedTab != MainTab.SETTINGS,
+            )
+        },
+        bottomBar = {
+            BottomNavBarM3(
+                selected = selectedTab,
+                onTabSelected = { tab ->
+                    if (tab == MainTab.SETTINGS) {
+                        onSettingsClick()
+                    } else {
+                        selectedTab = tab
+                    }
+                },
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onSearchClick,
-                containerColor = PrimaryBlue,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "New Chat")
+            if (selectedTab == MainTab.CHATS) {
+                FloatingActionButton(
+                    onClick = onSearchClick,
+                    containerColor = PrimaryBlue,
+                    contentColor = Color.White,
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New Chat")
+                }
             }
         }
     ) { innerPadding ->
@@ -84,59 +113,69 @@ fun MainScreenWithNav(
                 .padding(innerPadding)
                 .background(Color.White)
         ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = PrimaryBlue
-                    )
+            when (selectedTab) {
+                MainTab.CHATS -> ChatsTabContent(
+                    uiState = uiState,
+                    onRefresh = { viewModel.refresh() },
+                    onChatClick = onChatClick,
+                )
+                MainTab.CALLS -> CallsScreenContent()
+                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { /* TODO navigate to user profile */ })
+                MainTab.SETTINGS -> Unit 
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatsTabContent(
+    uiState: com.example.messenger.presentation.state.ConversationsUiState,
+    onRefresh: () -> Unit,
+    onChatClick: (String, String, String) -> Unit,
+) {
+    when {
+        uiState.isLoading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PrimaryBlue)
+            }
+        }
+        uiState.error != null -> {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(text = uiState.error!!, color = Color.Red)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = onRefresh, colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)) {
+                    Text("Retry")
                 }
-                uiState.error != null -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = uiState.error!!,
-                            color = Color.Red
+            }
+        }
+        uiState.conversations.isEmpty() -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No conversations yet", color = Color.Gray)
+            }
+        }
+        else -> {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    items(uiState.conversations) { conversation ->
+                        val otherUserId = conversation.participantIds
+                            .firstOrNull { it != currentUserId } ?: ""
+                        val otherUserName = conversation.participantNames.firstOrNull() ?: "Unknown"
+                        val presence = uiState.presenceMap[otherUserId]
+                        ChatListItemM3(
+                            conversation = conversation,
+                            presence = presence,
+                            onClick = { onChatClick(conversation.id, otherUserId, otherUserName) },
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { viewModel.refresh() },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
-                        ) {
-                            Text("Retry")
-                        }
-                    }
-                }
-                uiState.conversations.isEmpty() -> {
-                    Text(
-                        text = "No conversations yet",
-                        color = Color.Gray,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                else -> {
-                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                    PullToRefreshBox(
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(uiState.conversations) { conversation ->
-                                val otherUserId = conversation.participantIds
-                                    .firstOrNull { it != currentUserId } ?: ""
-                                val otherUserName = conversation.participantNames
-                                    .firstOrNull() ?: "Unknown"
-                                val presence = uiState.presenceMap[otherUserId]
-                                ChatListItemM3(
-                                    conversation = conversation,
-                                    presence = presence,
-                                    onClick = { onChatClick(conversation.id, otherUserId, otherUserName) }
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -146,35 +185,36 @@ fun MainScreenWithNav(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarContentM3(onLogoutClick: () -> Unit = {}, onSearchClick: () -> Unit = {}) {
+fun TopAppBarContentM3(
+    title: String = "Chats",
+    onLogoutClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    showSearch: Boolean = true,
+) {
     CenterAlignedTopAppBar(
         title = {
-            Text(
-                text = "Chats",
-                fontWeight = FontWeight.Bold
-            )
+            Text(text = title, fontWeight = FontWeight.Bold)
         },
         navigationIcon = {
             IconButton(onClick = onLogoutClick) {
                 Icon(
                     imageVector = Icons.Filled.Logout,
                     tint = Color.White,
-                    contentDescription = "Logout"
+                    contentDescription = "Logout",
                 )
             }
         },
         actions = {
-            IconButton(onClick = onSearchClick) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "Search"
-                )
+            if (showSearch) {
+                IconButton(onClick = onSearchClick) {
+                    Icon(imageVector = Icons.Filled.Search, contentDescription = "Search")
+                }
             }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = PrimaryBlue,
             titleContentColor = Color.White,
-            actionIconContentColor = Color.White
+            actionIconContentColor = Color.White,
         )
     )
 }
@@ -241,46 +281,48 @@ fun ChatListItemM3(
 }
 
 @Composable
-fun BottomNavBarM3(onProfileClick: () -> Unit = {}) {
-    var selectedItem by remember { mutableStateOf(1) }
-
+fun BottomNavBarM3(
+    selected: MainTab = MainTab.CHATS,
+    onTabSelected: (MainTab) -> Unit = {},
+) {
     NavigationBar(
         containerColor = PrimaryBlue,
-        contentColor = Color.White
+        contentColor = Color.White,
     ) {
         val itemColors = NavigationBarItemDefaults.colors(
             selectedIconColor = Color.White,
             selectedTextColor = Color.White,
             unselectedIconColor = Color.White.copy(alpha = 0.6f),
             unselectedTextColor = Color.White.copy(alpha = 0.6f),
-            indicatorColor = PrimaryBlue
+            indicatorColor = PrimaryBlue,
         )
-
-        NavigationBarItem(
-            icon = { Icon(Icons.Filled.Call, contentDescription = "Calls") },
-            label = { Text("calls") },
-            selected = selectedItem == 0,
-            onClick = { selectedItem = 0 },
-            colors = itemColors
-        )
-
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Email, contentDescription = "Chats") },
             label = { Text("chats") },
-            selected = selectedItem == 1,
-            onClick = { selectedItem = 1 },
-            colors = itemColors
+            selected = selected == MainTab.CHATS,
+            onClick = { onTabSelected(MainTab.CHATS) },
+            colors = itemColors,
         )
-
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
-            label = { Text("profile") },
-            selected = selectedItem == 2,
-            onClick = {
-                selectedItem = 2
-                onProfileClick()
-            },
-            colors = itemColors
+            icon = { Icon(Icons.Filled.Call, contentDescription = "Calls") },
+            label = { Text("calls") },
+            selected = selected == MainTab.CALLS,
+            onClick = { onTabSelected(MainTab.CALLS) },
+            colors = itemColors,
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Filled.Person, contentDescription = "Contacts") },
+            label = { Text("contacts") },
+            selected = selected == MainTab.CONTACTS,
+            onClick = { onTabSelected(MainTab.CONTACTS) },
+            colors = itemColors,
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
+            label = { Text("settings") },
+            selected = selected == MainTab.SETTINGS,
+            onClick = { onTabSelected(MainTab.SETTINGS) },
+            colors = itemColors,
         )
     }
 }

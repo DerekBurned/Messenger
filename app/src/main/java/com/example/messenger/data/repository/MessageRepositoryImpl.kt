@@ -28,9 +28,12 @@ class MessageRepositoryImpl @Inject constructor(
             val result = messageService.sendMessage(message)
             if (result.isSuccess) {
                 messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
+            } else {
+                messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
             }
             result
         } catch (e: Exception) {
+            runCatching { messageDao.updateMessageStatus(message.id, MessageStatus.FAILED) }
             Result.failure(e)
         }
     }
