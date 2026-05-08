@@ -29,6 +29,16 @@ sealed class Screens(val route: String) {
     object ProfileScreen : Screens("profile_screen")
     object SearchScreen : Screens("search_screen")
     object SettingsScreen : Screens("settings_screen")
+    object EditProfileScreen : Screens("edit_profile_screen")
+    object ChangeAccountScreen : Screens("change_account_screen")
+    object EditChatScreen : Screens("edit_chat_screen")
+    object CallScreen : Screens("call_screen")
+    object ChatUserProfileScreen : Screens("chat_user_profile_screen/{userId}") {
+        fun createRoute(userId: String): String = "chat_user_profile_screen/$userId"
+    }
+    object EditContactDataScreen : Screens("edit_contact_data_screen/{contactId}") {
+        fun createRoute(contactId: String): String = "edit_contact_data_screen/$contactId"
+    }
 }
 
 @Composable
@@ -156,6 +166,56 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     }
                 }
             )
+        }
+
+        composable(route = Screens.EditProfileScreen.route) {
+            EditProfileScreen(
+                onBackClick = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screens.LoginScreen.route) {
+                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                    }
+                },
+                onChangeAccount = { navController.navigate(Screens.ChangeAccountScreen.route) },
+            )
+        }
+
+        composable(route = Screens.ChangeAccountScreen.route) {
+            ChangeAccountScreen(
+                onBackClick = { navController.popBackStack() },
+                onAddAccount = { navController.navigate(Screens.LoginScreen.route) },
+            )
+        }
+
+        composable(route = Screens.EditChatScreen.route) {
+            EditChatScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.CallScreen.route) {
+            CallScreen(onCallEnded = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Screens.ChatUserProfileScreen.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId").orEmpty()
+            ChatUserProfileScreen(
+                onBackClick = { navController.popBackStack() },
+                onCallClick = { navController.navigate(Screens.CallScreen.route) },
+                onEditClick = {
+                    navController.navigate(Screens.EditContactDataScreen.createRoute(userId))
+                },
+            )
+        }
+
+        composable(
+            route = Screens.EditContactDataScreen.route,
+            arguments = listOf(navArgument("contactId") { type = NavType.StringType })
+        ) {
+            EditContactDataScreen(onBackClick = { navController.popBackStack() })
         }
 
         composable(

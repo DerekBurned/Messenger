@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,4 +101,12 @@ private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
         Text(text = title, fontSize = 16.sp, modifier = Modifier.weight(1f))
     }
     HorizontalDivider(color = LightGray)
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SettingsScreenPreview() {
+    MessengerTheme {
+        SettingsScreen()
+    }
 }

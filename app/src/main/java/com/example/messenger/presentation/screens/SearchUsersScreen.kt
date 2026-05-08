@@ -18,12 +18,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.SearchUsersViewModel
 import kotlinx.coroutines.delay
@@ -195,4 +197,12 @@ fun SearchUserItem(
         }
     }
     HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SearchUsersScreenPreview() {
+    MessengerTheme {
+        SearchUsersScreen()
+    }
 }

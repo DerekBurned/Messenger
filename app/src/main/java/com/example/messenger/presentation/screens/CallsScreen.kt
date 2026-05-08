@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 
 enum class CallsFilter { ALL, MISSED }
@@ -81,5 +83,13 @@ fun CallsScreenContent(
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CallsScreenContentPreview() {
+    MessengerTheme {
+        CallsScreenContent()
     }
 }

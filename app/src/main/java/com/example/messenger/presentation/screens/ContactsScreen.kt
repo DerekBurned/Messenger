@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.SearchUsersViewModel
 
@@ -117,4 +119,12 @@ private fun ContactRow(user: User, onClick: () -> Unit) {
         }
     }
     HorizontalDivider(color = LightGray, modifier = Modifier.padding(start = 72.dp))
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ContactsScreenContentPreview() {
+    MessengerTheme {
+        ContactsScreenContent()
+    }
 }
