@@ -1,8 +1,16 @@
-package com.example.messenger.data.remote.firebase
+package com.example.messenger.data.remote.auth
 
 import android.app.Activity
+import androidx.core.net.toUri
+import com.example.messenger.util.VerificationResult
 import com.google.firebase.FirebaseException
-import com.google.firebase.auth.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -13,8 +21,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import androidx.core.net.toUri
-import com.example.messenger.util.VerificationResult
 
 @Singleton
 class FirebaseAuthService @Inject constructor(

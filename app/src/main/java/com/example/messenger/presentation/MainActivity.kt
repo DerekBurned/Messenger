@@ -1,4 +1,4 @@
-package com.example.messenger.presentation.screens
+package com.example.messenger.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -28,13 +28,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.example.messenger.domain.model.Conversation
-import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.domain.model.UserPresence
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.navigation.AppNavigation
+import com.example.messenger.presentation.screens.CallsScreenContent
+import com.example.messenger.presentation.screens.ContactsScreenContent
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.state.ConversationsUiState
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
@@ -130,7 +132,7 @@ fun MainScreenWithNav(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatsTabContent(
-    uiState: com.example.messenger.presentation.state.ConversationsUiState,
+    uiState: ConversationsUiState,
     onRefresh: () -> Unit,
     onChatClick: (String, String, String) -> Unit,
 ) {

@@ -1,6 +1,6 @@
 package com.example.messenger.di
 
-import com.example.messenger.data.remote.firebase.FirebaseAuthService
+import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore

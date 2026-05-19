@@ -3,7 +3,7 @@ package com.example.messenger.data.repository
 import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
-import com.example.messenger.data.remote.firebase.FirebaseAuthService
+import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
@@ -58,7 +58,6 @@ class ConversationRepositoryImpl @Inject constructor(
                 names.add(user?.username ?: "Unknown")
                 avatars.add(user?.avatarUrl)
             }
-
             val conversation = Conversation(
                 id = "",
                 participantIds = participantIds,

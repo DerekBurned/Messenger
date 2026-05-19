@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.messenger.presentation.MainScreenWithNav
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
@@ -111,7 +112,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Screens.MainScreen.route) {
             MainScreenWithNav(
                 onChatClick = { conversationId, partnerId, partnerName ->
-                    navController.navigate(Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName))
+                    navController.navigate(
+                        Screens.ChatScreen.createRoute(
+                            conversationId,
+                            partnerId,
+                            partnerName
+                        )
+                    )
                 },
                 onLogoutClick = {
                     authViewModel.logout()

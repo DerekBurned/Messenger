@@ -131,6 +131,8 @@ dependencies {
     // Gson
     implementation(libs.google.gson)
 
+    //AgoraRTC
+    implementation("io.agora.rtc:voice-sdk:4.5.0")
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

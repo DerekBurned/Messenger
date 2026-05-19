@@ -1,6 +1,6 @@
 package com.example.messenger.data.repository
 
-import com.example.messenger.data.remote.firebase.FirebaseAuthService
+import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IAuthRepository

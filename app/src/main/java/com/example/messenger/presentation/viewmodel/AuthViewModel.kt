@@ -4,7 +4,7 @@ import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.presence.PresenceManager
-import com.example.messenger.data.remote.firebase.FirebaseAuthService
+import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase

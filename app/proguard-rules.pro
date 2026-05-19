@@ -35,3 +35,7 @@
 # Keep line numbers for better crash reports
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Prevent agora from abfuscation
+-keep class io.agora.** { *; }
+-dontwarn io.agora.**
