@@ -85,6 +85,7 @@ fun MainScreenWithNav(
 private fun MainScreenContent(
     uiState: ConversationsUiState,
     onChatClick: (String, String, String) -> Unit,
+    onChatHold: (String) -> Unit = {},
     onRefresh: () -> Unit,
     onSearchClick: () -> Unit,
     onLogoutClick: () -> Unit,

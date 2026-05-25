@@ -1,5 +1,6 @@
 package com.example.messenger.data.local.repository
 
+import androidx.room.withTransaction
 import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.local.dao.MessageDao
 import com.example.messenger.data.local.dao.UserDao
@@ -40,7 +41,7 @@ class LocalRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetDB() = withContext(Dispatchers.IO){
-        db.runInTransaction {
+        db.withTransaction {
             db.clearAllTables()
             db.databaseDao().clearPrimaryKeyIndex()
         }

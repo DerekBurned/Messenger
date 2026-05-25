@@ -27,7 +27,8 @@ import com.example.messenger.presentation.viewmodel.ProfileViewModel
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    onStartEditing: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -38,7 +39,7 @@ fun ProfileScreen(
             viewModel.logout()
             onLogoutClick()
         },
-        onStartEditing = { viewModel.startEditing() },
+        onStartEditing = onStartEditing,
         onCancelEditing = { viewModel.cancelEditing() },
         onSaveProfile = { editedUsername -> viewModel.updateProfile(editedUsername) },
     )
@@ -76,7 +77,16 @@ private fun ProfileScreenContent(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF5B8DEE)
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onStartEditing) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
@@ -128,12 +138,6 @@ private fun ProfileScreenContent(
             Spacer(modifier = Modifier.height(40.dp))
 
             ProfileMenuItem(
-                icon = Icons.Default.Edit,
-                title = "Edit Profile",
-                onClick = onStartEditing
-            )
-
-            ProfileMenuItem(
                 icon = Icons.Default.Notifications,
                 title = "Notifications",
                 onClick = { /* TODO */ }
@@ -176,38 +180,6 @@ private fun ProfileScreenContent(
         }
     }
 
-    if (uiState.isEditing) {
-        var editedUsername by remember { mutableStateOf(uiState.user?.username ?: "") }
-
-        AlertDialog(
-            onDismissRequest = onCancelEditing,
-            title = { Text("Edit Profile") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = editedUsername,
-                        onValueChange = { editedUsername = it },
-                        label = { Text("Username") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { onSaveProfile(editedUsername) },
-                    enabled = !uiState.isLoading
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onCancelEditing) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @Composable

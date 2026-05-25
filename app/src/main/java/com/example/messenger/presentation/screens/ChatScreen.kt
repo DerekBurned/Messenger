@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.*
@@ -47,7 +49,9 @@ import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun ChatScreenWithNav(
     viewModel: ChatViewModel = hiltViewModel(),
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onCallClick: () -> Unit = {},
+    onIntercultorProfileClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
@@ -115,6 +119,8 @@ fun ChatScreenWithNav(
         },
         onClearReply = { viewModel.clearReply() },
         onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
+        onIntercultorProfileClick = onIntercultorProfileClick,
+        onCallClick = onCallClick,
     )
 }
 
@@ -127,6 +133,8 @@ private fun ChatScreenContent(
     onMessageTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onBackClick: () -> Unit,
+    onCallClick: () -> Unit,
+    onIntercultorProfileClick: () -> Unit,
     onCopy: (String) -> Unit,
     onReply: (com.example.messenger.domain.model.Message) -> Unit,
     onDelete: (com.example.messenger.domain.model.Message) -> Unit,
@@ -174,10 +182,21 @@ private fun ChatScreenContent(
                     }
                 },
                 actions = {
-                    Box(contentAlignment = Alignment.BottomEnd) {
+                    IconButton(onClick =  onCallClick ) {
+                        Icon(Icons.Default.Call,
+                            contentDescription = "Close",
+                            tint = Color.White
+                        )
+                    }
+                    Box(
+                        contentAlignment = Alignment.BottomEnd,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clickable { onIntercultorProfileClick() }
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .matchParentSize()
                                 .padding(8.dp)
                                 .background(Color.White.copy(alpha = 0.3f), CircleShape)
                         )
@@ -424,11 +443,13 @@ private fun ChatScreenPreview() {
             onMessageTextChange = {},
             onSendClick = {},
             onBackClick = {},
+            onCallClick = {},
             onCopy = {},
             onReply = {},
             onDelete = {},
             onClearReply = {},
             onAttachmentClick = {},
+            onIntercultorProfileClick = {}
         )
     }
 }

@@ -6,7 +6,9 @@ import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
+import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
 import com.example.messenger.presentation.state.ProfileUiState
+import com.example.messenger.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val getUserByIdUseCase: GetUserByIdUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val presenceManager: PresenceManager,
     private val userRepository: IUserRepository
@@ -31,9 +34,29 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun loadProfile() {
-        _uiState.update { it.copy(isLoading = true) }
-        val user = getCurrentUserUseCase()
-        _uiState.update { it.copy(isLoading = false, user = user) }
+        val authUser = getCurrentUserUseCase()
+        if (authUser == null) {
+            _uiState.update { it.copy(isLoading = false, user = null) }
+            return
+        }
+        
+        _uiState.update { it.copy(isLoading = true, user = authUser) }
+        viewModelScope.launch {
+            getUserByIdUseCase(authUser.id).collect { resource ->
+                when (resource) {
+                    is Resource.Success -> _uiState.update {
+                        it.copy(isLoading = false, user = resource.data ?: authUser)
+                    }
+                    is Resource.Error -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.message)
+                    }
+                    is Resource.Failure -> _uiState.update {
+                        it.copy(isLoading = false, error = resource.exception.message)
+                    }
+                    is Resource.Loading -> {}
+                }
+            }
+        }
     }
 
     fun logout() {

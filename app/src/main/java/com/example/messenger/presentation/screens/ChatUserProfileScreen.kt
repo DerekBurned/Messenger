@@ -125,7 +125,7 @@ private fun ProfileHeader(
                 val user = state.user ?: return@Button
                 onCallClick(
                     user.id,
-                    user.username!!,
+                    user.username.orEmpty(),
                     user.phoneNumber?.getFullNumber().orEmpty(),
                 )
             },

@@ -165,6 +165,9 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
                 },
+                onStartEditing = {
+                    navController.navigate(Screens.EditProfileScreen.route)
+                },
             )
         }
 
@@ -247,10 +250,23 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 navArgument("partnerId") { type = NavType.StringType; defaultValue = "" },
                 navArgument("partnerName") { type = NavType.StringType; defaultValue = "" }
             )
-        ) {
+        ) { backStackEntry ->
+            val partnerId = backStackEntry.arguments?.getString("partnerId").orEmpty()
+            val partnerName = backStackEntry.arguments?.getString("partnerName").orEmpty()
             ChatScreenWithNav(
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onIntercultorProfileClick = {
+                    if (partnerId.isNotBlank()) {
+                        navController.navigate(
+                            Screens.ChatUserProfileScreen.createRoute(partnerId)
+                        )
+                    }
+                },
+                onCallClick = {
+                    navController.navigate(Screens.CallScreen.createRoute(partnerId,
+                        partnerName, ""))
                 }
             )
         }
