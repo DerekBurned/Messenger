@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
 interface MessageDao {
 
     @Transaction
-    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp ASC")
     fun getMessagesWithSendersDesc(conversationId: String): Flow<List<MessageWithSender>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
