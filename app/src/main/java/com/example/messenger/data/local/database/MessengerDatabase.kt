@@ -25,4 +25,5 @@ abstract class MessengerDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun profileDao(): ProfileDao
+    abstract fun databaseDao(): DatabaseDao
 }

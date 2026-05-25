@@ -122,7 +122,6 @@ class FirestoreService @Inject constructor(
 
             if (snapshot != null) {
                 val messages = snapshot.toObjects(Message::class.java).mapIndexed { index, message ->
-                    
                     message.copy(id = snapshot.documents[index].id)
                 }
                 trySend(messages) 

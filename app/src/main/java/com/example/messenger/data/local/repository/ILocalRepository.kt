@@ -11,5 +11,6 @@ interface ILocalRepository {
     fun getAllConversations(): Flow<List<ConversationSummary>>
     fun getAllMessages(conversationId: String): Flow<List<MessageWithSender>>
     fun getAllUsers(): Flow<List<User>>
+    suspend fun resetDB()
 }
 

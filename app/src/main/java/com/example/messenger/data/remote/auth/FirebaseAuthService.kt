@@ -1,7 +1,10 @@
 package com.example.messenger.data.remote.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.core.net.toUri
+import com.example.messenger.data.local.database.MessengerDatabase
+import com.example.messenger.data.local.repository.ILocalRepository
 import com.example.messenger.util.VerificationResult
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -11,11 +14,14 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import okhttp3.Dispatcher
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,8 +30,9 @@ import kotlin.coroutines.resumeWithException
 
 @Singleton
 class FirebaseAuthService @Inject constructor(
-    private val auth: FirebaseAuth
-) {
+    private val auth: FirebaseAuth,
+    private val repository: ILocalRepository
+    ) {
 
     private var verificationId: String? = null
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
@@ -57,7 +64,7 @@ class FirebaseAuthService @Inject constructor(
             ) {
                 verificationId = verId
                 resendToken = token
-
+                Log.d("FirebaseAuthService", "onCodeSent: $verId")
                 if (continuation.isActive) {
                     continuation.resume(
                         Result.success(VerificationResult.CodeSent(verId))
@@ -147,7 +154,8 @@ class FirebaseAuthService @Inject constructor(
         }
     }
 
-    fun logout() {
+    suspend fun logout() {
+        repository.resetDB()
         auth.signOut()
         verificationId = null
         resendToken = null
