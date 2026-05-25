@@ -62,13 +62,33 @@ fun SearchUsersScreen(
         }
     }
 
+    SearchUsersScreenContent(
+        uiState = uiState,
+        searchQuery = searchQuery,
+        focusRequester = focusRequester,
+        onQueryChange = { searchQuery = it },
+        onUserClick = { user -> viewModel.createConversationWithUser(user) },
+        onBackClick = onBackClick,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchUsersScreenContent(
+    uiState: com.example.messenger.presentation.state.SearchUsersUiState,
+    searchQuery: String,
+    focusRequester: FocusRequester = remember { FocusRequester() },
+    onQueryChange: (String) -> Unit,
+    onUserClick: (User) -> Unit,
+    onBackClick: () -> Unit,
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = onQueryChange,
                         placeholder = { Text("Search users...", color = Color.White.copy(alpha = 0.7f)) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -146,7 +166,7 @@ fun SearchUsersScreen(
                         items(uiState.users) { user ->
                             SearchUserItem(
                                 user = user,
-                                onClick = { viewModel.createConversationWithUser(user) }
+                                onClick = { onUserClick(user) }
                             )
                         }
                     }
@@ -201,8 +221,17 @@ fun SearchUserItem(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SearchUsersScreenPreview() {
+private fun SearchUsersScreenPreview() {
     MessengerTheme {
-        SearchUsersScreen()
+        SearchUsersScreenContent(
+            uiState = com.example.messenger.presentation.state.SearchUsersUiState(
+                users = emptyList(),
+                isLoading = false,
+            ),
+            searchQuery = "",
+            onQueryChange = {},
+            onUserClick = {},
+            onBackClick = {},
+        )
     }
 }

@@ -81,6 +81,58 @@ fun ChatScreenWithNav(
         }
     }
 
+    ChatScreenContent(
+        uiState = uiState,
+        chatMessages = chatMessages,
+        messageText = messageText,
+        onMessageTextChange = { newText ->
+            messageText = newText
+            viewModel.onTextChanged(newText)
+        },
+        onSendClick = {
+            if (messageText.isNotBlank()) {
+                val textToSend = if (uiState.replyingTo != null) {
+                    "> ${uiState.replyingTo!!.text}\n\n$messageText"
+                } else {
+                    messageText
+                }
+                viewModel.sendMessage(textToSend)
+                viewModel.clearReply()
+                messageText = ""
+            }
+        },
+        onBackClick = onBackClick,
+        onCopy = { text ->
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
+            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+        },
+        onReply = { message -> viewModel.setReplyTo(message) },
+        onDelete = { message ->
+            if (message.senderId == currentUserId) {
+                viewModel.deleteMessage(message)
+            }
+        },
+        onClearReply = { viewModel.clearReply() },
+        onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatScreenContent(
+    uiState: com.example.messenger.presentation.state.ChatUiState,
+    chatMessages: List<ChatMessage>,
+    messageText: String,
+    onMessageTextChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onBackClick: () -> Unit,
+    onCopy: (String) -> Unit,
+    onReply: (com.example.messenger.domain.model.Message) -> Unit,
+    onDelete: (com.example.messenger.domain.model.Message) -> Unit,
+    onClearReply: () -> Unit,
+    onAttachmentClick: () -> Unit,
+) {
     val presenceStatusText = when {
         uiState.isPartnerTyping -> "typing..."
         uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
@@ -178,28 +230,12 @@ fun ChatScreenWithNav(
                             val chatMessage = chatMessages[index]
                             MessageWithContextMenu(
                                 message = chatMessage,
-                                onCopy = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("message", originalMessage.text))
-                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                                },
-                                onReply = {
-                                    viewModel.setReplyTo(originalMessage)
-                                },
-                                onEdit = {
-                                    Toast.makeText(context, "Edit coming soon", Toast.LENGTH_SHORT).show()
-                                },
-                                onPin = {
-                                    Toast.makeText(context, "Pin coming soon", Toast.LENGTH_SHORT).show()
-                                },
-                                onForward = {
-                                    Toast.makeText(context, "Forward coming soon", Toast.LENGTH_SHORT).show()
-                                },
-                                onDelete = {
-                                    if (originalMessage.senderId == currentUserId) {
-                                        viewModel.deleteMessage(originalMessage)
-                                    }
-                                }
+                                onCopy = { onCopy(originalMessage.text) },
+                                onReply = { onReply(originalMessage) },
+                                onEdit = {  },
+                                onPin = {  },
+                                onForward = {  },
+                                onDelete = { onDelete(originalMessage) }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -239,7 +275,7 @@ fun ChatScreenWithNav(
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(
-                        onClick = { viewModel.clearReply() },
+                        onClick = onClearReply,
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -260,7 +296,7 @@ fun ChatScreenWithNav(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { attachmentPicker.launch(arrayOf("*/*")) },
+                    onClick = onAttachmentClick,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
@@ -272,10 +308,7 @@ fun ChatScreenWithNav(
 
                 BasicTextField(
                     value = messageText,
-                    onValueChange = { newText ->
-                        messageText = newText
-                        viewModel.onTextChanged(newText)
-                    },
+                    onValueChange = onMessageTextChange,
                     modifier = Modifier
                         .weight(1f)
                         .background(Color.White, RoundedCornerShape(20.dp))
@@ -289,18 +322,7 @@ fun ChatScreenWithNav(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
-                    onClick = {
-                        if (messageText.isNotBlank()) {
-                            val textToSend = if (uiState.replyingTo != null) {
-                                "> ${uiState.replyingTo!!.text}\n\n$messageText"
-                            } else {
-                                messageText
-                            }
-                            viewModel.sendMessage(textToSend)
-                            viewModel.clearReply()
-                            messageText = ""
-                        }
-                    },
+                    onClick = onSendClick,
                     modifier = Modifier.size(40.dp),
                     enabled = !uiState.isSending
                 ) {
@@ -368,10 +390,45 @@ data class ChatMessage(
     val timestamp: Long = 0L
 )
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ChatScreenPreview() {
+private fun ChatScreenPreview() {
+    val fakeMessages = listOf(
+        com.example.messenger.domain.model.Message(
+            id = "1", senderId = "me", text = "Hey there!", timestamp = 1_700_000_000_000L,
+            status = MessageStatus.READ
+        ),
+        com.example.messenger.domain.model.Message(
+            id = "2", senderId = "partner", text = "Hi! How are you?", timestamp = 1_700_000_060_000L,
+            status = MessageStatus.SENT
+        ),
+        com.example.messenger.domain.model.Message(
+            id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L,
+            status = MessageStatus.DELIVERED
+        ),
+    )
+    val fakeChatMessages = listOf(
+        ChatMessage(text = "Hey there!", isMe = true, status = MessageStatus.READ, timestamp = 1_700_000_000_000L),
+        ChatMessage(text = "Hi! How are you?", isMe = false, status = MessageStatus.SENT, timestamp = 1_700_000_060_000L),
+        ChatMessage(text = "All good, thanks!", isMe = true, status = MessageStatus.DELIVERED, timestamp = 1_700_000_120_000L),
+    )
     MessengerTheme {
-        ChatScreenWithNav()
+        ChatScreenContent(
+            uiState = com.example.messenger.presentation.state.ChatUiState(
+                messages = fakeMessages,
+                partnerUsername = "Alice",
+                isLoading = false,
+            ),
+            chatMessages = fakeChatMessages,
+            messageText = "",
+            onMessageTextChange = {},
+            onSendClick = {},
+            onBackClick = {},
+            onCopy = {},
+            onReply = {},
+            onDelete = {},
+            onClearReply = {},
+            onAttachmentClick = {},
+        )
     }
 }

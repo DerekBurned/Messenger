@@ -41,6 +41,37 @@ fun RegisterScreen(
         }
     }
 
+    RegisterScreenContent(
+        username = username,
+        phoneNumber = phoneNumber,
+        otp = otp,
+        isLoading = uiState.isLoading,
+        error = uiState.error,
+        codeSent = uiState.codeSent,
+        onUsernameChange = { username = it },
+        onPhoneChange = { phoneNumber = it },
+        onOtpChange = { otp = it },
+        onSendOtp = { activity?.let { viewModel.sendVerificationCode(it, phoneNumber, username) } },
+        onVerifyOtp = { viewModel.verifyOtpAndLogin(otp) },
+        onNavigateToLogin = onNavigateToLogin,
+    )
+}
+
+@Composable
+private fun RegisterScreenContent(
+    username: String,
+    phoneNumber: String,
+    otp: String,
+    isLoading: Boolean,
+    error: String?,
+    codeSent: Boolean,
+    onUsernameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onOtpChange: (String) -> Unit,
+    onSendOtp: () -> Unit,
+    onVerifyOtp: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+) {
     Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
         Box(
             modifier = Modifier
@@ -63,24 +94,24 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                if (!uiState.codeSent) {
+                if (!codeSent) {
                     AuthInputTextField(
                         value = username,
-                        onValueChange = { username = it },
+                        onValueChange = onUsernameChange,
                         placeholder = "enter your username",
                         keyboardType = KeyboardType.Text,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     AuthInputTextField(
                         value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
+                        onValueChange = onPhoneChange,
                         placeholder = "enter phone number (e.g. +1234567890)",
                         keyboardType = KeyboardType.Phone,
                     )
                 } else {
                     AuthInputTextField(
                         value = otp,
-                        onValueChange = { otp = it },
+                        onValueChange = onOtpChange,
                         placeholder = "enter SMS code",
                         keyboardType = KeyboardType.Number,
                     )
@@ -88,9 +119,9 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (uiState.error != null) {
+                if (error != null) {
                     Text(
-                        text = uiState.error!!,
+                        text = error,
                         color = Color.Red,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(vertical = 4.dp),
@@ -100,23 +131,15 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = {
-                        if (!uiState.codeSent) {
-                            activity?.let {
-                                viewModel.sendVerificationCode(it, phoneNumber, username)
-                            }
-                        } else {
-                            viewModel.verifyOtpAndLogin(otp)
-                        }
-                    },
+                    onClick = { if (!codeSent) onSendOtp() else onVerifyOtp() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = !uiState.isLoading,
+                    enabled = !isLoading,
                 ) {
-                    if (uiState.isLoading) {
+                    if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             color = Color(0xFF5B8DEE),
@@ -124,7 +147,7 @@ fun RegisterScreen(
                         )
                     } else {
                         Text(
-                            text = if (uiState.codeSent) "Verify code" else "Send code",
+                            text = if (codeSent) "Verify code" else "Send code",
                             color = Color(0xFF5B8DEE),
                             fontSize = 16.sp,
                         )
@@ -146,8 +169,21 @@ fun RegisterScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun RegisterScreenPreview() {
+private fun RegisterScreenPreview() {
     MessengerTheme {
-        RegisterScreen()
+        RegisterScreenContent(
+            username = "",
+            phoneNumber = "",
+            otp = "",
+            isLoading = false,
+            error = null,
+            codeSent = false,
+            onUsernameChange = {},
+            onPhoneChange = {},
+            onOtpChange = {},
+            onSendOtp = {},
+            onVerifyOtp = {},
+            onNavigateToLogin = {},
+        )
     }
 }

@@ -67,8 +67,31 @@ fun MainScreenWithNav(
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
 ) {
-    var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    MainScreenContent(
+        uiState = uiState,
+        onChatClick = onChatClick,
+        onRefresh = { viewModel.refresh() },
+        onSearchClick = onSearchClick,
+        onLogoutClick = onLogoutClick,
+        onProfileClick = onProfileClick,
+        onSettingsClick = onSettingsClick,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainScreenContent(
+    uiState: ConversationsUiState,
+    onChatClick: (String, String, String) -> Unit,
+    onRefresh: () -> Unit,
+    onSearchClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+) {
+    var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -118,7 +141,7 @@ fun MainScreenWithNav(
             when (selectedTab) {
                 MainTab.CHATS -> ChatsTabContent(
                     uiState = uiState,
-                    onRefresh = { viewModel.refresh() },
+                    onRefresh = onRefresh,
                     onChatClick = onChatClick,
                 )
                 MainTab.CALLS -> CallsScreenContent()
@@ -329,10 +352,38 @@ fun BottomNavBarM3(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun MainScreenPreview() {
+private fun MainScreenPreview() {
     MessengerTheme {
-        MainScreenWithNav()
+        MainScreenContent(
+            uiState = ConversationsUiState(
+                conversations = listOf(
+                    Conversation(
+                        id = "conv1",
+                        participantIds = listOf("uid1", "uid2"),
+                        participantNames = listOf("Alice"),
+                        lastMessage = "Hey, how are you?",
+                        lastMessageTimestamp = 1_700_000_000_000L,
+                        unreadCount = 2,
+                    ),
+                    Conversation(
+                        id = "conv2",
+                        participantIds = listOf("uid1", "uid3"),
+                        participantNames = listOf("Bob"),
+                        lastMessage = "Let's catch up soon!",
+                        lastMessageTimestamp = 1_700_000_060_000L,
+                        unreadCount = 0,
+                    ),
+                ),
+                isLoading = false,
+            ),
+            onChatClick = { _, _, _ -> },
+            onRefresh = {},
+            onSearchClick = {},
+            onLogoutClick = {},
+            onProfileClick = {},
+            onSettingsClick = {},
+        )
     }
 }

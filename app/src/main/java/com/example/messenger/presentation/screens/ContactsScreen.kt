@@ -36,13 +36,32 @@ fun ContactsScreenContent(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
 
+    ContactsScreenContentInner(
+        modifier = modifier,
+        users = uiState.users,
+        isLoading = uiState.isLoading,
+        query = query,
+        onQueryChange = {
+            query = it
+            viewModel.searchUsers(it)
+        },
+        onContactClick = onContactClick,
+    )
+}
+
+@Composable
+private fun ContactsScreenContentInner(
+    modifier: Modifier = Modifier,
+    users: List<User>,
+    isLoading: Boolean,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onContactClick: (User) -> Unit,
+) {
     Column(modifier = modifier.fillMaxSize().background(Color.White)) {
         OutlinedTextField(
             value = query,
-            onValueChange = {
-                query = it
-                viewModel.searchUsers(it)
-            },
+            onValueChange = onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -52,12 +71,12 @@ fun ContactsScreenContent(
         )
 
         when {
-            uiState.isLoading -> {
+            isLoading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
-            uiState.users.isEmpty() -> {
+            users.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = if (query.isBlank()) {
@@ -71,7 +90,7 @@ fun ContactsScreenContent(
             }
             else -> {
                 LazyColumn(Modifier.fillMaxSize()) {
-                    items(uiState.users) { user ->
+                    items(users) { user ->
                         ContactRow(user = user, onClick = { onContactClick(user) })
                     }
                 }
@@ -123,8 +142,18 @@ private fun ContactRow(user: User, onClick: () -> Unit) {
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ContactsScreenContentPreview() {
+private fun ContactsScreenContentPreview() {
     MessengerTheme {
-        ContactsScreenContent()
+        ContactsScreenContentInner(
+            users = listOf(
+                User(id = "1", username = "Alice", email = "alice@example.com"),
+                User(id = "2", username = "Bob", email = "bob@example.com"),
+                User(id = "3", username = "Carol", email = "carol@example.com"),
+            ),
+            isLoading = false,
+            query = "",
+            onQueryChange = {},
+            onContactClick = {},
+        )
     }
 }

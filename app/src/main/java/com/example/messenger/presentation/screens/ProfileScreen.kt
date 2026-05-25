@@ -31,6 +31,29 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    ProfileScreenContent(
+        uiState = uiState,
+        onBackClick = onBackClick,
+        onLogoutClick = {
+            viewModel.logout()
+            onLogoutClick()
+        },
+        onStartEditing = { viewModel.startEditing() },
+        onCancelEditing = { viewModel.cancelEditing() },
+        onSaveProfile = { editedUsername -> viewModel.updateProfile(editedUsername) },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileScreenContent(
+    uiState: com.example.messenger.presentation.state.ProfileUiState,
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    onStartEditing: () -> Unit,
+    onCancelEditing: () -> Unit,
+    onSaveProfile: (String) -> Unit,
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -107,7 +130,7 @@ fun ProfileScreen(
             ProfileMenuItem(
                 icon = Icons.Default.Edit,
                 title = "Edit Profile",
-                onClick = { viewModel.startEditing() }
+                onClick = onStartEditing
             )
 
             ProfileMenuItem(
@@ -131,10 +154,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = {
-                    viewModel.logout()
-                    onLogoutClick()
-                },
+                onClick = onLogoutClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)
@@ -160,7 +180,7 @@ fun ProfileScreen(
         var editedUsername by remember { mutableStateOf(uiState.user?.username ?: "") }
 
         AlertDialog(
-            onDismissRequest = { viewModel.cancelEditing() },
+            onDismissRequest = onCancelEditing,
             title = { Text("Edit Profile") },
             text = {
                 Column {
@@ -175,14 +195,14 @@ fun ProfileScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { viewModel.updateProfile(editedUsername) },
+                    onClick = { onSaveProfile(editedUsername) },
                     enabled = !uiState.isLoading
                 ) {
                     Text("Save")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.cancelEditing() }) {
+                TextButton(onClick = onCancelEditing) {
                     Text("Cancel")
                 }
             }
@@ -224,10 +244,23 @@ fun ProfileMenuItem(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ProfileScreenPreview() {
+private fun ProfileScreenPreview() {
     MessengerTheme {
-        ProfileScreen()
+        ProfileScreenContent(
+            uiState = com.example.messenger.presentation.state.ProfileUiState(
+                user = com.example.messenger.domain.model.User(
+                    id = "preview-uid",
+                    username = "Jane Doe",
+                    email = "jane@example.com",
+                )
+            ),
+            onBackClick = {},
+            onLogoutClick = {},
+            onStartEditing = {},
+            onCancelEditing = {},
+            onSaveProfile = {},
+        )
     }
 }
