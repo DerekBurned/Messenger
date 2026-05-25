@@ -59,6 +59,15 @@ android {
     }
 }
 
+// Force matching concurrent-futures across all configurations to resolve a strict-version
+// conflict between WorkManager (pulls 1.1.0) and androidx.test 1.3.0 / espresso 3.7.0 (need 1.2.0).
+configurations.all {
+    resolutionStrategy {
+        force("androidx.concurrent:concurrent-futures:1.2.0")
+        force("androidx.concurrent:concurrent-futures-ktx:1.2.0")
+    }
+}
+
 dependencies {
     // Core Android
     implementation(libs.androidx.core.ktx)
