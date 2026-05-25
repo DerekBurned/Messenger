@@ -33,7 +33,13 @@ sealed class Screens(val route: String) {
     object EditProfileScreen : Screens("edit_profile_screen")
     object ChangeAccountScreen : Screens("change_account_screen")
     object EditChatScreen : Screens("edit_chat_screen")
-    object CallScreen : Screens("call_screen")
+    object CallScreen : Screens("call_screen/{partnerId}/{partnerName}/{partnerPhone}") {
+        fun createRoute(partnerId: String, partnerName: String, partnerPhone: String): String {
+            val encodedName = java.net.URLEncoder.encode(partnerName, "UTF-8")
+            val encodedPhone = java.net.URLEncoder.encode(partnerPhone, "UTF-8")
+            return "call_screen/$partnerId/$encodedName/$encodedPhone"
+        }
+    }
     object ChatUserProfileScreen : Screens("chat_user_profile_screen/{userId}") {
         fun createRoute(userId: String): String = "chat_user_profile_screen/$userId"
     }
@@ -200,7 +206,14 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             EditChatScreen(onBackClick = { navController.popBackStack() })
         }
 
-        composable(route = Screens.CallScreen.route) {
+        composable(
+            route = Screens.CallScreen.route,
+            arguments = listOf(
+                navArgument("partnerId") { type = NavType.StringType },
+                navArgument("partnerName") { type = NavType.StringType },
+                navArgument("partnerPhone") { type = NavType.StringType },
+            )
+        ) {
             CallScreen(onCallEnded = { navController.popBackStack() })
         }
 
@@ -211,8 +224,10 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             val userId = backStackEntry.arguments?.getString("userId").orEmpty()
             ChatUserProfileScreen(
                 onBackClick = { navController.popBackStack() },
-                onCallClick = { navController.navigate(Screens.CallScreen.route) },
-                onEditClick = {
+                onCallClick = { partnerId, partnerName, partnerPhone ->
+                navController.navigate(Screens.CallScreen.createRoute(partnerId, partnerName, partnerPhone))
+            },
+            onEditClick = {
                     navController.navigate(Screens.EditContactDataScreen.createRoute(userId))
                 },
             )

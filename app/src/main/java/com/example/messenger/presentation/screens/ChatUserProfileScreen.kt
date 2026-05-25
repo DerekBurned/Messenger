@@ -38,7 +38,7 @@ fun ChatUserProfileScreen(
     viewModel: ChatUserProfileViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
-    onCallClick: () -> Unit = {},
+    onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ChatUserProfileScreenContent(
@@ -56,7 +56,7 @@ private fun ChatUserProfileScreenContent(
     state: ChatUserProfileUiState,
     onBackClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
-    onCallClick: () -> Unit = {},
+    onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onMediaTabChange: (MediaTab) -> Unit = {},
 ) {
     Scaffold(
@@ -92,7 +92,10 @@ private fun ChatUserProfileScreenContent(
 }
 
 @Composable
-private fun ProfileHeader(state: ChatUserProfileUiState, onCallClick: () -> Unit) {
+private fun ProfileHeader(
+    state: ChatUserProfileUiState,
+    onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -118,7 +121,14 @@ private fun ProfileHeader(state: ChatUserProfileUiState, onCallClick: () -> Unit
         )
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = onCallClick,
+            onClick = {
+                val user = state.user ?: return@Button
+                onCallClick(
+                    user.id,
+                    user.username!!,
+                    user.phoneNumber?.getFullNumber().orEmpty(),
+                )
+            },
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
             shape = RoundedCornerShape(50),
         ) {
@@ -223,6 +233,7 @@ fun ChatUserProfileScreenPreview() {
                 ),
                 isOnline = true,
             ),
+            onCallClick = { _, _, _ -> },
         )
     }
 }

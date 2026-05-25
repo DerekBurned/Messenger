@@ -22,10 +22,10 @@ object DatabaseModule {
     @Singleton
     fun provideMessengerDatabase(
         @ApplicationContext context: Context
-    ): MessengerDatabase {  
+    ): MessengerDatabase {
         return Room.databaseBuilder(
             context,
-            MessengerDatabase::class.java,  
+            MessengerDatabase::class.java,
             "messenger_database.db"
         )
             .fallbackToDestructiveMigration()
