@@ -10,6 +10,7 @@ import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
+import com.example.messenger.domain.usecase.message.SyncMessagesUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
 import com.example.messenger.domain.usecase.receipt.ObserveReceiptsUseCase
 import com.example.messenger.domain.usecase.typing.ObserveTypingUseCase
@@ -32,6 +33,7 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getMessagesUseCase: GetMessagesUseCase,
+    private val syncMessagesUseCase: SyncMessagesUseCase,
     private val markMessageAsReadUseCase: MarkMessageAsReadUseCase,
     private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
@@ -59,6 +61,7 @@ class ChatViewModel @Inject constructor(
     init {
         if (conversationId.isNotBlank()) {
             loadMessages()
+            syncMessages()
             if (partnerId.isNotBlank()) {
                 observePartnerPresence()
             }
@@ -67,6 +70,14 @@ class ChatViewModel @Inject constructor(
         }
         if (partnerName.isNotBlank()) {
             _uiState.update { it.copy(partnerUsername = partnerName) }
+        }
+    }
+
+    private fun syncMessages() {
+        viewModelScope.launch {
+            try {
+                syncMessagesUseCase(conversationId).collect { }
+            } catch (_: Exception) { }
         }
     }
 

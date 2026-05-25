@@ -10,6 +10,7 @@ import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
@@ -47,6 +48,7 @@ class ConversationRepositoryImpl @Inject constructor(
             
             val existingResult = firestoreService.findExistingConversation(participantIds)
             existingResult.getOrNull()?.let { existing ->
+                dao.insertConversation(existing.toEntity())
                 return Result.success(existing)
             }
 
@@ -102,6 +104,9 @@ class ConversationRepositoryImpl @Inject constructor(
     override suspend fun observeRemoteConversations(): Flow<List<Conversation>> {
         val userId = authService.getCurrentUserId() ?: ""
         return firestoreService.getAllConversations(userId)
+            .onEach { conversations ->
+                conversations.forEach { dao.insertConversation(it.toEntity()) }
+            }
     }
 
     override suspend fun syncConversations() {

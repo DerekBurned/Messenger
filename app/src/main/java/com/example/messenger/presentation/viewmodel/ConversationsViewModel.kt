@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.conversation.CreateConversationUseCase
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
+import com.example.messenger.domain.usecase.conversation.ObserveConversationsUseCase
 import com.example.messenger.domain.usecase.conversation.SyncConversationsUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
 import com.example.messenger.presentation.state.ConversationsUiState
@@ -26,6 +27,7 @@ class ConversationsViewModel @Inject constructor(
     private val deleteConversationUseCase: DeleteConversationUseCase,
     private val createConversationUseCase: CreateConversationUseCase,
     private val syncConversationsUseCase: SyncConversationsUseCase,
+    private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
@@ -37,6 +39,17 @@ class ConversationsViewModel @Inject constructor(
 
     init {
         loadConversations()
+        syncRemoteConversations()
+    }
+
+    private fun syncRemoteConversations() {
+        viewModelScope.launch {
+            try {
+                observeConversationsUseCase().collect {
+
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     private fun loadConversations() {

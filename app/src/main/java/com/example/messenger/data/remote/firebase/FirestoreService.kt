@@ -69,7 +69,8 @@ class FirestoreService @Inject constructor(
             conversationsCollection
                 .document(message.conversationId)
                 .collection("messages")
-                .add(message) 
+                .document(message.id)
+                .set(message)
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
