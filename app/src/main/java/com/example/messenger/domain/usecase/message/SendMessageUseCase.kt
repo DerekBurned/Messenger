@@ -45,8 +45,8 @@ class SendMessageUseCase @Inject constructor(
                onSuccess = {
                    emit(Resource.Success(Unit))
                },
-               onFailure = {e ->
-                   emit(Resource.Error("Failed to send message"))
+               onFailure = { e ->
+                   emit(Resource.Error(e.message ?: "Failed to send message"))
                }
            )
         }catch (e : Exception){

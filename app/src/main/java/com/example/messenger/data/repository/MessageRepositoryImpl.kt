@@ -1,7 +1,7 @@
 package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.dao.MessageDao
-import com.example.messenger.data.local.model.MessageWithSender
+import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Message
@@ -9,6 +9,7 @@ import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.repository.IMessageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
@@ -16,8 +17,9 @@ class MessageRepositoryImpl @Inject constructor(
     private val messageService: FirestoreService
 ) : IMessageRepository {
 
-    override fun getMessagesStream(conversationId: String): Flow<List<MessageWithSender>> {
+    override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
         return messageDao.getMessagesWithSendersDesc(conversationId)
+            .map { list -> list.map { it.toDomain() } }
     }
 
     override suspend fun sendMessage(message: Message): Result<Unit> {

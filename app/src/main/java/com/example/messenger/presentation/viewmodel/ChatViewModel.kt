@@ -77,7 +77,7 @@ class ChatViewModel @Inject constructor(
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                     is Resource.Success -> {
                         @Suppress("UNCHECKED_CAST")
-                        val messages = resource.data as? List<Message> ?: emptyList()
+                        val messages = (resource.data as? List<*>)?.filterIsInstance<Message>() ?: emptyList()
                         _uiState.update { it.copy(isLoading = false, messages = messages, error = null) }
                     }
                     is Resource.Error -> _uiState.update {
