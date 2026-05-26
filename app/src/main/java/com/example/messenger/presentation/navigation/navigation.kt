@@ -17,8 +17,7 @@ import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
 sealed class Screens(val route: String) {
-    object LoginScreen : Screens("login_screen")
-    object RegisterScreen : Screens("register_screen")
+    object AuthScreen : Screens("auth_screen")
     object MainScreen : Screens("main_screen")
     object SearchUsersScreen : Screens("search_users_screen")
     object ChatScreen : Screens("chat_screen/{conversationId}/{partnerId}/{partnerName}") {
@@ -56,7 +55,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val startDestination = if (authState.isAuthenticated) {
         Screens.MainScreen.route
     } else {
-        Screens.LoginScreen.route
+        Screens.AuthScreen.route
     }
 
     NavHost(
@@ -87,29 +86,12 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             ) + fadeOut(animationSpec = tween(300))
         }
     ) {
-        composable(route = Screens.LoginScreen.route) {
-            LoginScreen(
+        composable(route = Screens.AuthScreen.route) {
+            AuthScreen(
                 viewModel = authViewModel,
-                onNavigateToRegister = {
-                    navController.navigate(Screens.RegisterScreen.route)
-                },
-                onLoginSuccess = {
+                onAuthSuccess = {
                     navController.navigate(Screens.MainScreen.route) {
-                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable(route = Screens.RegisterScreen.route) {
-            RegisterScreen(
-                viewModel = authViewModel,
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                },
-                onRegisterSuccess = {
-                    navController.navigate(Screens.MainScreen.route) {
-                        popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                        popUpTo(Screens.AuthScreen.route) { inclusive = true }
                     }
                 }
             )
@@ -128,7 +110,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 },
                 onLogoutClick = {
                     authViewModel.logout()
-                    navController.navigate(Screens.LoginScreen.route) {
+                    navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
                 },
@@ -150,7 +132,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
                 onLogoutClick = {
                     authViewModel.logout()
-                    navController.navigate(Screens.LoginScreen.route) {
+                    navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
                 },
@@ -161,7 +143,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             ProfileScreen(
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = {
-                    navController.navigate(Screens.LoginScreen.route) {
+                    navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
                 },
@@ -190,7 +172,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onSaved = { navController.popBackStack() },
                 onLogout = {
                     authViewModel.logout()
-                    navController.navigate(Screens.LoginScreen.route) {
+                    navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
                 },
@@ -201,7 +183,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Screens.ChangeAccountScreen.route) {
             ChangeAccountScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddAccount = { navController.navigate(Screens.LoginScreen.route) },
+                onAddAccount = { navController.navigate(Screens.AuthScreen.route) },
             )
         }
 

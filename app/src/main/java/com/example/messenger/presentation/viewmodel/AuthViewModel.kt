@@ -31,7 +31,9 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val presenceManager: PresenceManager,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(AuthUiState())
+    private val _uiState = MutableStateFlow(
+        AuthUiState(isAuthenticated = firebaseAuthService.isAuthenticated()),
+    )
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     private var pendingUsername: String? = null
@@ -150,5 +152,9 @@ class AuthViewModel @Inject constructor(
 
     fun onRegisterNavigated() {
         _uiState.update { it.copy(registerSuccess = false) }
+    }
+
+    fun onEditPhoneNumber() {
+        _uiState.update { it.copy(codeSent = false, error = null) }
     }
 }
