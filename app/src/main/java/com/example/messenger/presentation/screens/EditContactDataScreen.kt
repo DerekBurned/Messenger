@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -65,6 +67,7 @@ private fun EditContactDataScreenContent(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                modifier = Modifier.shadow(elevation = 4.dp),
                 title = { Text("Edit Contact", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -124,25 +127,37 @@ private fun EditContactDataScreenContent(
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
 
             Button(
                 onClick = onSave,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue.copy(alpha = 0.6f)),
-                shape = RoundedCornerShape(12.dp),
-                enabled = !state.isSaving,
-            ) { Text("Confirm changes", fontSize = 14.sp) }
-
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = onShowDeleteConfirm,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                 shape = RoundedCornerShape(12.dp),
+                enabled = !state.isSaving,
             ) {
-                Text("Delete contact", color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
+                Text(
+                    "Confirm changes",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onShowDeleteConfirm,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(
+                    "Delete contact",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }

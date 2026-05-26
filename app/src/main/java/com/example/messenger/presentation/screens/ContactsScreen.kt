@@ -11,9 +11,11 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,6 +26,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.screens.ui.theme.OnSurface
+import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.SearchUsersViewModel
 
@@ -59,15 +63,27 @@ private fun ContactsScreenContentInner(
     onContactClick: (User) -> Unit,
 ) {
     Column(modifier = modifier.fillMaxSize().background(Color.White)) {
-        OutlinedTextField(
+        val shape = RoundedCornerShape(12.dp)
+        TextField(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            placeholder = { Text("Search contacts") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .shadow(elevation = 2.dp, shape = shape, clip = false),
+            placeholder = { Text("Search contacts", color = OnSurfaceMuted) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = OnSurfaceMuted) },
             singleLine = true,
+            shape = shape,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedTextColor = OnSurface,
+                unfocusedTextColor = OnSurface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = PrimaryBlue,
+            ),
         )
 
         when {

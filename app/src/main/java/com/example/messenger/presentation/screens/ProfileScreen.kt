@@ -1,16 +1,22 @@
 package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -19,7 +25,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.PresenceIndicator
+import com.example.messenger.presentation.screens.ui.theme.DangerRed
+import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.screens.ui.theme.OnSurface
+import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
+import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,12 +69,13 @@ private fun ProfileScreenContent(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                modifier = Modifier.shadow(elevation = 4.dp),
                 title = {
                     Text(
                         text = "Profile",
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = {
@@ -71,53 +83,61 @@ private fun ProfileScreenContent(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = Color.White,
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF5B8DEE)
-                ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue),
                 actions = {
                     IconButton(onClick = onStartEditing) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit",
-                            tint = Color.White
+                            tint = Color.White,
                         )
                     }
-                }
+                },
             )
-        }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color.White),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
             Box(contentAlignment = Alignment.BottomEnd) {
                 Box(
                     modifier = Modifier
                         .size(120.dp)
-                        .background(Color(0xFFD3D3D3), CircleShape),
-                    contentAlignment = Alignment.Center
+                        .background(LightGray, CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Avatar",
-                        modifier = Modifier.size(60.dp),
-                        tint = Color.White
-                    )
+                    val initial = uiState.user?.username?.take(1)?.uppercase().orEmpty()
+                    if (initial.isNotBlank()) {
+                        Text(
+                            text = initial,
+                            color = PrimaryBlue,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 48.sp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Avatar",
+                            modifier = Modifier.size(64.dp),
+                            tint = PrimaryBlue,
+                        )
+                    }
                 }
                 PresenceIndicator(
                     state = PresenceState.ONLINE,
                     size = 20.dp,
                     borderWidth = 3.dp,
-                    modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(end = 6.dp, bottom = 6.dp),
                 )
             }
 
@@ -125,94 +145,106 @@ private fun ProfileScreenContent(
 
             Text(
                 text = uiState.user?.username ?: "User Name",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = OnSurface,
             )
 
-            Text(
-                text = uiState.user?.email ?: "",
-                fontSize = 16.sp,
-                color = Color.Gray
-            )
+            val subtitle = uiState.user?.email
+                ?: uiState.user?.phoneNumber?.getFullNumber()
+                ?: ""
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 14.sp,
+                    color = OnSurfaceMuted,
+                )
+            }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             ProfileMenuItem(
                 icon = Icons.Default.Notifications,
                 title = "Notifications",
-                onClick = { /* TODO */ }
+                onClick = { /* TODO */ },
             )
-
             ProfileMenuItem(
                 icon = Icons.Default.Lock,
                 title = "Privacy",
-                onClick = { /* TODO */ }
+                onClick = { /* TODO */ },
             )
-
             ProfileMenuItem(
                 icon = Icons.Default.Settings,
                 title = "Settings",
-                onClick = { /* TODO */ }
+                onClick = { /* TODO */ },
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            OutlinedButton(
                 onClick = onLogoutClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Blue
-                )
+                    .padding(horizontal = 24.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
             ) {
                 Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Logout",
-                    tint = Color.White
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Logout", color = Color.White, fontSize = 16.sp)
+                Text("Log out", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
-
 }
 
 @Composable
 fun ProfileMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = Color(0xFF5B8DEE),
-            modifier = Modifier.size(24.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(PrimaryBlue.copy(alpha = 0.12f), CircleShape)
+                .border(0.dp, Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = PrimaryBlue,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = title,
-            fontSize = 16.sp,
-            modifier = Modifier.weight(1f)
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = OnSurface,
+            modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Go",
-                tint = Color.Gray
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = OnSurfaceMuted,
+        )
     }
 }
 
@@ -226,7 +258,7 @@ private fun ProfileScreenPreview() {
                     id = "preview-uid",
                     username = "Jane Doe",
                     email = "jane@example.com",
-                )
+                ),
             ),
             onBackClick = {},
             onLogoutClick = {},

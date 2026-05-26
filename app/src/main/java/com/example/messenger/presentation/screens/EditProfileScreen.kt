@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -75,6 +77,7 @@ private fun EditProfileScreenContent(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                modifier = Modifier.shadow(elevation = 4.dp),
                 title = { Text("Edit profile", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -145,18 +148,18 @@ private fun EditProfileScreenContent(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
             if (state.error != null) {
-                Text(state.error, color = Color.Red, fontSize = 13.sp)
+                Text(state.error, color = DangerRed, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
             }
 
             Button(
                 onClick = onSaveClick,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue.copy(alpha = 0.8f)),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                 enabled = !state.isSaving,
             ) {
                 if (state.isSaving) {
@@ -166,17 +169,18 @@ private fun EditProfileScreenContent(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Text("Confirm changes", color = Color.White)
+                    Text("Confirm changes", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Button(
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
                 onClick = onLogoutClick,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
             ) {
-                Text("Log out", color = Color.Red.copy(0.85f))
+                Text("Log out", fontWeight = FontWeight.SemiBold)
             }
         }
     }
