@@ -18,7 +18,20 @@ interface ConversationDao {
     fun getConversationWithMessages(conversationId: String): Flow<ConversationWithMessages>
 
     @Transaction
-    @Query("SELECT * FROM conversations_table ORDER BY lastMessageTimestamp DESC")
+    @Query(
+        """
+        SELECT c.*,
+               (SELECT text FROM messages_table
+                WHERE conversation_id = c.id ORDER BY timestamp DESC LIMIT 1) AS latestMessageText,
+               (SELECT timestamp FROM messages_table
+                WHERE conversation_id = c.id ORDER BY timestamp DESC LIMIT 1) AS latestMessageTimestamp
+        FROM conversations_table c
+        ORDER BY COALESCE(
+            (SELECT MAX(timestamp) FROM messages_table WHERE conversation_id = c.id),
+            c.lastMessageTimestamp
+        ) DESC
+        """,
+    )
     fun getAllConversations(): Flow<List<ConversationSummary>>
 
     @Query("SELECT * FROM conversations_table WHERE id = :conversationId")
@@ -35,4 +48,14 @@ interface ConversationDao {
 
     @Query("DELETE FROM conversations_table WHERE id = :conversationId")
     suspend fun deleteConversationById(conversationId: String)
+
+    @Query(
+        "UPDATE conversations_table SET lastMessage = :lastMessage, " +
+            "lastMessageTimestamp = :lastMessageTimestamp WHERE id = :conversationId",
+    )
+    suspend fun updateLastMessage(
+        conversationId: String,
+        lastMessage: String?,
+        lastMessageTimestamp: Long,
+    )
 }

@@ -21,7 +21,14 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override fun getAllConversations(): Flow<List<Conversation>> {
         return dao.getAllConversations().map { summaries ->
-            summaries.map { it.conversation.toDomain() }
+            summaries.map { summary ->
+                val conv = summary.conversation.toDomain()
+                val previewText = summary.latestMessageText
+                    ?: conv.lastMessage?.takeIf { it.isNotBlank() }
+                val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
+                    ?: conv.lastMessageTimestamp
+                conv.copy(lastMessage = previewText, lastMessageTimestamp = previewTs)
+            }
         }
     }
 

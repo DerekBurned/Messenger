@@ -1,5 +1,6 @@
 package com.example.messenger.data.repository
 
+import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.local.dao.MessageDao
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
-    private val messageService: FirestoreService
+    private val messageService: FirestoreService,
+    private val conversationDao: ConversationDao,
 ) : IMessageRepository {
 
     override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
@@ -26,6 +28,11 @@ class MessageRepositoryImpl @Inject constructor(
         return try {
             
             messageDao.insertMessage(message.toEntity())
+            conversationDao.updateLastMessage(
+                conversationId = message.conversationId,
+                lastMessage = message.text,
+                lastMessageTimestamp = message.timestamp,
+            )
             
             val result = messageService.sendMessage(message)
             if (result.isSuccess) {

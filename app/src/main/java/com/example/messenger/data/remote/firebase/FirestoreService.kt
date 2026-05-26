@@ -66,11 +66,19 @@ class FirestoreService @Inject constructor(
     }
     suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
-            conversationsCollection
-                .document(message.conversationId)
+            val conversationRef = conversationsCollection.document(message.conversationId)
+            conversationRef
                 .collection("messages")
                 .document(message.id)
                 .set(message)
+                .await()
+            conversationRef
+                .update(
+                    mapOf(
+                        "lastMessage" to message.text,
+                        "lastMessageTimestamp" to message.timestamp,
+                    ),
+                )
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
