@@ -13,18 +13,18 @@ import io.agora.rtc2.RtcEngineConfig
 import javax.inject.Inject
 
 class AgoraCallService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ICallService {
 
-    private val engine: RtcEngine
+    private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
 
     private val handler = object : IRtcEngineEventHandler() {
-         fun onUserJoined(connection: RtcConnection?, remoteUid: Int, elapsed: Int) {
+        fun onUserJoined(connection: RtcConnection?, remoteUid: Int, elapsed: Int) {
             listener?.onRemoteUserJoined(remoteUid)
         }
 
-         fun onUserOffline(connection: RtcConnection?, remoteUid: Int, reason: Int) {
+        fun onUserOffline(connection: RtcConnection?, remoteUid: Int, reason: Int) {
             listener?.onRemoteUserLeft(remoteUid)
         }
 
@@ -34,13 +34,21 @@ class AgoraCallService @Inject constructor(
     }
 
     init {
-        val config = RtcEngineConfig().apply {
-            mAppId = Constants.AGORA_APP_ID
-            mContext = context
-            mEventHandler = handler
+        require(Constants.AGORA_APP_ID.isNotBlank()) {
+            "Agora App ID is missing or invalid. Please check your Constants.kt file."
         }
-        engine = RtcEngine.create(config)
-        engine.enableAudio()
+
+        try {
+            val config = RtcEngineConfig().apply {
+                mAppId = Constants.AGORA_APP_ID
+                mContext = context
+                mEventHandler = handler
+            }
+            engine = RtcEngine.create(config)
+            engine?.enableAudio()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun joinChannel(channelName: String, uid: Int) {
@@ -48,19 +56,19 @@ class AgoraCallService @Inject constructor(
             channelProfile = io.agora.rtc2.Constants.CHANNEL_PROFILE_COMMUNICATION
             clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
         }
-        engine.joinChannel("", channelName, uid, options)
+        engine?.joinChannel("", channelName, uid, options)
     }
 
     override fun leaveChannel() {
-        engine.leaveChannel()
+        engine?.leaveChannel()
     }
 
     override fun muteLocalAudio(mute: Boolean) {
-        engine.muteLocalAudioStream(mute)
+        engine?.muteLocalAudioStream(mute)
     }
 
     override fun setSpeakerphone(enable: Boolean) {
-        engine.setEnableSpeakerphone(enable)
+        engine?.setEnableSpeakerphone(enable)
     }
 
     override fun setEventListener(listener: CallEventListener) {
