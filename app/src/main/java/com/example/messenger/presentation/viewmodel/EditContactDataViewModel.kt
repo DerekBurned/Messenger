@@ -3,6 +3,7 @@ package com.example.messenger.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
 import com.example.messenger.presentation.state.EditContactDataUiState
 import com.example.messenger.util.Resource
@@ -10,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -18,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EditContactDataViewModel @Inject constructor(
     private val getUserByIdUseCase: GetUserByIdUseCase,
+    private val userRepository: IUserRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditContactDataUiState())
@@ -46,8 +47,29 @@ class EditContactDataViewModel @Inject constructor(
     fun dismissDeleteConfirm() = _uiState.update { it.copy(showDeleteConfirm = false) }
 
     fun save() {
-        
-        _uiState.update { it.copy(saveSuccess = true) }
+        val state = _uiState.value
+        if (state.contactId.isBlank()) {
+            _uiState.update { it.copy(error = "Missing contact id") }
+            return
+        }
+        if (state.name.isBlank()) {
+            _uiState.update { it.copy(error = "Name cannot be empty") }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, error = null) }
+            val result = userRepository.updateContactName(state.contactId, state.name)
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(isSaving = false, saveSuccess = true, initialName = state.name)
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isSaving = false, error = e.message ?: "Save failed") }
+                },
+            )
+        }
     }
 
     fun delete() {

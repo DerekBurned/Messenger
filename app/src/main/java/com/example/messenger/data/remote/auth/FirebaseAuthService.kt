@@ -188,6 +188,30 @@ class FirebaseAuthService @Inject constructor(
         }
     }
 
+    suspend fun reauthenticateWithPhone(credential: PhoneAuthCredential): Result<Unit> {
+        return try {
+            val user = getCurrentUser() ?: throw Exception("No authenticated user")
+            user.reauthenticate(credential).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirebaseAuthService", "Re-auth failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePhoneNumber(credential: PhoneAuthCredential): Result<Unit> {
+        return try {
+            val user = getCurrentUser() ?: throw Exception("No authenticated user")
+            user.updatePhoneNumber(credential).await()
+            Result.success(Unit)
+        } catch (e: FirebaseAuthUserCollisionException) {
+            Result.failure(Exception("This phone number is already registered to another account"))
+        } catch (e: Exception) {
+            Log.e("FirebaseAuthService", "Phone update failed", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun resendVerificationCode(
         phoneNumber: String,
         activity: Activity

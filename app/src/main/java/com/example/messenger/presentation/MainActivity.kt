@@ -195,12 +195,18 @@ private fun ChatsTabContent(
             ) {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(uiState.conversations) { conversation ->
+                        val otherIdx = conversation.participantIds
+                            .indexOfFirst { it != currentUserId }
                         val otherUserId = conversation.participantIds
-                            .firstOrNull { it != currentUserId } ?: ""
-                        val otherUserName = conversation.participantNames.firstOrNull() ?: "Unknown"
+                            .getOrNull(otherIdx) ?: ""
+                        val otherUserName = conversation.participantNames
+                            .getOrNull(otherIdx)
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "Unknown"
                         val presence = uiState.presenceMap[otherUserId]
                         ChatListItemM3(
                             conversation = conversation,
+                            displayName = otherUserName,
                             presence = presence,
                             onClick = { onChatClick(conversation.id, otherUserId, otherUserName) },
                         )
@@ -251,6 +257,7 @@ fun TopAppBarContentM3(
 @Composable
 fun ChatListItemM3(
     conversation: Conversation = Conversation(),
+    displayName: String = conversation.participantNames.firstOrNull() ?: "Unknown",
     presence: UserPresence? = null,
     onClick: () -> Unit = {}
 ) {
@@ -271,7 +278,7 @@ fun ChatListItemM3(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = conversation.participantNames.firstOrNull()?.take(1)?.uppercase() ?: "?",
+                    text = displayName.take(1).uppercase().ifBlank { "?" },
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     color = PrimaryBlue
@@ -287,7 +294,7 @@ fun ChatListItemM3(
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = conversation.participantNames.firstOrNull() ?: "Unknown",
+                text = displayName,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
                 color = Color(0xFF1F2937),

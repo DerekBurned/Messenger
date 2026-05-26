@@ -10,4 +10,5 @@ interface IUserRepository {
     suspend fun updateUserStatus(isOnline: Boolean): Result<Unit>
     suspend fun updateLastSeen(): Result<Unit>
     suspend fun updateUserProfile(updates: Map<String, Any>): Result<Unit>
+    suspend fun updateContactName(contactId: String, newName: String): Result<Unit>
 }

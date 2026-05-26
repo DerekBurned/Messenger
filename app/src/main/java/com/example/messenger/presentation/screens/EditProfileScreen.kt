@@ -38,6 +38,7 @@ fun EditProfileScreen(
     onSaved: () -> Unit = {},
     onLogout: () -> Unit = {},
     onChangeAccount: () -> Unit = {},
+    onChangePhone: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -52,12 +53,12 @@ fun EditProfileScreen(
         state = state,
         onBackClick = onBackClick,
         onNameChange = viewModel::onNameChange,
-        onPhoneChange = viewModel::onPhoneChange,
         onUsernameChange = viewModel::onUsernameChange,
         onDobChange = viewModel::onDobChange,
         onSaveClick = viewModel::save,
         onLogoutClick = onLogout,
         onChangeAccountClick = onChangeAccount,
+        onChangePhoneClick = onChangePhone,
     )
 }
 
@@ -67,12 +68,12 @@ private fun EditProfileScreenContent(
     state: EditProfileUiState,
     onBackClick: () -> Unit = {},
     onNameChange: (String) -> Unit = {},
-    onPhoneChange: (String) -> Unit = {},
     onUsernameChange: (String) -> Unit = {},
     onDobChange: (String) -> Unit = {},
     onSaveClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onChangeAccountClick: () -> Unit = {},
+    onChangePhoneClick: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -127,7 +128,10 @@ private fun EditProfileScreenContent(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BlueTextField(state.name, onNameChange, "Profile name")
-                BlueTextField(state.phone, onPhoneChange, "Phone number")
+                ReadOnlyPhoneField(
+                    phone = state.phone,
+                    onChangeClick = onChangePhoneClick,
+                )
                 BlueTextField(state.username, onUsernameChange, "Username")
                 BlueTextField(state.dob, onDobChange, "Date of birth")
 
@@ -182,6 +186,37 @@ private fun EditProfileScreenContent(
             ) {
                 Text("Log out", fontWeight = FontWeight.SemiBold)
             }
+        }
+    }
+}
+
+@Composable
+private fun ReadOnlyPhoneField(
+    phone: String,
+    onChangeClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PrimaryBlue, RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Phone number",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 11.sp,
+            )
+            Text(
+                text = phone.ifBlank { "(not set)" },
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        TextButton(onClick = onChangeClick) {
+            Text("Change", color = Color.White, fontWeight = FontWeight.SemiBold)
         }
     }
 }

@@ -32,6 +32,7 @@ sealed class Screens(val route: String) {
     object EditProfileScreen : Screens("edit_profile_screen")
     object ChangeAccountScreen : Screens("change_account_screen")
     object EditChatScreen : Screens("edit_chat_screen")
+    object ChangePhoneScreen : Screens("change_phone_screen")
     object CallScreen : Screens("call_screen/{partnerId}/{partnerName}/{partnerPhone}") {
         fun createRoute(partnerId: String, partnerName: String, partnerPhone: String): String {
             val encodedName = java.net.URLEncoder.encode(partnerName, "UTF-8")
@@ -177,6 +178,14 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     }
                 },
                 onChangeAccount = { navController.navigate(Screens.ChangeAccountScreen.route) },
+                onChangePhone = { navController.navigate(Screens.ChangePhoneScreen.route) },
+            )
+        }
+
+        composable(route = Screens.ChangePhoneScreen.route) {
+            ChangePhoneScreen(
+                onBackClick = { navController.popBackStack() },
+                onDone = { navController.popBackStack() },
             )
         }
 

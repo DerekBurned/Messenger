@@ -1,6 +1,7 @@
 package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.dao.ConversationDao
+import com.example.messenger.data.local.dao.UserDao
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
 import com.example.messenger.data.remote.auth.FirebaseAuthService
@@ -9,25 +10,38 @@ import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
     private val firestoreService: FirestoreService,
     private val dao: ConversationDao,
-    private val authService: FirebaseAuthService
+    private val authService: FirebaseAuthService,
+    private val userDao: UserDao,
 ) : IConversationRepository {
 
     override fun getAllConversations(): Flow<List<Conversation>> {
-        return dao.getAllConversations().map { summaries ->
+
+        return combine(dao.getAllConversations(), userDao.getAllUsers()) { summaries, users ->
+            val usersById = users.associateBy { it.id }
             summaries.map { summary ->
                 val conv = summary.conversation.toDomain()
                 val previewText = summary.latestMessageText
                     ?: conv.lastMessage?.takeIf { it.isNotBlank() }
                 val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
                     ?: conv.lastMessageTimestamp
-                conv.copy(lastMessage = previewText, lastMessageTimestamp = previewTs)
+                val resolvedNames = conv.participantIds.mapIndexed { index, id ->
+                    val localName = usersById[id]?.username
+                    localName?.takeIf { it.isNotBlank() }
+                        ?: conv.participantNames.getOrNull(index)
+                        ?: ""
+                }
+                conv.copy(
+                    participantNames = resolvedNames,
+                    lastMessage = previewText,
+                    lastMessageTimestamp = previewTs,
+                )
             }
         }
     }

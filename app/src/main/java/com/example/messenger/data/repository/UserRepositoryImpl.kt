@@ -14,7 +14,7 @@ import javax.inject.Inject
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val firestoreService: FirestoreService,
-    private val authService: FirebaseAuthService
+    private val authService: FirebaseAuthService,
 ) : IUserRepository {
 
     override suspend fun getUserById(userId: String): Result<User?> {
@@ -108,5 +108,29 @@ class UserRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun updateContactName(
+        contactId: String,
+        newName: String,
+    ): Result<Unit> = try {
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) {
+            Result.failure(IllegalArgumentException("Name cannot be empty"))
+        } else {
+            val local = userDao.getUserById(contactId)
+            if (local == null) {
+                
+                val remote = firestoreService.getUserProfile(contactId).getOrNull()
+                val seed = remote?.copy(username = trimmed)?.toEntity()
+                    ?: User(id = contactId, username = trimmed).toEntity()
+                userDao.insertUser(seed)
+            } else {
+                userDao.updateUser(local.copy(username = trimmed))
+            }
+            Result.success(Unit)
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 }
