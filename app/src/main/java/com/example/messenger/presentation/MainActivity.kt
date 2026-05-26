@@ -18,12 +18,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.messenger.util.DateUtils
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
@@ -218,8 +220,9 @@ fun TopAppBarContentM3(
     showSearch: Boolean = true,
 ) {
     CenterAlignedTopAppBar(
+        modifier = Modifier.shadow(elevation = 4.dp),
         title = {
-            Text(text = title, fontWeight = FontWeight.Bold)
+            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         },
         navigationIcon = {
             IconButton(onClick = onLogoutClick) {
@@ -254,7 +257,7 @@ fun ChatListItemM3(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(76.dp)
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -262,7 +265,7 @@ fun ChatListItemM3(
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(52.dp)
                     .clip(CircleShape)
                     .background(LightGray),
                 contentAlignment = Alignment.Center
@@ -270,6 +273,7 @@ fun ChatListItemM3(
                 Text(
                     text = conversation.participantNames.firstOrNull()?.take(1)?.uppercase() ?: "?",
                     fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
                     color = PrimaryBlue
                 )
             }
@@ -280,30 +284,70 @@ fun ChatListItemM3(
                 )
             }
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = conversation.participantNames.firstOrNull() ?: "Unknown",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
+                color = Color(0xFF1F2937),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = conversation.lastMessage ?: "",
-                color = Color.Gray,
+                text = conversation.lastMessage ?: "No messages yet",
+                color = if (conversation.unreadCount > 0) Color(0xFF374151) else Color.Gray,
+                fontWeight = if (conversation.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
                 fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (conversation.unreadCount > 0) {
-            Badge(containerColor = PrimaryBlue) {
-                Text(conversation.unreadCount.toString())
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.height(40.dp),
+        ) {
+            Text(
+                text = DateUtils.formatMessageTime(conversation.lastMessageTimestamp),
+                color = if (conversation.unreadCount > 0) PrimaryBlue else Color.Gray,
+                fontSize = 12.sp,
+                fontWeight = if (conversation.unreadCount > 0) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            if (conversation.unreadCount > 0) {
+                UnreadCountBadge(count = conversation.unreadCount)
+            } else {
+                Spacer(modifier = Modifier.height(22.dp))
             }
         }
     }
-    HorizontalDivider(color = LightGray, thickness = 1.dp, modifier = Modifier.padding(start = 80.dp))
+    HorizontalDivider(
+        color = LightGray.copy(alpha = 0.5f),
+        thickness = 0.5.dp,
+        modifier = Modifier.padding(start = 82.dp)
+    )
+}
+
+@Composable
+private fun UnreadCountBadge(count: Int) {
+    val label = if (count > 99) "99+" else count.toString()
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 22.dp, minHeight = 22.dp)
+            .clip(CircleShape)
+            .background(PrimaryBlue)
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
 
 @Composable
@@ -324,28 +368,28 @@ fun BottomNavBarM3(
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Email, contentDescription = "Chats") },
-            label = { Text("chats") },
+            label = { Text("Chats", fontWeight = FontWeight.Medium) },
             selected = selected == MainTab.CHATS,
             onClick = { onTabSelected(MainTab.CHATS) },
             colors = itemColors,
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Call, contentDescription = "Calls") },
-            label = { Text("calls") },
+            label = { Text("Calls", fontWeight = FontWeight.Medium) },
             selected = selected == MainTab.CALLS,
             onClick = { onTabSelected(MainTab.CALLS) },
             colors = itemColors,
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Person, contentDescription = "Contacts") },
-            label = { Text("contacts") },
+            label = { Text("Contacts", fontWeight = FontWeight.Medium) },
             selected = selected == MainTab.CONTACTS,
             onClick = { onTabSelected(MainTab.CONTACTS) },
             colors = itemColors,
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
-            label = { Text("settings") },
+            label = { Text("Settings", fontWeight = FontWeight.Medium) },
             selected = selected == MainTab.SETTINGS,
             onClick = { onTabSelected(MainTab.SETTINGS) },
             colors = itemColors,

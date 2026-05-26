@@ -20,6 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import com.example.messenger.presentation.components.MessageStatusIcon
+import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
+import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
+import com.example.messenger.presentation.screens.ui.theme.BubbleSent
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.util.DateUtils
 
@@ -57,23 +60,25 @@ fun MessageWithContextMenu(
             horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
         ) {
             Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
+                val bubbleShape = RoundedCornerShape(
+                    topStart = 18.dp,
+                    topEnd = 18.dp,
+                    bottomStart = if (message.isMe) 18.dp else 4.dp,
+                    bottomEnd = if (message.isMe) 4.dp else 18.dp,
+                )
                 Box(
                     modifier = Modifier
                         .widthIn(max = 280.dp)
+                        .shadow(elevation = 1.dp, shape = bubbleShape, clip = false)
                         .background(
-                            color = Color(0xFF9DB4E8),
-                            shape = RoundedCornerShape(
-                                topStart = 20.dp,
-                                topEnd = 20.dp,
-                                bottomStart = if (message.isMe) 20.dp else 4.dp,
-                                bottomEnd = if (message.isMe) 4.dp else 20.dp
-                            )
+                            color = if (message.isMe) BubbleSent else BubbleReceived,
+                            shape = bubbleShape,
                         )
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Text(
                         text = message.text,
-                        color = Color.White,
+                        color = if (message.isMe) Color.White else BubbleReceivedText,
                         fontSize = 15.sp
                     )
                 }
