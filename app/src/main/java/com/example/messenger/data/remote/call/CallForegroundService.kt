@@ -41,10 +41,12 @@ class CallForegroundService : Service() {
 
     @Inject lateinit var callService: ICallService
     @Inject lateinit var signalingService: ICallSignalingService
+    @Inject lateinit var missedCallRecorder: MissedCallRecorder
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tickerJob: Job? = null
     private var statusObserverJob: Job? = null
+    private var ringTimeoutJob: Job? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus: Boolean = false
 
@@ -117,10 +119,13 @@ class CallForegroundService : Service() {
         ActiveCallHolder.set(call)
         startForegroundCompat(buildRingingNotification(call))
         observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
+        startRingTimeout(call)
     }
 
     private fun handleAccept() {
         val call = ActiveCallHolder.snapshot() ?: return
+        ringTimeoutJob?.cancel()
+        ringTimeoutJob = null
         ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0) }
         scope.launch {
             runCatching {
@@ -200,10 +205,32 @@ class CallForegroundService : Service() {
         }
     }
 
+    private fun startRingTimeout(call: ActiveCallHolder.ActiveCall) {
+        ringTimeoutJob?.cancel()
+        ringTimeoutJob = scope.launch {
+            delay(RING_TIMEOUT_MS)
+            if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
+            Log.d(TAG, "ring timeout fired — recording missed call")
+            runCatching {
+                missedCallRecorder.record(
+                    callerId = call.callerId,
+                    calleeId = call.calleeId,
+                    callerName = call.partnerName,
+                )
+            }.onFailure { Log.w(TAG, "missed-call record failed", it) }
+            runCatching {
+                signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.ENDED)
+            }
+            stopSelfClean()
+        }
+    }
+
     private fun stopSelfClean() {
         stopTicker()
         statusObserverJob?.cancel()
         statusObserverJob = null
+        ringTimeoutJob?.cancel()
+        ringTimeoutJob = null
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -413,6 +440,7 @@ class CallForegroundService : Service() {
         private const val REQ_DECLINE = 3
         private const val REQ_END = 4
         private const val STATUS_WRITE_TIMEOUT_MS = 4_000L
+        private const val RING_TIMEOUT_MS = 60_000L
 
         fun outgoingIntent(
             ctx: Context,
