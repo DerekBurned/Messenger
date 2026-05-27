@@ -33,8 +33,8 @@ class MessageRepositoryImpl @Inject constructor(
                 lastMessage = message.text,
                 lastMessageTimestamp = message.timestamp,
             )
-            
-            val result = messageService.sendMessage(message)
+
+            val result = messageService.sendMessage(message.copy(status = MessageStatus.SENT))
             if (result.isSuccess) {
                 messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
             } else {

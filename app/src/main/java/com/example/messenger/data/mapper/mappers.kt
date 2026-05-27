@@ -106,18 +106,20 @@ fun List<MessageEntity>.toMessageDomainList(): List<Message> = map { it.toDomain
 fun List<Message>.toMessageEntityList(): List<MessageEntity> = map { it.toEntity() }
 
 fun MessageDTO.toDomain(): Message {
+    val parsedStatus = try {
+        MessageStatus.valueOf(status)
+    } catch (e: IllegalArgumentException) {
+        MessageStatus.SENT
+    }
+
+    val serverStatus = if (parsedStatus == MessageStatus.SENDING) MessageStatus.SENT else parsedStatus
     return Message(
         id = id,
         conversationId = conversationId,
         senderId = senderId,
         text = text,
-        
         timestamp = timestamp,
-        status = try {
-            MessageStatus.valueOf(status)
-        } catch (e: IllegalArgumentException) {
-            MessageStatus.SENT 
-        },
+        status = serverStatus,
         isRead = isRead
     )
 }
