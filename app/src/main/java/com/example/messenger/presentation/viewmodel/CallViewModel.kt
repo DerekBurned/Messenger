@@ -12,10 +12,12 @@ import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -31,7 +33,11 @@ class CallViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
+    private val _callEnded = Channel<Unit>(Channel.BUFFERED)
+    val callEnded = _callEnded.receiveAsFlow()
+
     private val context: Context get() = getApplication()
+    private var hadActiveCall = false
 
     init {
         val partnerId: String = savedStateHandle["partnerId"] ?: ""
@@ -55,8 +61,13 @@ class CallViewModel @Inject constructor(
                 if (active == null) {
                     
                     _uiState.value = CallUiState()
+                    if (hadActiveCall) {
+                        hadActiveCall = false
+                        _callEnded.trySend(Unit)
+                    }
                     return@collectLatest
                 }
+                hadActiveCall = true
                 _uiState.value = CallUiState(
                     partnerName = active.partnerName,
                     partnerPhone = active.partnerPhone,
