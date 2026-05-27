@@ -15,6 +15,10 @@ android {
     namespace = "com.example.messenger"
     compileSdk = 36
 
+    val agoraAppId: String =
+        (project.findProperty("AGORA_APP_ID") as String?)
+            ?: "3d080c1db3ff4a80bef22c3b2cb6ea46"
+
     defaultConfig {
         applicationId = "com.example.messenger"
         minSdk = 29
@@ -26,6 +30,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
     }
 
     buildTypes {
@@ -51,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -59,8 +66,6 @@ android {
     }
 }
 
-// Force matching concurrent-futures across all configurations to resolve a strict-version
-// conflict between WorkManager (pulls 1.1.0) and androidx.test 1.3.0 / espresso 3.7.0 (need 1.2.0).
 configurations.all {
     resolutionStrategy {
         force("androidx.concurrent:concurrent-futures:1.2.0")

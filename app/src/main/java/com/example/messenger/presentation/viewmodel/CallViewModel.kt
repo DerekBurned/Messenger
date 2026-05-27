@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.util.zip.CRC32
 import javax.inject.Inject
-import kotlin.math.abs
 
 @HiltViewModel
 class CallViewModel @Inject constructor(
@@ -34,7 +34,8 @@ class CallViewModel @Inject constructor(
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
     private val myUserId: String get() = auth.currentUser?.uid.orEmpty()
-    private val myUid: Int get() = abs(myUserId.hashCode())
+
+    private val myUid: Int get() = uidFromUserId(myUserId)
 
     private var currentCallId: String = ""
     private var tickerJob: Job? = null
@@ -44,7 +45,7 @@ class CallViewModel @Inject constructor(
         val partnerName: String = savedStateHandle["partnerName"] ?: ""
         val partnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
 
-        val channelName = listOf(myUserId, partnerId).sorted().joinToString("_")
+        val channelName = "call-" + UUID.randomUUID().toString()
 
         _uiState.update {
             it.copy(partnerName = partnerName, partnerPhone = partnerPhone, channelName = channelName)
@@ -55,6 +56,14 @@ class CallViewModel @Inject constructor(
         if (partnerId.isNotBlank()) {
             startOutgoingCall(partnerId, channelName)
         }
+    }
+
+    private fun uidFromUserId(userId: String): Int {
+        if (userId.isEmpty()) return 0
+        val crc = CRC32()
+        crc.update(userId.toByteArray(Charsets.UTF_8))
+        
+        return (crc.value and 0x7FFFFFFFL).toInt()
     }
 
     private fun setupAgoraListener() {

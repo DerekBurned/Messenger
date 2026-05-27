@@ -1,9 +1,9 @@
 package com.example.messenger.data.remote.call
 
 import android.content.Context
+import com.example.messenger.BuildConfig
 import com.example.messenger.domain.service.CallEventListener
 import com.example.messenger.domain.service.ICallService
-import com.example.messenger.util.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -34,13 +34,13 @@ class AgoraCallService @Inject constructor(
     }
 
     init {
-        require(Constants.AGORA_APP_ID.isNotBlank()) {
-            "Agora App ID is missing or invalid. Please check your Constants.kt file."
+        require(BuildConfig.AGORA_APP_ID.isNotBlank()) {
+            "BuildConfig.AGORA_APP_ID is missing. Set AGORA_APP_ID in gradle.properties / local.properties."
         }
 
         try {
             val config = RtcEngineConfig().apply {
-                mAppId = Constants.AGORA_APP_ID
+                mAppId = BuildConfig.AGORA_APP_ID
                 mContext = context
                 mEventHandler = handler
             }

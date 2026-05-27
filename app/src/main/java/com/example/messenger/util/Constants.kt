@@ -1,7 +1,6 @@
 package com.example.messenger.util
 
 object Constants {
-     const val AGORA_APP_ID = "3d080c1db3ff4a80bef22c3b2cb6ea46"
 
     const val COLLECTION_USERS = "users"
     const val COLLECTION_CONVERSATIONS = "conversations"
