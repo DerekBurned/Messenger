@@ -7,6 +7,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import com.example.messenger.data.presence.AppLifecycleObserver
 import com.example.messenger.data.sync.SyncCoordinator
 import com.example.messenger.data.sync.SyncManager
+import com.example.messenger.presentation.notification.NotificationChannels
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -27,6 +28,7 @@ class MessengerApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        NotificationChannels.ensureCreated(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         syncCoordinator.start()
         syncManager.schedulePeriodicSync()
