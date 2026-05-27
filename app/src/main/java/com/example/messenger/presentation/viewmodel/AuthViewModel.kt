@@ -1,10 +1,13 @@
 package com.example.messenger.presentation.viewmodel
 
 import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.auth.FirebaseAuthService
+import com.example.messenger.data.remote.firebase.FirebaseMessagingManager
+import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
@@ -30,6 +33,8 @@ class AuthViewModel @Inject constructor(
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val firebaseAuthService: FirebaseAuthService,
     private val presenceManager: PresenceManager,
+    private val firebaseMessagingManager: FirebaseMessagingManager,
+    private val firestoreService: FirestoreService,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         AuthUiState(isAuthenticated = firebaseAuthService.isAuthenticated()),
@@ -109,14 +114,17 @@ class AuthViewModel @Inject constructor(
             val result = loginWithPhoneNumberUseCase(credential, pendingUsername)
             pendingUsername = null
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        currentUser = result.data,
-                        loginSuccess = true,
-                        registerSuccess = true,
-                        error = null,
-                    )
+                is Resource.Success -> {
+                    syncFcmTokenForCurrentUser()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentUser = result.data,
+                            loginSuccess = true,
+                            registerSuccess = true,
+                            error = null,
+                        )
+                    }
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(isLoading = false, error = result.message)
@@ -127,6 +135,17 @@ class AuthViewModel @Inject constructor(
                 is Resource.Loading -> {}
             }
         }
+    }
+
+    private suspend fun syncFcmTokenForCurrentUser() {
+        val uid = firebaseAuthService.getCurrentUserId() ?: return
+        firebaseMessagingManager.getFcmToken()
+            .onSuccess { token ->
+                firestoreService.updateFcmToken(uid, token)
+            }
+            .onFailure { e ->
+                Log.w("AuthViewModel", "FCM token sync skipped: ${e.message}")
+            }
     }
 
     private fun linkPhone(credential: PhoneAuthCredential) {
