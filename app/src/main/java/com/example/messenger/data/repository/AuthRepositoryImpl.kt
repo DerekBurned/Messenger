@@ -2,14 +2,15 @@ package com.example.messenger.data.repository
 
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.DomainUser
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuthService,
@@ -69,8 +70,17 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun observeAuthState(): Flow<FirebaseUser?> {
-        return auth.observeAuthState()
+    override fun observeAuthState(): Flow<DomainUser?> {
+        return auth.observeAuthState().map { firebaseUser ->
+            firebaseUser?.let {
+                DomainUser(
+                    id = it.uid,
+                    displayName = it.displayName,
+                    phoneNumber = it.phoneNumber,
+                    photoUrl = it.photoUrl?.toString(),
+                )
+            }
+        }
     }
 
     override suspend fun updateUserProfile(

@@ -44,8 +44,8 @@ class AuthViewModel @Inject constructor(
 
     private fun observeAuthStatus() {
         viewModelScope.launch {
-            observeAuthStateUseCase().collectLatest { firebaseUser ->
-                _uiState.update { it.copy(isAuthenticated = firebaseUser != null) }
+            observeAuthStateUseCase().collectLatest { user ->
+                _uiState.update { it.copy(isAuthenticated = user != null) }
             }
         }
     }

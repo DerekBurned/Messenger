@@ -1,8 +1,8 @@
 package com.example.messenger.domain.repository
 
+import com.example.messenger.domain.model.DomainUser
 import com.example.messenger.domain.model.User
 import com.example.messenger.util.Resource
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import kotlinx.coroutines.flow.Flow
 
@@ -13,6 +13,6 @@ interface IAuthRepository {
 
     suspend fun logout()
     fun getCurrentUser(): User?
-    fun observeAuthState(): Flow<FirebaseUser?>
+    fun observeAuthState(): Flow<DomainUser?>
     suspend fun updateUserProfile(username: String, avatarUrl: String?): Result<Unit>
 }
