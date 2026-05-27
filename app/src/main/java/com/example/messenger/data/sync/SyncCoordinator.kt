@@ -25,9 +25,7 @@ class SyncCoordinator @Inject constructor(
 
     fun start() {
         if (job?.isActive == true) return
-        
         syncManager.triggerOneTimeSync()
-        
         job = scope.launch {
             networkObserver.isConnected.collectLatest { state ->
                 if (state is NetworkUtils.Available) {

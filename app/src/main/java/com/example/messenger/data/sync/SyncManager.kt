@@ -12,7 +12,6 @@ class SyncManager @Inject constructor(
     private val workManager = WorkManager.getInstance(context)
 
     fun schedulePeriodicSync() {
-        
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
