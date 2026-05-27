@@ -10,7 +10,10 @@ import androidx.core.content.getSystemService
 object NotificationChannels {
 
     const val CHAT_MESSAGES = "chat_messages_channel"
+    
     const val INCOMING_CALL = "call_channel"
+    
+    const val ONGOING_CALL = "ongoing_call_channel"
 
     fun ensureCreated(context: Context) {
         val nm = context.getSystemService<NotificationManager>() ?: return
@@ -46,6 +49,21 @@ object NotificationChannels {
                 setSound(ringtoneUri, audioAttrs)
             }
             nm.createNotificationChannel(call)
+        }
+
+        if (nm.getNotificationChannel(ONGOING_CALL) == null) {
+            val ongoing = NotificationChannel(
+                ONGOING_CALL,
+                "Active call",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Persistent notification while a voice call is in progress"
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
+                setShowBadge(false)
+            }
+            nm.createNotificationChannel(ongoing)
         }
     }
 }

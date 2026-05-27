@@ -11,6 +11,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.content.getSystemService
@@ -246,14 +247,20 @@ class CallForegroundService : Service() {
     }
 
     private fun startForegroundCompat(notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID_CALL,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID_CALL, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID_CALL,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID_CALL, notification)
+            }
+        } catch (t: Throwable) {
+
+            Log.e(TAG, "startForeground rejected our notification", t)
+            stopSelfClean()
         }
     }
 
@@ -266,22 +273,18 @@ class CallForegroundService : Service() {
     private fun buildOngoingNotification(call: ActiveCallHolder.ActiveCall): Notification {
         val openAppPi = openAppPendingIntent()
         val endPi = actionPendingIntent(ACTION_END, REQ_END)
-        val builder = NotificationCompat.Builder(this, NotificationChannels.INCOMING_CALL)
+        return NotificationCompat.Builder(this, NotificationChannels.ONGOING_CALL)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentTitle(call.partnerName.ifBlank { "Voice call" })
             .setContentText(if (call.isActive) "On call" else "Calling…")
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openAppPi)
             .setShowWhen(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val person = Person.Builder().setName(call.partnerName.ifBlank { "Voice call" }).build()
-            builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(person, endPi))
-        } else {
-            builder.addAction(0, "End call", endPi)
-        }
-        return builder.build()
+            .addAction(0, "End call", endPi)
+            .build()
     }
 
     private fun buildRingingNotification(call: ActiveCallHolder.ActiveCall): Notification {
@@ -346,6 +349,7 @@ class CallForegroundService : Service() {
     }
 
     companion object {
+        private const val TAG = "CallForegroundService"
         const val ACTION_START_OUTGOING = "com.example.messenger.call.START_OUTGOING"
         const val ACTION_START_INCOMING = "com.example.messenger.call.START_INCOMING"
         const val ACTION_ACCEPT = "com.example.messenger.call.ACCEPT"
