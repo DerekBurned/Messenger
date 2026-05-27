@@ -19,10 +19,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -70,7 +70,6 @@ import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.state.ConversationsUiState
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import com.example.messenger.util.DateUtils
-import com.google.firebase.auth.FirebaseAuth
 
 enum class MainTab { CHATS, CALLS, CONTACTS, SETTINGS }
 
@@ -217,7 +216,7 @@ private fun ChatsList(
     onRefresh: () -> Unit,
     onChatClick: (String, String, String) -> Unit,
 ) {
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val currentUserId = uiState.currentUserId
     PullToRefreshBox(
         isRefreshing = uiState.isRefreshing,
         onRefresh = onRefresh,
@@ -257,7 +256,7 @@ private fun MainTopBar(
         navigationIcon = {
             IconButton(onClick = onLogoutClick) {
                 Icon(
-                    imageVector = Icons.Filled.Logout,
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
                     tint = Color.White,
                     contentDescription = "Logout",
                 )

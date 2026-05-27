@@ -11,18 +11,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +48,7 @@ import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.MessageStatusIcon
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.components.TypingIndicator
+import com.example.messenger.presentation.notification.CurrentConversationHolder
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
 import com.example.messenger.presentation.screens.ui.theme.BubbleSent
@@ -54,9 +56,9 @@ import com.example.messenger.presentation.screens.ui.theme.ChatBackground
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.OnlineGreen
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.state.ChatUiState
 import com.example.messenger.presentation.viewmodel.ChatViewModel
 import com.example.messenger.util.DateUtils
-import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +70,6 @@ fun ChatScreenWithNav(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     val context = LocalContext.current
     val attachmentPicker = rememberLauncherForActivityResult(
@@ -78,29 +79,21 @@ fun ChatScreenWithNav(
             Toast.makeText(context, "Attachment selected: $uri (upload coming soon)", Toast.LENGTH_SHORT).show()
         }
     }
-    val chatMessages = remember(uiState.messages) {
-        uiState.messages.map { msg ->
-            ChatMessage(
-                text = msg.text,
-                isMe = msg.senderId == currentUserId,
-                status = msg.status,
-                timestamp = msg.timestamp
-            )
-        }
-    }
 
-    LaunchedEffect(uiState.messages) {
-        val latestReceivedTimestamp = uiState.messages
-            .filter { it.senderId != currentUserId }
-            .maxOfOrNull { it.timestamp }
-        if (latestReceivedTimestamp != null) {
-            viewModel.sendReadReceipt(latestReceivedTimestamp)
+    val conversationId = viewModel.conversationId
+    DisposableEffect(conversationId) {
+        if (conversationId.isNotBlank()) {
+            CurrentConversationHolder.setOpen(conversationId)
+        }
+        onDispose {
+            if (conversationId.isNotBlank()) {
+                CurrentConversationHolder.clear(conversationId)
+            }
         }
     }
 
     ChatScreenContent(
         uiState = uiState,
-        chatMessages = chatMessages,
         messageText = messageText,
         onMessageTextChange = { newText ->
             messageText = newText
@@ -126,7 +119,7 @@ fun ChatScreenWithNav(
         },
         onReply = { message -> viewModel.setReplyTo(message) },
         onDelete = { message ->
-            if (message.senderId == currentUserId) {
+            if (message.senderId == uiState.currentUserId) {
                 viewModel.deleteMessage(message)
             }
         },
@@ -140,8 +133,7 @@ fun ChatScreenWithNav(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatScreenContent(
-    uiState: com.example.messenger.presentation.state.ChatUiState,
-    chatMessages: List<ChatMessage>,
+    uiState: ChatUiState,
     messageText: String,
     onMessageTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
@@ -158,7 +150,9 @@ private fun ChatScreenContent(
         uiState.isPartnerTyping -> "typing..."
         uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
         uiState.partnerPresence.state == PresenceState.AWAY -> "Away"
-        else -> DateUtils.formatLastSeen(uiState.partnerPresence.lastSeen)
+        else -> uiState.partnerLastSeenDisplay.ifBlank {
+            DateUtils.formatLastSeen(uiState.partnerPresence.lastSeen)
+        }
     }
 
     val statusColor = when {
@@ -196,9 +190,10 @@ private fun ChatScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick =  onCallClick ) {
-                        Icon(Icons.Default.Call,
-                            contentDescription = "Close",
+                    IconButton(onClick = onCallClick) {
+                        Icon(
+                            Icons.Default.Call,
+                            contentDescription = "Voice call",
                             tint = Color.White
                         )
                     }
@@ -232,7 +227,6 @@ private fun ChatScreenContent(
         val coroutineScope = rememberCoroutineScope()
         val focusManager = LocalFocusManager.current
         val keyboardController = LocalSoftwareKeyboardController.current
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
         val isAtBottom by remember {
             derivedStateOf {
@@ -260,11 +254,11 @@ private fun ChatScreenContent(
             }
             if (currentCount > prevMessageCount) {
                 val newOnes = uiState.messages.subList(prevMessageCount, currentCount)
-                val lastIsMine = newOnes.lastOrNull()?.senderId == currentUserId
+                val lastIsMine = newOnes.lastOrNull()?.senderId == uiState.currentUserId
                 if (isAtBottom || lastIsMine) {
                     listState.animateScrollToItem(currentCount - 1)
                 } else {
-                    unreadCount += newOnes.count { it.senderId != currentUserId }
+                    unreadCount += newOnes.count { it.senderId != uiState.currentUserId }
                 }
             }
             prevMessageCount = currentCount
@@ -281,7 +275,7 @@ private fun ChatScreenContent(
                 .imePadding()
         ) {
             when {
-                uiState.isLoading && chatMessages.isEmpty() -> {
+                uiState.isLoading && uiState.messages.isEmpty() -> {
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center
@@ -289,12 +283,25 @@ private fun ChatScreenContent(
                         CircularProgressIndicator(color = PrimaryBlue)
                     }
                 }
-                uiState.error != null && chatMessages.isEmpty() -> {
+                uiState.error != null && uiState.messages.isEmpty() -> {
+                    val errorMessage = uiState.error
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = uiState.error!!, color = Color.Red)
+                        Text(text = errorMessage, color = Color.Red)
+                    }
+                }
+                uiState.messages.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "No messages yet — say hi 👋",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                        )
                     }
                 }
                 else -> {
@@ -316,9 +323,13 @@ private fun ChatScreenContent(
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.Bottom
                         ) {
-                            items(uiState.messages.size) { index ->
-                                val originalMessage = uiState.messages[index]
-                                val chatMessage = chatMessages[index]
+                            items(items = uiState.messages, key = { it.id }) { originalMessage ->
+                                val chatMessage = ChatMessage(
+                                    text = originalMessage.text,
+                                    isMe = originalMessage.senderId == uiState.currentUserId,
+                                    status = originalMessage.status,
+                                    timestamp = originalMessage.timestamp,
+                                )
                                 MessageWithContextMenu(
                                     message = chatMessage,
                                     onCopy = { onCopy(originalMessage.text) },
@@ -360,7 +371,8 @@ private fun ChatScreenContent(
                 )
             }
 
-            if (uiState.replyingTo != null) {
+            val replyingTo = uiState.replyingTo
+            if (replyingTo != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -369,14 +381,14 @@ private fun ChatScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Reply,
+                        imageVector = Icons.AutoMirrored.Filled.Reply,
                         contentDescription = null,
                         tint = PrimaryBlue,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = uiState.replyingTo!!.text,
+                        text = replyingTo.text,
                         color = Color.DarkGray,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -410,7 +422,7 @@ private fun ChatScreenContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
+                        contentDescription = "Add attachment",
                         tint = Color.White
                     )
                 }
@@ -549,19 +561,14 @@ private fun ChatScreenPreview() {
             status = MessageStatus.DELIVERED
         ),
     )
-    val fakeChatMessages = listOf(
-        ChatMessage(text = "Hey there!", isMe = true, status = MessageStatus.READ, timestamp = 1_700_000_000_000L),
-        ChatMessage(text = "Hi! How are you?", isMe = false, status = MessageStatus.SENT, timestamp = 1_700_000_060_000L),
-        ChatMessage(text = "All good, thanks!", isMe = true, status = MessageStatus.DELIVERED, timestamp = 1_700_000_120_000L),
-    )
     MessengerTheme {
         ChatScreenContent(
-            uiState = com.example.messenger.presentation.state.ChatUiState(
+            uiState = ChatUiState(
                 messages = fakeMessages,
                 partnerUsername = "Alice",
                 isLoading = false,
+                currentUserId = "me",
             ),
-            chatMessages = fakeChatMessages,
             messageText = "",
             onMessageTextChange = {},
             onSendClick = {},

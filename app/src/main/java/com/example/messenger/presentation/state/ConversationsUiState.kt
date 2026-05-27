@@ -8,5 +8,6 @@ data class ConversationsUiState(
     val conversations: List<Conversation> = emptyList(),
     val error: String? = null,
     val presenceMap: Map<String, UserPresence> = emptyMap(),
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val currentUserId: String = "",
 )
