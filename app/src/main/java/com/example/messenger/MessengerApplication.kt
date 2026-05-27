@@ -5,6 +5,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.example.messenger.data.presence.AppLifecycleObserver
+import com.example.messenger.data.remote.firebase.FcmTokenSyncer
 import com.example.messenger.data.sync.SyncCoordinator
 import com.example.messenger.data.sync.SyncManager
 import com.example.messenger.presentation.notification.NotificationChannels
@@ -26,12 +27,16 @@ class MessengerApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var syncManager: SyncManager
 
+    @Inject
+    lateinit var fcmTokenSyncer: FcmTokenSyncer
+
     override fun onCreate() {
         super.onCreate()
         NotificationChannels.ensureCreated(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         syncCoordinator.start()
         syncManager.schedulePeriodicSync()
+        fcmTokenSyncer.start()
     }
 
     override val workManagerConfiguration: Configuration
