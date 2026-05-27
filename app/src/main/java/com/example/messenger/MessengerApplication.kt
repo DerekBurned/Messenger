@@ -29,7 +29,6 @@ class MessengerApplication : Application(), Configuration.Provider {
         super.onCreate()
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         syncCoordinator.start()
-
         syncManager.schedulePeriodicSync()
     }
 

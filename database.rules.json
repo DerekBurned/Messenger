@@ -43,13 +43,15 @@
       }
     },
     "calls": {
-      "$callId": {
-        ".read": "auth != null && data.exists() && (data.child('callerId').val() === auth.uid || data.child('calleeId').val() === auth.uid)",
-        ".write": "auth != null && ((newData.exists() && (newData.child('callerId').val() === auth.uid || newData.child('calleeId').val() === auth.uid)) || (data.exists() && (data.child('callerId').val() === auth.uid || data.child('calleeId').val() === auth.uid)))",
-        "callerId":   { ".validate": "newData.isString()" },
-        "calleeId":   { ".validate": "newData.isString()" },
-        "channelName": { ".validate": "newData.isString()" },
-        "status":     { ".validate": "newData.isString()" }
+      "$calleeId": {
+        ".read": "auth != null && auth.uid === $calleeId",
+        "$callId": {
+          ".write": "auth != null && (newData.child('callerId').val() === auth.uid || data.child('callerId').val() === auth.uid || auth.uid === $calleeId)",
+          "callerId":    { ".validate": "newData.isString()" },
+          "calleeId":    { ".validate": "newData.isString() && newData.val() === $calleeId" },
+          "channelName": { ".validate": "newData.isString()" },
+          "status":      { ".validate": "newData.isString()" }
+        }
       }
     },
     "$other": {

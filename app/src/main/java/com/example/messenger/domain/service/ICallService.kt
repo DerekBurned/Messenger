@@ -8,8 +8,12 @@ interface ICallService {
     fun setEventListener(listener: CallEventListener)
 }
 
+enum class CallConnectionState { CONNECTING, CONNECTED, RECONNECTING, FAILED, DISCONNECTED }
+
 interface CallEventListener {
     fun onRemoteUserJoined(uid: Int)
     fun onRemoteUserLeft(uid: Int)
     fun onError(code: Int)
+
+    fun onConnectionStateChanged(state: CallConnectionState) {}
 }
