@@ -1,11 +1,14 @@
-
+ 
 
 import * as admin from "firebase-admin";
 import {logger} from "firebase-functions";
+import {setGlobalOptions} from "firebase-functions/v2";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {onValueCreated} from "firebase-functions/v2/database";
 
 admin.initializeApp();
+
+setGlobalOptions({region: "europe-west1"});
 
 const db = admin.firestore();
 const messaging = admin.messaging();
