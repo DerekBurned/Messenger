@@ -2,11 +2,15 @@ package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.local.dao.MessageDao
+import com.example.messenger.data.local.dao.SyncQueueDao
+import com.example.messenger.data.local.entity.SyncQueueEntity
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
+import com.example.messenger.domain.model.sync.SyncAction
+import com.example.messenger.domain.model.sync.SyncEntityType
 import com.example.messenger.domain.repository.IMessageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -17,6 +21,7 @@ class MessageRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
     private val messageService: FirestoreService,
     private val conversationDao: ConversationDao,
+    private val syncQueueDao: SyncQueueDao,
 ) : IMessageRepository {
 
     override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
@@ -39,12 +44,25 @@ class MessageRepositoryImpl @Inject constructor(
                 messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
             } else {
                 messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
+                enqueueRetry(message.id)
             }
             result
         } catch (e: Exception) {
             runCatching { messageDao.updateMessageStatus(message.id, MessageStatus.FAILED) }
+            runCatching { enqueueRetry(message.id) }
             Result.failure(e)
         }
+    }
+
+    private suspend fun enqueueRetry(messageId: String) {
+        syncQueueDao.insert(
+            SyncQueueEntity(
+                entityType = SyncEntityType.MESSAGE,
+                entityId = messageId,
+                action = SyncAction.SEND,
+                timestamp = System.currentTimeMillis(),
+            ),
+        )
     }
 
     override suspend fun deleteMessage(message: Message): Result<Unit> {

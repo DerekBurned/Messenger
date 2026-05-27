@@ -5,6 +5,7 @@ import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IUserRepository
 import kotlinx.coroutines.flow.Flow
@@ -90,18 +91,19 @@ class UserRepositoryImpl @Inject constructor(
             val uid = authService.getCurrentUserId() ?: return Result.failure(Exception("Not logged in"))
             val result = firestoreService.updateUserProfile(uid, updates)
             result.onSuccess {
-                
+
                 val localUser = userDao.getUserById(uid)
                 if (localUser != null) {
-                    var updated = localUser
-                    updates.forEach { (key, value) ->
+                    val merged = updates.entries.fold(localUser) { acc, (key, value) ->
                         when (key) {
-                            "username" -> updated = updated?.copy(username = value as String)
-                            "email" -> updated = updated?.copy(email = value as? String)
-                            "avatarUrl" -> updated = updated?.copy(avatarUrl = value as? String)
+                            "username" -> acc.copy(username = value as String)
+                            "email" -> acc.copy(email = value as? String)
+                            "avatarUrl" -> acc.copy(avatarUrl = value as? String)
+                            "phoneNumber" -> acc.copy(phoneNumber = value as? PhoneNumber)
+                            else -> acc
                         }
                     }
-                    userDao.updateUser(updated!!)
+                    userDao.updateUser(merged)
                 }
             }
             result

@@ -5,6 +5,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.example.messenger.data.presence.AppLifecycleObserver
+import com.example.messenger.data.sync.SyncCoordinator
+import com.example.messenger.data.sync.SyncManager
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -17,9 +19,18 @@ class MessengerApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var appLifecycleObserver: AppLifecycleObserver
 
+    @Inject
+    lateinit var syncCoordinator: SyncCoordinator
+
+    @Inject
+    lateinit var syncManager: SyncManager
+
     override fun onCreate() {
         super.onCreate()
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
+        syncCoordinator.start()
+
+        syncManager.schedulePeriodicSync()
     }
 
     override val workManagerConfiguration: Configuration

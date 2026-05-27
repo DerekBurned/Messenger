@@ -133,7 +133,8 @@ class ConversationRepositoryImpl @Inject constructor(
     override suspend fun syncConversations() {
         try {
             val userId = authService.getCurrentUserId() ?: return
-
-        } catch (_: Exception) { }
+            val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull() ?: return
+            remote.forEach { dao.insertConversation(it.toEntity()) }
+        } catch (_: Exception) {  }
     }
 }

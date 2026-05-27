@@ -18,6 +18,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp ASC")
     fun getMessagesWithSendersDesc(conversationId: String): Flow<List<MessageWithSender>>
 
+    @Query("SELECT * FROM messages_table WHERE id = :messageId LIMIT 1")
+    suspend fun getMessageById(messageId: String): MessageEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 

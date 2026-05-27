@@ -182,6 +182,24 @@ class FirestoreService @Inject constructor(
         }
     }
 
+    suspend fun fetchAllConversationsOnce(userId: String): Result<List<Conversation>> {
+        return try {
+            val snapshot = conversationsCollection
+                .whereArrayContains("participantIds", userId)
+                .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val conversations = snapshot.toObjects(Conversation::class.java)
+                .mapIndexed { index, conversation ->
+                    conversation.copy(id = snapshot.documents[index].id)
+                }
+            Result.success(conversations)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching conversations once", e)
+            Result.failure(e)
+        }
+    }
+
     fun getAllConversations(userId: String): Flow<List<Conversation>> = callbackFlow {
         val conversationsRef = conversationsCollection
             .whereArrayContains("participantIds", userId)
