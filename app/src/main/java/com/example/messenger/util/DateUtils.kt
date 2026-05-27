@@ -7,6 +7,16 @@ import java.util.concurrent.TimeUnit
 
 object DateUtils {
 
+    private val timeFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat("HH:mm", Locale.getDefault())
+    }
+    private val dateFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat("MM/dd 'at' HH:mm", Locale.getDefault())
+    }
+
+    private fun time(): SimpleDateFormat = timeFormat.get()!!
+    private fun date(): SimpleDateFormat = dateFormat.get()!!
+
     fun formatLastSeen(timestamp: Long): String {
         if (timestamp <= 0L) return "Offline"
 
@@ -20,20 +30,13 @@ object DateUtils {
             minutes < 1 -> "Last seen just now"
             minutes in 1..59 -> "Last seen $minutes min ago"
             hours in 1..23 -> "Last seen $hours hr ago"
-            hours in 24..48 -> {
-                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                "Last seen yesterday at ${timeFormat.format(Date(timestamp))}"
-            }
-            else -> {
-                val dateFormat = SimpleDateFormat("MM/dd 'at' HH:mm", Locale.getDefault())
-                "Last seen ${dateFormat.format(Date(timestamp))}"
-            }
+            hours in 24..48 -> "Last seen yesterday at ${time().format(Date(timestamp))}"
+            else -> "Last seen ${date().format(Date(timestamp))}"
         }
     }
 
     fun formatMessageTime(timestamp: Long): String {
         if (timestamp <= 0L) return ""
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        return timeFormat.format(Date(timestamp))
+        return time().format(Date(timestamp))
     }
 }
