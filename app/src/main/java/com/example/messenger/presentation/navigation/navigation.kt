@@ -2,16 +2,22 @@
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.messenger.data.remote.call.ActiveCallHolder
+import com.example.messenger.presentation.components.ActiveCallBar
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
@@ -58,7 +64,27 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         Screens.AuthScreen.route
     }
 
-    NavHost(
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route.orEmpty()
+    val showCallBar = !currentRoute.startsWith("call_screen") &&
+        currentRoute != Screens.AuthScreen.route
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (showCallBar) {
+            ActiveCallBar(onClick = {
+                val active = ActiveCallHolder.snapshot() ?: return@ActiveCallBar
+                navController.navigate(
+                    Screens.CallScreen.createRoute(
+                        partnerId = "active",
+                        partnerName = active.partnerName.ifBlank { "Call" },
+                        partnerPhone = active.partnerPhone.ifBlank { "_" },
+                    ),
+                ) {
+                    launchSingleTop = true
+                }
+            })
+        }
+        NavHost(
         navController = navController,
         startDestination = startDestination,
         enterTransition = {
@@ -261,5 +287,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         }
 
+        }
     }
 }
