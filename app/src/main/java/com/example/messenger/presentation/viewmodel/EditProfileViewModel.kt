@@ -1,5 +1,6 @@
 package com.example.messenger.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.auth.FirebaseAuthService
@@ -17,12 +18,32 @@ import javax.inject.Inject
 class EditProfileViewModel @Inject constructor(
     private val userRepository: IUserRepository,
     private val firebaseAuthService: FirebaseAuthService,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(EditProfileUiState())
+
+    private companion object {
+        const val KEY_LOADED = "edit_profile_loaded"
+        const val KEY_NAME = "edit_profile_name"
+        const val KEY_USERNAME = "edit_profile_username"
+        const val KEY_PHONE = "edit_profile_phone"
+        const val KEY_DOB = "edit_profile_dob"
+    }
+
+    private val _uiState = MutableStateFlow(
+        EditProfileUiState(
+            name = savedStateHandle[KEY_NAME] ?: "",
+            username = savedStateHandle[KEY_USERNAME] ?: "",
+            phone = savedStateHandle[KEY_PHONE] ?: "",
+            dob = savedStateHandle[KEY_DOB] ?: "",
+        ),
+    )
     val uiState: StateFlow<EditProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadProfile()
+
+        if (savedStateHandle.get<Boolean>(KEY_LOADED) != true) {
+            loadProfile()
+        }
     }
 
     private fun loadProfile() {
@@ -33,21 +54,45 @@ class EditProfileViewModel @Inject constructor(
             val user = result.getOrNull()
             val phoneFromAuth = firebaseAuthService.getUserPhoneNumber().orEmpty()
             val phoneFromProfile = user?.phoneNumber?.getFullNumber().orEmpty()
+            val name = user?.username.orEmpty()
+            val username = user?.username.orEmpty()
+            val phone = phoneFromProfile.ifBlank { phoneFromAuth }
+
+            savedStateHandle[KEY_NAME] = name
+            savedStateHandle[KEY_USERNAME] = username
+            savedStateHandle[KEY_PHONE] = phone
+            savedStateHandle[KEY_LOADED] = true
+
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    name = user?.username.orEmpty(),
-                    username = user?.username.orEmpty(),
-                    phone = phoneFromProfile.ifBlank { phoneFromAuth },
+                    name = name,
+                    username = username,
+                    phone = phone,
                 )
             }
         }
     }
 
-    fun onNameChange(value: String) = _uiState.update { it.copy(name = value) }
-    fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value) }
-    fun onUsernameChange(value: String) = _uiState.update { it.copy(username = value) }
-    fun onDobChange(value: String) = _uiState.update { it.copy(dob = value) }
+    fun onNameChange(value: String) {
+        savedStateHandle[KEY_NAME] = value
+        _uiState.update { it.copy(name = value) }
+    }
+
+    fun onPhoneChange(value: String) {
+        savedStateHandle[KEY_PHONE] = value
+        _uiState.update { it.copy(phone = value) }
+    }
+
+    fun onUsernameChange(value: String) {
+        savedStateHandle[KEY_USERNAME] = value
+        _uiState.update { it.copy(username = value) }
+    }
+
+    fun onDobChange(value: String) {
+        savedStateHandle[KEY_DOB] = value
+        _uiState.update { it.copy(dob = value) }
+    }
 
     fun save() {
         val state = _uiState.value
@@ -63,6 +108,7 @@ class EditProfileViewModel @Inject constructor(
                 onSuccess = {
                     
                     firebaseAuthService.updateProfile(displayName = state.username, photoUrl = null)
+                    savedStateHandle[KEY_NAME] = state.username
                     _uiState.update {
                         it.copy(isSaving = false, saveSuccess = true, name = state.username)
                     }

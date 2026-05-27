@@ -3,6 +3,7 @@ package com.example.messenger.presentation.screens
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -82,8 +83,12 @@ fun ChangePhoneScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color.White)
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 28.dp),
         ) {
+            StepIndicator(step = state.step)
+            Spacer(modifier = Modifier.height(20.dp))
+
             when (state.step) {
                 ChangePhoneStep.CONFIRM_CURRENT -> ConfirmCurrentStep(
                     currentPhone = state.currentPhone,
@@ -118,6 +123,42 @@ fun ChangePhoneScreen(
 
             if (state.error != null) {
                 Text(state.error!!, color = Color.Red, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepIndicator(step: ChangePhoneStep) {
+    val currentIndex = when (step) {
+        ChangePhoneStep.CONFIRM_CURRENT, ChangePhoneStep.VERIFY_CURRENT -> 0
+        ChangePhoneStep.ENTER_NEW -> 1
+        ChangePhoneStep.VERIFY_NEW -> 2
+        ChangePhoneStep.DONE -> 3
+    }
+    if (currentIndex >= 3) return
+    val labels = listOf("Verify current", "New number", "Verify new")
+    Column {
+        Text(
+            text = "Step ${currentIndex + 1} of 3 · ${labels[currentIndex]}",
+            color = OnSurfaceMuted,
+            fontSize = 12.sp,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            repeat(3) { i ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp)
+                        .background(
+                            color = if (i <= currentIndex) PrimaryBlue else PrimaryBlue.copy(alpha = 0.15f),
+                            shape = CircleShape,
+                        ),
+                )
             }
         }
     }

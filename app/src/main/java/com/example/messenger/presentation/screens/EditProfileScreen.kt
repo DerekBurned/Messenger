@@ -98,6 +98,7 @@ private fun EditProfileScreenContent(
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color.White)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
