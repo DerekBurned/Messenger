@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ds:datastoreItem xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml" ds:itemID="{754FD925-7633-4815-B74E-A0C26611EB61}">
+  <ds:schemaRefs>
+    <ds:schemaRef ds:uri="http://schemas.microsoft.com/office/2006/metadata/properties"/>
+    <ds:schemaRef ds:uri="http://schemas.microsoft.com/office/infopath/2007/PartnerControls"/>
+    <ds:schemaRef ds:uri="99e45361-bfdb-44fb-ba77-c674d533dd10"/>
+    <ds:schemaRef ds:uri="9ba49e4f-cbe7-4203-adf4-73cff0839894"/>
+  </ds:schemaRefs>
+</ds:datastoreItem>
