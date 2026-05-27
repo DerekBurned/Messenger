@@ -39,19 +39,18 @@ class CallViewModel @Inject constructor(
     private val context: Context get() = getApplication()
     private var hadActiveCall = false
 
+    private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
+    private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
+    private val pendingPartnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
+
+    val needsOutgoingStart: Boolean
+        get() = ActiveCallHolder.snapshot() == null && pendingPartnerId.isNotBlank()
+
     init {
-        val partnerId: String = savedStateHandle["partnerId"] ?: ""
-        val partnerName: String = savedStateHandle["partnerName"] ?: ""
-        val partnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
-
-        val existing = ActiveCallHolder.snapshot()
-        if (existing == null && partnerId.isNotBlank()) {
-            startOutgoing(partnerId, partnerName, partnerPhone)
-        } else if (existing == null) {
+        if (ActiveCallHolder.snapshot() == null) {
             
-            _uiState.update { it.copy(partnerName = partnerName, partnerPhone = partnerPhone) }
+            _uiState.update { it.copy(partnerName = pendingPartnerName, partnerPhone = pendingPartnerPhone) }
         }
-
         observeActiveCall()
     }
 
@@ -84,23 +83,27 @@ class CallViewModel @Inject constructor(
         }
     }
 
-    private fun startOutgoing(partnerId: String, partnerName: String, partnerPhone: String) {
+    fun startOutgoing() {
         val myUserId = auth.currentUser?.uid.orEmpty()
         if (myUserId.isBlank()) {
             Log.w(TAG, "startOutgoing aborted: no signed-in user")
             return
         }
+        if (pendingPartnerId.isBlank()) {
+            Log.w(TAG, "startOutgoing aborted: no partner id")
+            return
+        }
         val callId = UUID.randomUUID().toString()
         val channelName = "call-" + UUID.randomUUID().toString()
-        Log.d(TAG, "startOutgoing -> partnerId=$partnerId callId=$callId")
+        Log.d(TAG, "startOutgoing -> partnerId=$pendingPartnerId callId=$callId")
         val intent = CallForegroundService.outgoingIntent(
             ctx = context,
             callId = callId,
             callerId = myUserId,
-            calleeId = partnerId,
+            calleeId = pendingPartnerId,
             channelName = channelName,
-            partnerName = partnerName,
-            partnerPhone = partnerPhone,
+            partnerName = pendingPartnerName,
+            partnerPhone = pendingPartnerPhone,
         )
         ContextCompat.startForegroundService(context, intent)
     }
