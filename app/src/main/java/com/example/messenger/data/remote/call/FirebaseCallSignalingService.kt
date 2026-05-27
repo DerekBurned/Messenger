@@ -60,4 +60,24 @@ class FirebaseCallSignalingService @Inject constructor(
             .setValue(status.name)
             .await()
     }
+
+    override fun observeCallStatus(calleeId: String, callId: String): Flow<CallStatus?> =
+        callbackFlow {
+            val ref = callsRef.child(calleeId).child(callId).child("status")
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val raw = snapshot.getValue(String::class.java)
+                    val status = raw?.let { name ->
+                        runCatching { CallStatus.valueOf(name) }.getOrNull()
+                    }
+                    trySend(status)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    trySend(null)
+                }
+            }
+            ref.addValueEventListener(listener)
+            awaitClose { ref.removeEventListener(listener) }
+        }
 }

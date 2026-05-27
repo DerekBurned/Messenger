@@ -30,7 +30,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.zip.CRC32
 import javax.inject.Inject
 
@@ -42,6 +44,7 @@ class CallForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tickerJob: Job? = null
+    private var statusObserverJob: Job? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus: Boolean = false
 
@@ -98,6 +101,7 @@ class CallForegroundService : Service() {
         }
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.callerId))
+        observeRemoteStatus(call.calleeId, call.callId, isCaller = true)
     }
 
     private fun handleStartIncoming(intent: Intent) {
@@ -112,6 +116,7 @@ class CallForegroundService : Service() {
         )
         ActiveCallHolder.set(call)
         startForegroundCompat(buildRingingNotification(call))
+        observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
     }
 
     private fun handleAccept() {
@@ -129,23 +134,34 @@ class CallForegroundService : Service() {
     }
 
     private fun handleDecline() {
-        val call = ActiveCallHolder.snapshot() ?: run { stopSelfClean(); return }
-        scope.launch {
-            runCatching {
-                signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.DECLINED)
-            }
-        }
-        stopSelfClean()
+        terminate(CallStatus.DECLINED)
     }
 
     private fun handleEnd() {
+        terminate(CallStatus.ENDED)
+    }
+
+    private fun terminate(status: CallStatus) {
         val call = ActiveCallHolder.snapshot() ?: run { stopSelfClean(); return }
+
+        stopForegroundOnly()
         scope.launch {
-            runCatching {
-                signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.ENDED)
-            }
+            withTimeoutOrNull(STATUS_WRITE_TIMEOUT_MS) {
+                runCatching {
+                    signalingService.updateCallStatus(call.calleeId, call.callId, status)
+                }.onFailure { Log.w(TAG, "Failed to write terminal status=$status", it) }
+            } ?: Log.w(TAG, "Terminal status write timed out (status=$status)")
+            stopSelfClean()
         }
-        stopSelfClean()
+    }
+
+    private fun stopForegroundOnly() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
     }
 
     private fun handleToggleMute() {
@@ -164,8 +180,30 @@ class CallForegroundService : Service() {
         refreshOngoingNotification()
     }
 
+    private fun observeRemoteStatus(calleeId: String, callId: String, isCaller: Boolean) {
+        statusObserverJob?.cancel()
+        statusObserverJob = scope.launch {
+            signalingService.observeCallStatus(calleeId, callId).collectLatest { status ->
+                Log.d(TAG, "remote status=$status isCaller=$isCaller")
+                when (status) {
+                    CallStatus.ACTIVE -> {
+                        if (isCaller && ActiveCallHolder.snapshot()?.isActive != true) {
+                            ActiveCallHolder.update { it.copy(isActive = true) }
+                            startTicker()
+                            refreshOngoingNotification()
+                        }
+                    }
+                    CallStatus.DECLINED, CallStatus.ENDED -> stopSelfClean()
+                    CallStatus.RINGING, null -> Unit
+                }
+            }
+        }
+    }
+
     private fun stopSelfClean() {
         stopTicker()
+        statusObserverJob?.cancel()
+        statusObserverJob = null
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -374,6 +412,7 @@ class CallForegroundService : Service() {
         private const val REQ_ACCEPT = 2
         private const val REQ_DECLINE = 3
         private const val REQ_END = 4
+        private const val STATUS_WRITE_TIMEOUT_MS = 4_000L
 
         fun outgoingIntent(
             ctx: Context,
