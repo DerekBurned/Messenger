@@ -2,12 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required on Android 13+ to display any notification (incl. FCM). Requested at runtime. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!--Optional permissions for voice call-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <!-- For devices running Android 12 (API level 32) or higher and integrating Agora Voice SDK version v4.1.0 or lower, you also need to add the following permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
