@@ -7,10 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.messenger.BuildConfig
 import com.example.messenger.presentation.MainActivity
+import com.example.messenger.presentation.notification.CurrentConversationHolder
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import com.google.firebase.messaging.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,6 +62,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     }
                 }
             }
+        }
+
+        val openConversationId = remoteMessage.data["conversationId"]
+        if (openConversationId != null && CurrentConversationHolder.isOpen(openConversationId)) {
+            return
         }
 
         remoteMessage.notification?.let {
