@@ -49,11 +49,14 @@ class CallForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "onCreate")
         callService.setEventListener(eventListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: return START_NOT_STICKY
+        val action = intent?.action
+        Log.d(TAG, "onStartCommand action=$action")
+        if (action == null) return START_NOT_STICKY
         when (action) {
             ACTION_START_OUTGOING -> handleStartOutgoing(intent)
             ACTION_START_INCOMING -> handleStartIncoming(intent)
@@ -248,6 +251,7 @@ class CallForegroundService : Service() {
 
     private fun startForegroundCompat(notification: Notification) {
         try {
+            Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT})")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     NOTIFICATION_ID_CALL,

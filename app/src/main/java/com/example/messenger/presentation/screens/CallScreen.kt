@@ -63,8 +63,45 @@ private fun CallScreenContent(
     onToggleMute: () -> Unit = {},
 ) {
     if (!state.isActive && !state.isIncoming) {
-        Box(Modifier.fillMaxSize().background(PrimaryBlue), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color.White)
+        Box(modifier = Modifier.fillMaxSize().background(PrimaryBlue)) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(vertical = 64.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CallAvatar(name = state.partnerName)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = state.partnerName.ifBlank { "Calling…" },
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (state.partnerPhone.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(state.partnerPhone, color = Color.White.copy(0.7f), fontSize = 16.sp)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    CircularProgressIndicator(color = Color.White.copy(0.8f))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Calling…", color = Color.White.copy(0.6f), fontSize = 14.sp)
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CallControlButton(
+                        Icons.Default.CallEnd,
+                        "End",
+                        Color.Red,
+                        size = 68.dp,
+                        onClick = onEnd,
+                    )
+                }
+            }
         }
         return
     }

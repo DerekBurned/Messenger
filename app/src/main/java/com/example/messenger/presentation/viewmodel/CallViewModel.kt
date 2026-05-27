@@ -2,6 +2,7 @@ package com.example.messenger.presentation.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -74,9 +75,13 @@ class CallViewModel @Inject constructor(
 
     private fun startOutgoing(partnerId: String, partnerName: String, partnerPhone: String) {
         val myUserId = auth.currentUser?.uid.orEmpty()
-        if (myUserId.isBlank()) return
+        if (myUserId.isBlank()) {
+            Log.w(TAG, "startOutgoing aborted: no signed-in user")
+            return
+        }
         val callId = UUID.randomUUID().toString()
         val channelName = "call-" + UUID.randomUUID().toString()
+        Log.d(TAG, "startOutgoing -> partnerId=$partnerId callId=$callId")
         val intent = CallForegroundService.outgoingIntent(
             ctx = context,
             callId = callId,
@@ -96,8 +101,13 @@ class CallViewModel @Inject constructor(
     fun toggleSpeaker() = sendAction(CallForegroundService.ACTION_TOGGLE_SPEAKER)
 
     private fun sendAction(action: String) {
+        Log.d(TAG, "sendAction $action")
         val intent = android.content.Intent(context, CallForegroundService::class.java)
             .setAction(action)
         ContextCompat.startForegroundService(context, intent)
+    }
+
+    private companion object {
+        const val TAG = "CallViewModel"
     }
 }
