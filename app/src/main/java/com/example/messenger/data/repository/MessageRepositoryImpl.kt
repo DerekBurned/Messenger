@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
-    private val messageService: FirestoreService,
+    private val firestoreService: FirestoreService,
     private val conversationDao: ConversationDao,
     private val syncQueueDao: SyncQueueDao,
 ) : IMessageRepository {
@@ -39,7 +39,7 @@ class MessageRepositoryImpl @Inject constructor(
                 lastMessageTimestamp = message.timestamp,
             )
 
-            val result = messageService.sendMessage(message.copy(status = MessageStatus.SENT))
+            val result = firestoreService.sendMessage(message.copy(status = MessageStatus.SENT))
             if (result.isSuccess) {
                 messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
             } else {
@@ -67,7 +67,7 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMessage(message: Message): Result<Unit> {
         return try {
-            val result = messageService.deleteMessage(message)
+            val result = firestoreService.deleteMessage(message)
             if (result.isSuccess) {
                 messageDao.deleteMessage(message.toEntity())
             }
@@ -79,7 +79,7 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun markMessageAsRead(message: Message): Result<Unit> {
         return try {
-            val result = messageService.markMessageAsRead(message)
+            val result = firestoreService.markMessageAsRead(message)
             if (result.isSuccess) {
                 messageDao.markAsRead(message.id)
             }
@@ -91,7 +91,7 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>> = flow {
         try {
-            messageService.getMessagesStream(conversationId).collect { messages ->
+            firestoreService.getMessagesStream(conversationId).collect { messages ->
                 messages.forEach { message ->
                     messageDao.insertMessage(message.toEntity())
                     emit(Result.success(message))
