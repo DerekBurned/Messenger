@@ -1,6 +1,7 @@
 package com.example.messenger.presentation.state
 
 import androidx.compose.ui.graphics.Color
+import com.example.messenger.presentation.base.UiState
 
 enum class FileTab { PHOTO, VIDEO, FILE }
 
@@ -13,4 +14,4 @@ data class FilePickerUiState(
     val photos: List<PhotoItem> = emptyList(),
     val videos: List<VideoItem> = emptyList(),
     val files: List<FileItem> = emptyList(),
-)
+) : UiState

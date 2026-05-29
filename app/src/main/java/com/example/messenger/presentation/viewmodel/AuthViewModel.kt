@@ -2,7 +2,6 @@ package com.example.messenger.presentation.viewmodel
 
 import android.app.Activity
 import android.util.Log
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.auth.FirebaseAuthService
@@ -12,16 +11,18 @@ import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.auth.ObserveAuthStateUseCase
+import com.example.messenger.R
+import com.example.messenger.presentation.base.MviViewModel
+import com.example.messenger.presentation.base.UiText
+import com.example.messenger.presentation.base.toUiText
+import com.example.messenger.presentation.effect.AuthEffect
+import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.state.AuthUiState
 import com.example.messenger.util.Resource
 import com.example.messenger.util.VerificationResult
 import com.google.firebase.auth.PhoneAuthCredential
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -35,37 +36,47 @@ class AuthViewModel @Inject constructor(
     private val presenceManager: PresenceManager,
     private val firebaseMessagingManager: FirebaseMessagingManager,
     private val firestoreService: FirestoreService,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        AuthUiState(isAuthenticated = firebaseAuthService.isAuthenticated()),
-    )
-    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
-
+) : MviViewModel<AuthUiState, AuthIntent, AuthEffect>(
+    initialState = AuthUiState(isAuthenticated = firebaseAuthService.isAuthenticated()),
+) {
+    
     private var pendingUsername: String? = null
 
     init {
         observeAuthStatus()
     }
 
+    override fun handleIntent(intent: AuthIntent) {
+        when (intent) {
+            is AuthIntent.SendVerificationCode ->
+                sendVerificationCode(intent.activity, intent.phoneNumber, intent.username)
+            is AuthIntent.VerifyOtpAndLogin -> verifyOtpAndLogin(intent.otpCode)
+            is AuthIntent.VerifyOtpAndLink -> verifyOtpAndLink(intent.otpCode)
+            AuthIntent.Logout -> logout()
+            AuthIntent.ClearError -> setState { copy(error = null) }
+            AuthIntent.EditPhoneNumber -> setState { copy(codeSent = false, error = null) }
+        }
+    }
+
     private fun observeAuthStatus() {
         viewModelScope.launch {
             observeAuthStateUseCase().collectLatest { user ->
-                _uiState.update { it.copy(isAuthenticated = user != null) }
+                setState { copy(isAuthenticated = user != null) }
             }
         }
     }
 
-    fun logout() {
+    private fun logout() {
         viewModelScope.launch {
             presenceManager.disconnect(viewModelScope)
             logoutUseCase()
-            _uiState.update { AuthUiState() }
+            setState { AuthUiState() }
         }
     }
 
-    fun sendVerificationCode(activity: Activity, phoneNumber: String, username: String? = null) {
+    private fun sendVerificationCode(activity: Activity, phoneNumber: String, username: String?) {
         pendingUsername = username
-        _uiState.update { it.copy(isLoading = true, error = null, codeSent = false) }
+        setState { copy(isLoading = true, error = null, codeSent = false) }
 
         viewModelScope.launch {
             val result = firebaseAuthService.sendVerificationCode(phoneNumber, activity)
@@ -73,64 +84,64 @@ class AuthViewModel @Inject constructor(
             if (result.isSuccess) {
                 when (val verifyResult = result.getOrThrow()) {
                     is VerificationResult.CodeSent -> {
-                        _uiState.update { it.copy(isLoading = false, codeSent = true) }
+                        setState { copy(isLoading = false, codeSent = true) }
                     }
                     is VerificationResult.AutoVerified -> {
                         signInWithPhone(verifyResult.credential)
                     }
                 }
             } else {
-                val errorMsg = result.exceptionOrNull()?.message ?: "Verification Failed"
-                _uiState.update { it.copy(isLoading = false, error = errorMsg) }
+                val errorMsg: UiText = result.exceptionOrNull()?.message?.toUiText()
+                    ?: UiText.StringResource(R.string.auth_error_verification_failed)
+                setState { copy(isLoading = false, error = errorMsg) }
             }
         }
     }
 
-    fun verifyOtpAndLogin(otpCode: String) {
+    private fun verifyOtpAndLogin(otpCode: String) {
         viewModelScope.launch {
             val credentialResult = firebaseAuthService.verifyCode(otpCode)
             if (credentialResult.isSuccess) {
                 signInWithPhone(credentialResult.getOrThrow())
             } else {
-                _uiState.update { it.copy(error = "Invalid Code") }
+                setState { copy(error = UiText.StringResource(R.string.auth_error_invalid_code)) }
             }
         }
     }
 
-    fun verifyOtpAndLink(otpCode: String) {
+    private fun verifyOtpAndLink(otpCode: String) {
         viewModelScope.launch {
             val credentialResult = firebaseAuthService.verifyCode(otpCode)
             if (credentialResult.isSuccess) {
                 linkPhone(credentialResult.getOrThrow())
             } else {
-                _uiState.update { it.copy(error = "Invalid Code") }
+                setState { copy(error = UiText.StringResource(R.string.auth_error_invalid_code)) }
             }
         }
     }
 
     private fun signInWithPhone(credential: PhoneAuthCredential) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            setState { copy(isLoading = true) }
             val result = loginWithPhoneNumberUseCase(credential, pendingUsername)
             pendingUsername = null
             when (result) {
                 is Resource.Success -> {
                     syncFcmTokenForCurrentUser()
-                    _uiState.update {
-                        it.copy(
+                    setState {
+                        copy(
                             isLoading = false,
                             currentUser = result.data,
-                            loginSuccess = true,
-                            registerSuccess = true,
                             error = null,
                         )
                     }
+                    emitEffect(AuthEffect.AuthSucceeded)
                 }
-                is Resource.Error -> _uiState.update {
-                    it.copy(isLoading = false, error = result.message)
+                is Resource.Error -> setState {
+                    copy(isLoading = false, error = result.message.toUiText())
                 }
-                is Resource.Failure -> _uiState.update {
-                    it.copy(isLoading = false, error = result.exception.message)
+                is Resource.Failure -> setState {
+                    copy(isLoading = false, error = result.exception.message?.toUiText())
                 }
                 is Resource.Loading -> {}
             }
@@ -152,28 +163,15 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             linkPhoneUseCase(credential).collect { resource ->
                 when (resource) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
-                    is Resource.Success -> _uiState.update { it.copy(isLoading = false, error = null) }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message) }
-                    is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message) }
+                    is Resource.Loading -> setState { copy(isLoading = true, error = null) }
+                    is Resource.Success -> {
+                        setState { copy(isLoading = false, error = null) }
+                        emitEffect(AuthEffect.PhoneLinked)
+                    }
+                    is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
+                    is Resource.Failure -> setState { copy(isLoading = false, error = resource.exception.message?.toUiText()) }
                 }
             }
         }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
-    }
-
-    fun onLoginNavigated() {
-        _uiState.update { it.copy(loginSuccess = false) }
-    }
-
-    fun onRegisterNavigated() {
-        _uiState.update { it.copy(registerSuccess = false) }
-    }
-
-    fun onEditPhoneNumber() {
-        _uiState.update { it.copy(codeSent = false, error = null) }
     }
 }

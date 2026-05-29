@@ -11,7 +11,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,8 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.effect.EditProfileEffect
+import com.example.messenger.presentation.intent.EditProfileIntent
 import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
@@ -40,22 +42,21 @@ fun EditProfileScreen(
     onChangeAccount: () -> Unit = {},
     onChangePhone: () -> Unit = {},
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.saveSuccess) {
-        if (state.saveSuccess) {
-            viewModel.onSaveNavigated()
-            onSaved()
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            EditProfileEffect.Saved -> onSaved()
         }
     }
 
     EditProfileScreenContent(
         state = state,
         onBackClick = onBackClick,
-        onNameChange = viewModel::onNameChange,
-        onUsernameChange = viewModel::onUsernameChange,
-        onDobChange = viewModel::onDobChange,
-        onSaveClick = viewModel::save,
+        onNameChange = { viewModel.dispatch(EditProfileIntent.NameChange(it)) },
+        onUsernameChange = { viewModel.dispatch(EditProfileIntent.UsernameChange(it)) },
+        onDobChange = { viewModel.dispatch(EditProfileIntent.DobChange(it)) },
+        onSaveClick = { viewModel.dispatch(EditProfileIntent.Save) },
         onLogoutClick = onLogout,
         onChangeAccountClick = onChangeAccount,
         onChangePhoneClick = onChangePhone,
@@ -155,8 +156,8 @@ private fun EditProfileScreenContent(
 
             Spacer(Modifier.height(20.dp))
 
-            if (state.error != null) {
-                Text(state.error, color = DangerRed, fontSize = 13.sp)
+            state.error?.let { err ->
+                Text(err.asString(), color = DangerRed, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
             }
 

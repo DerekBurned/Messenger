@@ -59,7 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.UserPresence
@@ -174,7 +174,7 @@ private fun ChatsTabContent(
 ) {
     when {
         uiState.isLoading -> ChatsLoading()
-        uiState.error != null -> ChatsError(message = uiState.error, onRetry = onRefresh)
+        uiState.error != null -> ChatsError(message = uiState.error.asString(), onRetry = onRefresh)
         uiState.conversations.isEmpty() -> ChatsEmpty()
         else -> ChatsList(uiState = uiState, onRefresh = onRefresh, onChatClick = onChatClick)
     }

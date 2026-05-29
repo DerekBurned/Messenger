@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import com.example.messenger.domain.model.MessageStatus
@@ -48,6 +48,9 @@ import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.MessageStatusIcon
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.components.TypingIndicator
+import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.effect.ChatEffect
+import com.example.messenger.presentation.intent.ChatIntent
 import com.example.messenger.presentation.notification.CurrentConversationHolder
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
@@ -68,10 +71,16 @@ fun ChatScreenWithNav(
     onCallClick: () -> Unit = {},
     onIntercultorProfileClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            is ChatEffect.ShowError -> Toast.makeText(context, effect.message.asString(context), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val attachmentPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -97,7 +106,7 @@ fun ChatScreenWithNav(
         messageText = messageText,
         onMessageTextChange = { newText ->
             messageText = newText
-            viewModel.onTextChanged(newText)
+            viewModel.dispatch(ChatIntent.TextChanged(newText))
         },
         onSendClick = {
             if (messageText.isNotBlank()) {
@@ -106,8 +115,8 @@ fun ChatScreenWithNav(
                 } else {
                     messageText
                 }
-                viewModel.sendMessage(textToSend)
-                viewModel.clearReply()
+                viewModel.dispatch(ChatIntent.SendMessage(textToSend))
+                viewModel.dispatch(ChatIntent.ClearReply)
                 messageText = ""
             }
         },
@@ -117,13 +126,13 @@ fun ChatScreenWithNav(
             clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
             Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
         },
-        onReply = { message -> viewModel.setReplyTo(message) },
+        onReply = { message -> viewModel.dispatch(ChatIntent.SetReplyTo(message)) },
         onDelete = { message ->
             if (message.senderId == uiState.currentUserId) {
-                viewModel.deleteMessage(message)
+                viewModel.dispatch(ChatIntent.DeleteMessage(message))
             }
         },
-        onClearReply = { viewModel.clearReply() },
+        onClearReply = { viewModel.dispatch(ChatIntent.ClearReply) },
         onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
@@ -284,7 +293,7 @@ private fun ChatScreenContent(
                     }
                 }
                 uiState.error != null && uiState.messages.isEmpty() -> {
-                    val errorMessage = uiState.error
+                    val errorMessage = uiState.error.asString()
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center

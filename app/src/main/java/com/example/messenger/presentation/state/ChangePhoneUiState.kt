@@ -1,5 +1,7 @@
 package com.example.messenger.presentation.state
 
+import com.example.messenger.presentation.base.UiState
+import com.example.messenger.presentation.base.UiText
 import com.example.messenger.presentation.components.Countries
 import com.example.messenger.presentation.components.Country
 
@@ -12,8 +14,6 @@ enum class ChangePhoneStep {
     ENTER_NEW,
 
     VERIFY_NEW,
-
-    DONE,
 }
 
 data class ChangePhoneUiState(
@@ -23,5 +23,5 @@ data class ChangePhoneUiState(
     val newNationalNumber: String = "",
     val otp: String = "",
     val isLoading: Boolean = false,
-    val error: String? = null,
-)
+    val error: UiText? = null,
+) : UiState
