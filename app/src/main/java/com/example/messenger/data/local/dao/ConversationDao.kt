@@ -37,6 +37,9 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations_table WHERE id = :conversationId")
     suspend fun getConversationById(conversationId: String): ConversationEntity?
 
+    @Query("SELECT * FROM conversations_table")
+    suspend fun getAllConversationsOnce(): List<ConversationEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConversation(conversation: ConversationEntity)
 

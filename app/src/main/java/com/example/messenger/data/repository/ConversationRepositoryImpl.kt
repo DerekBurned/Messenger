@@ -1,7 +1,7 @@
 package com.example.messenger.data.repository
 
+import android.util.Log
 import com.example.messenger.data.local.dao.ConversationDao
-import com.example.messenger.data.local.dao.UserDao
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
 import com.example.messenger.data.remote.auth.FirebaseAuthService
@@ -10,40 +10,36 @@ import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
     private val firestoreService: FirestoreService,
     private val dao: ConversationDao,
     private val authService: FirebaseAuthService,
-    private val userDao: UserDao,
 ) : IConversationRepository {
 
     override fun getAllConversations(): Flow<List<Conversation>> {
-
-        return combine(dao.getAllConversations(), userDao.getAllUsers()) { summaries, users ->
-            val usersById = users.associateBy { it.id }
-            summaries.map { summary ->
-                val conv = summary.conversation.toDomain()
-                val previewText = summary.latestMessageText
-                    ?: conv.lastMessage?.takeIf { it.isNotBlank() }
-                val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
-                    ?: conv.lastMessageTimestamp
-                val resolvedNames = conv.participantIds.mapIndexed { index, id ->
-                    val localName = usersById[id]?.username
-                    localName?.takeIf { it.isNotBlank() }
-                        ?: conv.participantNames.getOrNull(index)
-                        ?: ""
-                }
-                conv.copy(
-                    participantNames = resolvedNames,
-                    lastMessage = previewText,
-                    lastMessageTimestamp = previewTs,
-                )
+        return dao.getAllConversations()
+            .onStart {
+                runCatching { syncConversations() }
+                    .onFailure { Log.w(TAG, "Initial conversation sync failed", it) }
             }
-        }
+            .map { summaries ->
+                summaries.map { summary ->
+                    val conv = summary.conversation.toDomain()
+                    val previewText = summary.latestMessageText
+                        ?: conv.lastMessage?.takeIf { it.isNotBlank() }
+                    val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
+                        ?: conv.lastMessageTimestamp
+                    conv.copy(
+                        lastMessage = previewText,
+                        lastMessageTimestamp = previewTs,
+                    )
+                }
+            }
     }
 
     override suspend fun getConversationById(conversationId: String): Result<Conversation?> {
@@ -135,6 +131,12 @@ class ConversationRepositoryImpl @Inject constructor(
             val userId = authService.getCurrentUserId() ?: return
             val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull() ?: return
             remote.forEach { dao.insertConversation(it.toEntity()) }
-        } catch (_: Exception) {  }
+        } catch (e: Exception) {
+            Log.w(TAG, "Conversation sync failed (SyncWorker will retry)", e)
+        }
+    }
+
+    private companion object {
+        const val TAG = "ConversationRepo"
     }
 }

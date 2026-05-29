@@ -1,5 +1,6 @@
 package com.example.messenger.di
 
+import com.example.messenger.data.local.repository.ILocalRepository
 import com.example.messenger.data.sync.NetworkObserver
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.domain.repository.IConversationRepository
@@ -49,9 +50,10 @@ object UseCaseModule {
     @Provides
     fun provideLogoutUseCase(
         authRepository: IAuthRepository,
-        userRepository: IUserRepository
+        userRepository: IUserRepository,
+        localRepository: ILocalRepository,
     ): LogoutUseCase {
-        return LogoutUseCase(authRepository, userRepository)
+        return LogoutUseCase(authRepository, userRepository, localRepository)
     }
 
     @Provides
