@@ -58,23 +58,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val senderId = data["senderId"].orEmpty()
         val senderName = data["senderName"].orEmpty().ifBlank { "New message" }
         val preview = data["preview"].orEmpty()
-        val timestamp = data["timestamp"]?.toLongOrNull() ?: System.currentTimeMillis()
-
-        if (conversationId.isNotBlank()) {
-            val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-            if (currentUid != null) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    runCatching {
-                        com.google.firebase.database.FirebaseDatabase.getInstance()
-                            .getReference("receipts")
-                            .child(conversationId)
-                            .child(currentUid)
-                            .child("lastDeliveredTimestamp")
-                            .setValue(timestamp)
-                    }
-                }
-            }
-        }
 
         if (conversationId.isNotBlank() && CurrentConversationHolder.isOpen(conversationId)) {
             return

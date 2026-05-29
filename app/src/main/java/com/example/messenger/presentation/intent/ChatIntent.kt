@@ -7,6 +7,7 @@ sealed interface ChatIntent : UiIntent {
     data class TextChanged(val text: String) : ChatIntent
     data class SendMessage(val text: String) : ChatIntent
     data class MarkAsRead(val message: Message) : ChatIntent
+    data class MessagesSeen(val upToTimestamp: Long) : ChatIntent
     data class DeleteMessage(val message: Message) : ChatIntent
     data class SetReplyTo(val message: Message) : ChatIntent
     data class Forward(val message: Message) : ChatIntent

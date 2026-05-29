@@ -105,11 +105,6 @@ class RealtimeDbService @Inject constructor(
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    suspend fun sendDeliveryReceipt(conversationId: String, userId: String, timestamp: Long) {
-        receiptsRef.child(conversationId).child(userId)
-            .child("lastDeliveredTimestamp").setValue(timestamp).await()
-    }
-
     suspend fun sendReadReceipt(conversationId: String, userId: String, timestamp: Long) {
         receiptsRef.child(conversationId).child(userId)
             .child("lastReadTimestamp").setValue(timestamp).await()
@@ -122,14 +117,9 @@ class RealtimeDbService @Inject constructor(
                 val receipts = mutableMapOf<String, Map<String, Long>>()
                 for (child in snapshot.children) {
                     val userId = child.key ?: continue
-                    val delivered = child.child("lastDeliveredTimestamp")
-                        .getValue(Long::class.java) ?: 0L
                     val read = child.child("lastReadTimestamp")
                         .getValue(Long::class.java) ?: 0L
-                    receipts[userId] = mapOf(
-                        "lastDeliveredTimestamp" to delivered,
-                        "lastReadTimestamp" to read
-                    )
+                    receipts[userId] = mapOf("lastReadTimestamp" to read)
                 }
                 trySend(receipts)
             }

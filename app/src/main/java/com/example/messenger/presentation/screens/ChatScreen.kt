@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
@@ -72,7 +73,7 @@ fun ChatScreenWithNav(
     onIntercultorProfileClick: () -> Unit = {}
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
-    var messageText by remember { mutableStateOf("") }
+    var messageText by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
     ObserveAsEvents(viewModel.effect) { effect ->
@@ -136,6 +137,7 @@ fun ChatScreenWithNav(
         onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
+        onMessagesSeen = { timestamp -> viewModel.dispatch(ChatIntent.MessagesSeen(timestamp)) },
     )
 }
 
@@ -154,7 +156,9 @@ private fun ChatScreenContent(
     onDelete: (com.example.messenger.domain.model.Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
+    onMessagesSeen: (Long) -> Unit,
 ) {
+
     val presenceStatusText = when {
         uiState.isPartnerTyping -> "typing..."
         uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
@@ -275,6 +279,37 @@ private fun ChatScreenContent(
 
         LaunchedEffect(isAtBottom) {
             if (isAtBottom) unreadCount = 0
+        }
+
+        val messagesById = remember(uiState.messages) { uiState.messages.associateBy { it.id } }
+        LaunchedEffect(listState, messagesById, uiState.currentUserId) {
+            snapshotFlow {
+                val info = listState.layoutInfo
+                val viewportTop = info.viewportStartOffset
+                val viewportBottom = info.viewportEndOffset
+                info.visibleItemsInfo
+                    .asSequence()
+                    .filter { item ->
+                        val size = item.size
+                        if (size <= 0) return@filter false
+                        val top = item.offset
+                        val bottom = top + size
+                        val visiblePx = (minOf(bottom, viewportBottom) - maxOf(top, viewportTop))
+                            .coerceAtLeast(0)
+                        visiblePx.toFloat() / size >= 1f / 3f
+                    }
+                    .mapNotNull { item ->
+                        val message = messagesById[item.key as? String]
+                        if (message != null && message.senderId != uiState.currentUserId) {
+                            message.timestamp
+                        } else {
+                            null
+                        }
+                    }
+                    .maxOrNull() ?: 0L
+            }
+                .distinctUntilChanged()
+                .collect { timestamp -> if (timestamp > 0L) onMessagesSeen(timestamp) }
         }
 
         Column(
@@ -567,7 +602,7 @@ private fun ChatScreenPreview() {
         ),
         com.example.messenger.domain.model.Message(
             id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L,
-            status = MessageStatus.DELIVERED
+            status = MessageStatus.SENT
         ),
     )
     MessengerTheme {
@@ -588,7 +623,8 @@ private fun ChatScreenPreview() {
             onDelete = {},
             onClearReply = {},
             onAttachmentClick = {},
-            onIntercultorProfileClick = {}
+            onIntercultorProfileClick = {},
+            onMessagesSeen = {},
         )
     }
 }

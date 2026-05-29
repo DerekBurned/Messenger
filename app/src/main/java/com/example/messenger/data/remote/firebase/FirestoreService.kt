@@ -66,11 +66,17 @@ class FirestoreService @Inject constructor(
     }
     suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
+
+            val remoteMessage = if (message.status == MessageStatus.SENDING) {
+                message.copy(status = MessageStatus.SENT)
+            } else {
+                message
+            }
             val conversationRef = conversationsCollection.document(message.conversationId)
             conversationRef
                 .collection("messages")
-                .document(message.id)
-                .set(message)
+                .document(remoteMessage.id)
+                .set(remoteMessage)
                 .await()
             conversationRef
                 .update(

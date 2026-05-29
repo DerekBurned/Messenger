@@ -51,6 +51,8 @@ class Converters {
 
     @TypeConverter
     fun toMessageStatus(value: String): MessageStatus {
-        return MessageStatus.valueOf(value)
+        
+        if (value == "DELIVERED") return MessageStatus.SENT
+        return runCatching { MessageStatus.valueOf(value) }.getOrDefault(MessageStatus.SENT)
     }
 }

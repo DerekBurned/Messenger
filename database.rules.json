@@ -33,9 +33,6 @@
         "$userId": {
           ".read": "auth != null",
           ".write": "auth != null && auth.uid === $userId",
-          "lastDeliveredTimestamp": {
-            ".validate": "newData.isNumber()"
-          },
           "lastReadTimestamp": {
             ".validate": "newData.isNumber()"
           }
