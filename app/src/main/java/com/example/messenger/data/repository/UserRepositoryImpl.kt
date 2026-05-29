@@ -1,5 +1,6 @@
 package com.example.messenger.data.repository
 
+import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.local.dao.UserDao
 import com.example.messenger.data.mapper.toDomain
 import com.example.messenger.data.mapper.toEntity
@@ -14,6 +15,7 @@ import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
+    private val conversationDao: ConversationDao,
     private val firestoreService: FirestoreService,
     private val authService: FirebaseAuthService,
 ) : IUserRepository {
@@ -130,9 +132,21 @@ class UserRepositoryImpl @Inject constructor(
             } else {
                 userDao.updateUser(local.copy(username = trimmed))
             }
+            propagateRenameToConversations(contactId, trimmed)
             Result.success(Unit)
         }
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    private suspend fun propagateRenameToConversations(contactId: String, newName: String) {
+        val conversations = conversationDao.getAllConversationsOnce()
+        conversations.forEach { conv ->
+            val idx = conv.participantIds.indexOf(contactId)
+            if (idx < 0 || idx >= conv.participantNames.size) return@forEach
+            if (conv.participantNames[idx] == newName) return@forEach
+            val updatedNames = conv.participantNames.toMutableList().apply { this[idx] = newName }
+            conversationDao.insertConversation(conv.copy(participantNames = updatedNames))
+        }
     }
 }
