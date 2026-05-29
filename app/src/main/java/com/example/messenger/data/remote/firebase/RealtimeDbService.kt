@@ -18,7 +18,6 @@ class RealtimeDbService @Inject constructor(
 ) {
     private val presenceRef = database.getReference("presence")
     private val typingRef = database.getReference("typing")
-    private val receiptsRef = database.getReference("receipts")
     private val connectedRef = database.getReference(".info/connected")
 
     fun observeConnectionState(): Flow<Boolean> = callbackFlow {
@@ -95,33 +94,6 @@ class RealtimeDbService @Inject constructor(
                     child.key?.let { typingUsers[it] = child.value }
                 }
                 trySend(typingUsers)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
-            }
-        }
-        ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
-    }
-
-    suspend fun sendReadReceipt(conversationId: String, userId: String, timestamp: Long) {
-        receiptsRef.child(conversationId).child(userId)
-            .child("lastReadTimestamp").setValue(timestamp).await()
-    }
-
-    fun observeReceipts(conversationId: String): Flow<Map<String, Map<String, Long>>> = callbackFlow {
-        val ref = receiptsRef.child(conversationId)
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val receipts = mutableMapOf<String, Map<String, Long>>()
-                for (child in snapshot.children) {
-                    val userId = child.key ?: continue
-                    val read = child.child("lastReadTimestamp")
-                        .getValue(Long::class.java) ?: 0L
-                    receipts[userId] = mapOf("lastReadTimestamp" to read)
-                }
-                trySend(receipts)
             }
 
             override fun onCancelled(error: DatabaseError) {
