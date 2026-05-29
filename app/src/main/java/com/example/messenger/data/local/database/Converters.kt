@@ -55,4 +55,14 @@ class Converters {
         if (value == "DELIVERED") return MessageStatus.SENT
         return runCatching { MessageStatus.valueOf(value) }.getOrDefault(MessageStatus.SENT)
     }
+
+    @TypeConverter
+    fun fromPhoneVisibility(visibility: PhoneVisibility): String {
+        return visibility.name
+    }
+
+    @TypeConverter
+    fun toPhoneVisibility(value: String): PhoneVisibility {
+        return runCatching { PhoneVisibility.valueOf(value) }.getOrDefault(PhoneVisibility.HIDDEN)
+    }
 }
