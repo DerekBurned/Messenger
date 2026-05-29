@@ -36,15 +36,7 @@ fun MessageStatusIcon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Sent",
                 modifier = modifier.size(iconSize),
-                tint = DeliveredBlue
-            )
-        }
-        MessageStatus.DELIVERED -> {
-            Icon(
-                imageVector = Icons.Default.DoneAll,
-                contentDescription = "Delivered",
-                modifier = modifier.size(iconSize),
-                tint = DeliveredBlue
+                tint = OfflineGray
             )
         }
         MessageStatus.READ -> {
@@ -52,7 +44,7 @@ fun MessageStatusIcon(
                 imageVector = Icons.Default.DoneAll,
                 contentDescription = "Read",
                 modifier = modifier.size(iconSize),
-                tint = DeliveredBlue.copy(alpha = 1f)
+                tint = DeliveredBlue
             )
         }
         MessageStatus.FAILED -> {

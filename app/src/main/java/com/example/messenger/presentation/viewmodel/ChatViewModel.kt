@@ -57,7 +57,7 @@ class ChatViewModel @Inject constructor(
 
     private var typingJob: Job? = null
     private var typingClearJob: Job? = null
-    private var lastSentReceiptTimestamp: Long = 0L
+    private var lastSentReadTimestamp: Long = 0L
 
     private var latestReceipts: Map<String, ReceiptInfo> = emptyMap()
 
@@ -93,6 +93,7 @@ class ChatViewModel @Inject constructor(
             is ChatIntent.TextChanged -> onTextChanged(intent.text)
             is ChatIntent.SendMessage -> sendMessage(intent.text)
             is ChatIntent.MarkAsRead -> markAsRead(intent.message)
+            is ChatIntent.MessagesSeen -> onMessagesSeen(intent.upToTimestamp)
             is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
             is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
             ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
@@ -121,7 +122,6 @@ class ChatViewModel @Inject constructor(
                         val messages = resource.data
                         val decorated = applyReceiptStatuses(messages, latestReceipts)
                         setState { copy(isLoading = false, messages = decorated, error = null) }
-                        maybeSendReadReceiptForLatestReceived(messages)
                     }
                     is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
                     is Resource.Failure -> setState { copy(isLoading = false, error = resource.exception.message?.toUiText()) }
@@ -130,30 +130,18 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun maybeSendReadReceiptForLatestReceived(messages: List<Message>) {
+    private fun onMessagesSeen(upToTimestamp: Long) {
         val me = currentState.currentUserId
         if (me.isBlank()) {
-            Log.w(TAG, "Skip receipts: currentUserId is blank (auth race?)")
+            Log.w(TAG, "Skip read receipt: currentUserId is blank (auth race?)")
             return
         }
-        val latest = messages
-            .asSequence()
-            .filter { it.senderId != me }
-            .maxOfOrNull { it.timestamp }
-        if (latest == null) {
-            Log.d(TAG, "Skip receipts: no messages from partner in current list")
-            return
-        }
-        if (latest <= lastSentReceiptTimestamp) {
-            Log.d(TAG, "Skip receipts: already acknowledged ts=$latest")
-            return
-        }
-        lastSentReceiptTimestamp = latest
+        if (upToTimestamp <= lastSentReadTimestamp) return
+        lastSentReadTimestamp = upToTimestamp
         viewModelScope.launch {
             try {
-                receiptService.sendDeliveryReceipt(conversationId, latest)
-                receiptService.sendReadReceipt(conversationId, latest)
-                Log.d(TAG, "Sent delivery+read receipts for ts=$latest")
+                receiptService.sendReadReceipt(conversationId, upToTimestamp)
+                Log.d(TAG, "Sent read receipt for ts=$upToTimestamp")
             } catch (e: Exception) {
                 Log.w(TAG, "Read receipt send failed (best-effort)", e)
             }
@@ -208,7 +196,7 @@ class ChatViewModel @Inject constructor(
                         TAG,
                         "Receipts update: ${receipts.size} entries; partner($partnerId)=" +
                             (receipts[partnerId]?.let {
-                                "delivered=${it.lastDeliveredTimestamp} read=${it.lastReadTimestamp}"
+                                "read=${it.lastReadTimestamp}"
                             } ?: "<none>"),
                     )
                     latestReceipts = receipts
@@ -224,13 +212,10 @@ class ChatViewModel @Inject constructor(
         val partnerReceipt = receipts[partnerId] ?: return messages
         return messages.map { message ->
             if (message.senderId == partnerId) return@map message
-            val newStatus = when {
-                message.timestamp <= partnerReceipt.lastReadTimestamp -> MessageStatus.READ
-                message.timestamp <= partnerReceipt.lastDeliveredTimestamp -> MessageStatus.DELIVERED
-                else -> message.status
-            }
-            if (newStatus.ordinal > message.status.ordinal) {
-                message.copy(status = newStatus)
+            if (message.timestamp <= partnerReceipt.lastReadTimestamp &&
+                MessageStatus.READ.ordinal > message.status.ordinal
+            ) {
+                message.copy(status = MessageStatus.READ)
             } else {
                 message
             }

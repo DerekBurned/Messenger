@@ -8,6 +8,5 @@ interface IMessageRepository {
     suspend fun sendMessage(message: Message): Result<Unit>
     suspend fun deleteMessage(message: Message): Result<Unit>
     suspend fun markMessageAsRead(message: Message): Result<Unit>
-    suspend fun markMessagesAsDelivered(conversationId: String,message: Message): Result<Unit>
     suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>>
 }

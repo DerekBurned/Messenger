@@ -129,10 +129,6 @@ fun MessageWithContextMenu(
                                 onPin()
                                 showMenu = false
                             }),
-                            MessageAction("Send", Icons.Default.Send, onClick = {
-                                onForward()
-                                showMenu = false
-                            }),
                             MessageAction("Delete", Icons.Default.Delete, color = Color.Red, onClick = {
                                 onDelete()
                                 showMenu = false
@@ -222,7 +218,6 @@ fun ContextMenuPreview() {
                     MessageAction("Reply", Icons.Default.Reply, onClick = {}),
                     MessageAction("Edit", Icons.Default.Edit, onClick = {}),
                     MessageAction("Pin", Icons.Default.PushPin, onClick = {}),
-                    MessageAction("Send", Icons.Default.Send, onClick = {}),
                     MessageAction("Delete...", Icons.Default.Delete, color = Color.Red, onClick = {})
                 )
             )

@@ -89,15 +89,6 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun markMessagesAsDelivered(conversationId: String, message: Message): Result<Unit> {
-        return try {
-            messageDao.updateMessageStatus(message.id, MessageStatus.DELIVERED)
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     override suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>> = flow {
         try {
             messageService.getMessagesStream(conversationId).collect { messages ->

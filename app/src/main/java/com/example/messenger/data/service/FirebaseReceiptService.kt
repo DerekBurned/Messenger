@@ -15,11 +15,6 @@ class FirebaseReceiptService @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : IReceiptService {
 
-    override suspend fun sendDeliveryReceipt(conversationId: String, messageTimestamp: Long) {
-        val userId = firebaseAuth.currentUser?.uid ?: return
-        realtimeDbService.sendDeliveryReceipt(conversationId, userId, messageTimestamp)
-    }
-
     override suspend fun sendReadReceipt(conversationId: String, messageTimestamp: Long) {
         val userId = firebaseAuth.currentUser?.uid ?: return
         realtimeDbService.sendReadReceipt(conversationId, userId, messageTimestamp)
@@ -30,7 +25,6 @@ class FirebaseReceiptService @Inject constructor(
             data.mapValues { (userId, timestamps) ->
                 ReceiptInfo(
                     userId = userId,
-                    lastDeliveredTimestamp = timestamps["lastDeliveredTimestamp"] ?: 0L,
                     lastReadTimestamp = timestamps["lastReadTimestamp"] ?: 0L
                 )
             }
