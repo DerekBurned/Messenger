@@ -9,10 +9,12 @@ import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
@@ -21,25 +23,47 @@ class ConversationRepositoryImpl @Inject constructor(
     private val authService: FirebaseAuthService,
 ) : IConversationRepository {
 
-    override fun getAllConversations(): Flow<List<Conversation>> {
-        return dao.getAllConversations()
-            .onStart {
-                runCatching { syncConversations() }
-                    .onFailure { Log.w(TAG, "Initial conversation sync failed", it) }
+    override fun getAllConversations(): Flow<List<Conversation>> = channelFlow {
+        
+        val remoteJob = launch {
+            val userId = authService.getCurrentUserId()
+            if (userId.isNullOrBlank()) {
+                Log.w(TAG, "getAllConversations: no signed-in user; skipping remote listener")
+                return@launch
             }
-            .map { summaries ->
-                summaries.map { summary ->
-                    val conv = summary.conversation.toDomain()
-                    val previewText = summary.latestMessageText
-                        ?: conv.lastMessage?.takeIf { it.isNotBlank() }
-                    val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
-                        ?: conv.lastMessageTimestamp
-                    conv.copy(
-                        lastMessage = previewText,
-                        lastMessageTimestamp = previewTs,
-                    )
+            Log.d(TAG, "getAllConversations: starting remote listener")
+            try {
+                firestoreService.getAllConversations(userId).collect { conversations ->
+                    Log.d(TAG, "Remote listener emitted ${conversations.size} conversations")
+                    conversations.forEach { dao.insertConversation(it.toEntity()) }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Remote conversation listener errored", e)
             }
+        }
+        
+        val localJob = launch {
+            dao.getAllConversations()
+                .map { summaries ->
+                    summaries.map { summary ->
+                        val conv = summary.conversation.toDomain()
+                        val previewText = summary.latestMessageText
+                            ?: conv.lastMessage?.takeIf { it.isNotBlank() }
+                        val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
+                            ?: conv.lastMessageTimestamp
+                        conv.copy(
+                            lastMessage = previewText,
+                            lastMessageTimestamp = previewTs,
+                        )
+                    }
+                }
+                .collect { send(it) }
+        }
+        awaitClose {
+            Log.d(TAG, "getAllConversations: subscriber gone, tearing down")
+            remoteJob.cancel()
+            localJob.cancel()
+        }
     }
 
     override suspend fun getConversationById(conversationId: String): Result<Conversation?> {
@@ -128,8 +152,17 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun syncConversations() {
         try {
-            val userId = authService.getCurrentUserId() ?: return
-            val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull() ?: return
+            val userId = authService.getCurrentUserId()
+            if (userId.isNullOrBlank()) {
+                Log.w(TAG, "syncConversations: no signed-in user")
+                return
+            }
+            val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull()
+            if (remote == null) {
+                Log.w(TAG, "syncConversations: remote fetch returned null")
+                return
+            }
+            Log.d(TAG, "syncConversations: fetched ${remote.size} from Firestore")
             remote.forEach { dao.insertConversation(it.toEntity()) }
         } catch (e: Exception) {
             Log.w(TAG, "Conversation sync failed (SyncWorker will retry)", e)
