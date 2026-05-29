@@ -74,6 +74,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.runtime.saveable)
     // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
