@@ -2,4 +2,40 @@
     <string name="app_name">MyMessenger</string>
     <string name="title_activity_main">MyMessenger</string>
     <string name="title_activity_chat">ChatActivity</string>
+
+    <!-- Auth -->
+    <string name="auth_error_verification_failed">Verification failed</string>
+    <string name="auth_error_invalid_code">Invalid code</string>
+
+    <!-- Change phone -->
+    <string name="change_phone_error_no_number_on_file">No phone number on file</string>
+    <string name="change_phone_error_enter_new_number">Enter a new phone number</string>
+    <string name="change_phone_error_invalid_number">That doesn\'t look like a valid phone number</string>
+    <string name="change_phone_error_update_failed">Phone update failed</string>
+    <string name="change_phone_error_could_not_verify_current">Could not verify current phone</string>
+    <string name="change_phone_error_invalid_code">Invalid code</string>
+    <string name="change_phone_error_verification_failed">Verification failed</string>
+    <string name="change_phone_error_reauth_expired">Verification expired — please confirm your current number again.</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_error_username_empty">Username cannot be empty</string>
+    <string name="edit_profile_error_save_failed">Save failed</string>
+
+    <!-- Edit contact -->
+    <string name="edit_contact_error_missing_id">Missing contact id</string>
+    <string name="edit_contact_error_name_empty">Name cannot be empty</string>
+    <string name="edit_contact_error_save_failed">Save failed</string>
+
+    <!-- Chat -->
+    <string name="chat_error_delete_failed">Delete failed</string>
+
+    <!-- Profile -->
+    <string name="profile_error_username_empty">Username cannot be empty</string>
+    <string name="profile_error_update_failed">Update failed</string>
+
+    <!-- Search users -->
+    <string name="search_error_create_conversation_failed">Failed to create conversation</string>
+
+    <!-- Generic -->
+    <string name="error_generic">Something went wrong</string>
 </resources>
