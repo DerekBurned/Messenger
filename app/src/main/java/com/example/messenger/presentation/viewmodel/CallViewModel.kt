@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -77,7 +78,7 @@ class CallViewModel @Inject constructor(
                     muted = active.muted,
                     speakerOn = active.speakerOn,
                     connectionState = active.connectionState,
-                    error = active.error,
+                    error = active.error?.toUiText(),
                 )
             }
         }
@@ -95,7 +96,7 @@ class CallViewModel @Inject constructor(
         }
         val callId = UUID.randomUUID().toString()
         val channelName = "call-" + UUID.randomUUID().toString()
-        Log.d(TAG, "startOutgoing -> partnerId=$pendingPartnerId callId=$callId")
+        Log.d(TAG, "startOutgoing")
         val intent = CallForegroundService.outgoingIntent(
             ctx = context,
             callId = callId,

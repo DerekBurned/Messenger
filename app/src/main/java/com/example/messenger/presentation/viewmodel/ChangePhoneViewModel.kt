@@ -2,23 +2,23 @@ package com.example.messenger.presentation.viewmodel
 
 import android.app.Activity
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.repository.IUserRepository
+import com.example.messenger.R
+import com.example.messenger.presentation.base.MviViewModel
+import com.example.messenger.presentation.base.UiText
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.components.Countries
-import com.example.messenger.presentation.components.Country
+import com.example.messenger.presentation.effect.ChangePhoneEffect
+import com.example.messenger.presentation.intent.ChangePhoneIntent
 import com.example.messenger.presentation.state.ChangePhoneStep
 import com.example.messenger.presentation.state.ChangePhoneUiState
 import com.example.messenger.util.ValidationUtils
 import com.example.messenger.util.VerificationResult
 import com.google.firebase.auth.PhoneAuthCredential
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,7 +27,9 @@ class ChangePhoneViewModel @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val userRepository: IUserRepository,
     private val savedStateHandle: SavedStateHandle,
-) : ViewModel() {
+) : MviViewModel<ChangePhoneUiState, ChangePhoneIntent, ChangePhoneEffect>(
+    initialState = restoreInitialState(savedStateHandle, firebaseAuthService),
+) {
 
     private companion object {
         const val KEY_STEP = "change_phone_step"
@@ -37,80 +39,87 @@ class ChangePhoneViewModel @Inject constructor(
         const val KEY_REAUTH_AT = "change_phone_reauth_at"
 
         const val REAUTH_VALIDITY_MS = 3 * 60 * 1000L
-    }
 
-    private val _uiState: MutableStateFlow<ChangePhoneUiState>
-    val uiState: StateFlow<ChangePhoneUiState>
+        fun restoreInitialState(
+            handle: SavedStateHandle,
+            auth: FirebaseAuthService,
+        ): ChangePhoneUiState {
+            val persistedStep = handle.get<String>(KEY_STEP)
+                ?.let { runCatching { ChangePhoneStep.valueOf(it) }.getOrNull() }
+                ?: ChangePhoneStep.CONFIRM_CURRENT
+            val persistedCurrent = handle.get<String>(KEY_CURRENT_PHONE).orEmpty()
+            val persistedIso = handle.get<String>(KEY_NEW_ISO).orEmpty()
+            val persistedNumber = handle.get<String>(KEY_NEW_NUMBER).orEmpty()
+            val country = Countries.all.firstOrNull { it.isoCode == persistedIso }
+                ?: Countries.default
+
+            val currentPhone = persistedCurrent.ifBlank {
+                auth.getUserPhoneNumber().orEmpty()
+            }
+            handle[KEY_CURRENT_PHONE] = currentPhone
+
+            return ChangePhoneUiState(
+                step = persistedStep,
+                currentPhone = currentPhone,
+                newCountry = country,
+                newNationalNumber = persistedNumber,
+            )
+        }
+    }
 
     private var reauthSucceededAt: Long
         get() = savedStateHandle[KEY_REAUTH_AT] ?: 0L
         set(value) { savedStateHandle[KEY_REAUTH_AT] = value }
 
-    init {
-        val persistedStep = savedStateHandle.get<String>(KEY_STEP)
-            ?.let { runCatching { ChangePhoneStep.valueOf(it) }.getOrNull() }
-            ?: ChangePhoneStep.CONFIRM_CURRENT
-        val persistedCurrent = savedStateHandle.get<String>(KEY_CURRENT_PHONE).orEmpty()
-        val persistedIso = savedStateHandle.get<String>(KEY_NEW_ISO).orEmpty()
-        val persistedNumber = savedStateHandle.get<String>(KEY_NEW_NUMBER).orEmpty()
-        val country = Countries.all.firstOrNull { it.isoCode == persistedIso }
-            ?: Countries.default
-
-        val currentPhone = persistedCurrent.ifBlank {
-            firebaseAuthService.getUserPhoneNumber().orEmpty()
+    override fun handleIntent(intent: ChangePhoneIntent) {
+        when (intent) {
+            is ChangePhoneIntent.NewCountrySelected -> {
+                savedStateHandle[KEY_NEW_ISO] = intent.country.isoCode
+                setState { copy(newCountry = intent.country) }
+            }
+            is ChangePhoneIntent.NewNumberChange -> {
+                val digits = intent.value.filter { ch -> ch.isDigit() }
+                savedStateHandle[KEY_NEW_NUMBER] = digits
+                setState { copy(newNationalNumber = digits) }
+            }
+            is ChangePhoneIntent.OtpChange -> setState { copy(otp = intent.value) }
+            ChangePhoneIntent.ClearError -> setState { copy(error = null) }
+            is ChangePhoneIntent.SendCodeToCurrentPhone -> sendCodeToCurrentPhone(intent.activity)
+            ChangePhoneIntent.VerifyCurrentOtp -> verifyCurrentOtp()
+            is ChangePhoneIntent.SendCodeToNewPhone -> sendCodeToNewPhone(intent.activity)
+            ChangePhoneIntent.VerifyNewOtp -> verifyNewOtp()
+            ChangePhoneIntent.GoBack -> goBack()
         }
-
-        _uiState = MutableStateFlow(
-            ChangePhoneUiState(
-                step = persistedStep,
-                currentPhone = currentPhone,
-                newCountry = country,
-                newNationalNumber = persistedNumber,
-            ),
-        )
-        uiState = _uiState.asStateFlow()
-        savedStateHandle[KEY_CURRENT_PHONE] = currentPhone
     }
 
-    fun onNewCountrySelected(country: Country) {
-        savedStateHandle[KEY_NEW_ISO] = country.isoCode
-        _uiState.update { it.copy(newCountry = country) }
-    }
-
-    fun onNewNumberChange(value: String) {
-        val digits = value.filter { ch -> ch.isDigit() }
-        savedStateHandle[KEY_NEW_NUMBER] = digits
-        _uiState.update { it.copy(newNationalNumber = digits) }
-    }
-
-    fun onOtpChange(value: String) {
-        _uiState.update { it.copy(otp = value) }
-    }
-
-    fun clearError() = _uiState.update { it.copy(error = null) }
-
-    fun sendCodeToCurrentPhone(activity: Activity) {
-        val phone = _uiState.value.currentPhone
+    private fun sendCodeToCurrentPhone(activity: Activity) {
+        val phone = currentState.currentPhone
         if (phone.isBlank()) {
-            _uiState.update { it.copy(error = "No phone number on file") }
+            setState { copy(error = UiText.StringResource(R.string.change_phone_error_no_number_on_file)) }
             return
         }
         sendOtp(activity, phone, onSent = {
             updateStep(ChangePhoneStep.VERIFY_CURRENT)
-            _uiState.update { it.copy(otp = "", isLoading = false) }
+            setState { copy(otp = "", isLoading = false) }
         }, onAutoVerified = { credential ->
             reauthenticateAndAdvance(credential)
         })
     }
 
-    fun verifyCurrentOtp() {
+    private fun verifyCurrentOtp() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val credentialResult = firebaseAuthService.verifyCode(_uiState.value.otp)
+            setState { copy(isLoading = true, error = null) }
+            val credentialResult = firebaseAuthService.verifyCode(currentState.otp)
             credentialResult.fold(
                 onSuccess = { reauthenticateAndAdvance(it) },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Invalid code") }
+                    setState {
+                        copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.change_phone_error_invalid_code),
+                        )
+                    }
                 },
             )
         }
@@ -123,28 +132,30 @@ class ChangePhoneViewModel @Inject constructor(
                 onSuccess = {
                     reauthSucceededAt = System.currentTimeMillis()
                     updateStep(ChangePhoneStep.ENTER_NEW)
-                    _uiState.update {
-                        it.copy(otp = "", isLoading = false, error = null)
-                    }
+                    setState { copy(otp = "", isLoading = false, error = null) }
                 },
                 onFailure = { e ->
-                    _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "Could not verify current phone")
+                    setState {
+                        copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.change_phone_error_could_not_verify_current),
+                        )
                     }
                 },
             )
         }
     }
 
-    fun sendCodeToNewPhone(activity: Activity) {
-        val s = _uiState.value
+    private fun sendCodeToNewPhone(activity: Activity) {
+        val s = currentState
         val fullNewPhone = s.newCountry.dialCode + s.newNationalNumber
         if (s.newNationalNumber.isBlank()) {
-            _uiState.update { it.copy(error = "Enter a new phone number") }
+            setState { copy(error = UiText.StringResource(R.string.change_phone_error_enter_new_number)) }
             return
         }
         if (!ValidationUtils.isValidPhoneNumber(fullNewPhone)) {
-            _uiState.update { it.copy(error = "That doesn't look like a valid phone number") }
+            setState { copy(error = UiText.StringResource(R.string.change_phone_error_invalid_number)) }
             return
         }
         if (!hasFreshReauth()) {
@@ -153,25 +164,29 @@ class ChangePhoneViewModel @Inject constructor(
         }
         sendOtp(activity, fullNewPhone, onSent = {
             updateStep(ChangePhoneStep.VERIFY_NEW)
-            _uiState.update { it.copy(otp = "", isLoading = false) }
+            setState { copy(otp = "", isLoading = false) }
         }, onAutoVerified = { credential ->
             updatePhoneAndFinish(credential)
         })
     }
 
-    fun verifyNewOtp() {
+    private fun verifyNewOtp() {
         if (!hasFreshReauth()) {
             failWithStaleReauth()
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val credentialResult = firebaseAuthService.verifyCode(_uiState.value.otp)
+            setState { copy(isLoading = true, error = null) }
+            val credentialResult = firebaseAuthService.verifyCode(currentState.otp)
             credentialResult.fold(
                 onSuccess = { updatePhoneAndFinish(it) },
                 onFailure = { e ->
-                    _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "Invalid code")
+                    setState {
+                        copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.change_phone_error_invalid_code),
+                        )
                     }
                 },
             )
@@ -182,36 +197,37 @@ class ChangePhoneViewModel @Inject constructor(
         viewModelScope.launch {
             val updateResult = firebaseAuthService.updatePhoneNumber(credential)
             if (updateResult.isFailure) {
-                _uiState.update {
-                    it.copy(
+                setState {
+                    copy(
                         isLoading = false,
-                        error = updateResult.exceptionOrNull()?.message ?: "Phone update failed",
+                        error = updateResult.exceptionOrNull()?.message?.toUiText()
+                            ?: UiText.StringResource(R.string.change_phone_error_update_failed),
                     )
                 }
                 return@launch
             }
-            val s = _uiState.value
+            val s = currentState
             val newPhoneNumber = PhoneNumber(
                 countryCode = s.newCountry.dialCode,
                 number = s.newNationalNumber,
             )
             userRepository.updateUserProfile(mapOf("phoneNumber" to newPhoneNumber))
             clearPersistedFormState()
-            updateStep(ChangePhoneStep.DONE)
-            _uiState.update { it.copy(isLoading = false) }
+            setState { copy(isLoading = false) }
+            emitEffect(ChangePhoneEffect.Done)
         }
     }
 
-    fun goBack() {
-        val current = _uiState.value.step
+    private fun goBack() {
+        val current = currentState.step
         val previous = when (current) {
             ChangePhoneStep.VERIFY_CURRENT -> ChangePhoneStep.CONFIRM_CURRENT
             ChangePhoneStep.ENTER_NEW -> ChangePhoneStep.CONFIRM_CURRENT
             ChangePhoneStep.VERIFY_NEW -> ChangePhoneStep.ENTER_NEW
-            ChangePhoneStep.CONFIRM_CURRENT, ChangePhoneStep.DONE -> current
+            ChangePhoneStep.CONFIRM_CURRENT -> current
         }
         updateStep(previous)
-        _uiState.update { it.copy(otp = "", error = null, isLoading = false) }
+        setState { copy(otp = "", error = null, isLoading = false) }
     }
 
     private fun hasFreshReauth(): Boolean {
@@ -223,18 +239,18 @@ class ChangePhoneViewModel @Inject constructor(
     private fun failWithStaleReauth() {
         reauthSucceededAt = 0L
         updateStep(ChangePhoneStep.CONFIRM_CURRENT)
-        _uiState.update {
-            it.copy(
+        setState {
+            copy(
                 otp = "",
                 isLoading = false,
-                error = "Verification expired — please confirm your current number again.",
+                error = UiText.StringResource(R.string.change_phone_error_reauth_expired),
             )
         }
     }
 
     private fun updateStep(step: ChangePhoneStep) {
         savedStateHandle[KEY_STEP] = step.name
-        _uiState.update { it.copy(step = step) }
+        setState { copy(step = step) }
     }
 
     private fun clearPersistedFormState() {
@@ -249,7 +265,7 @@ class ChangePhoneViewModel @Inject constructor(
         onSent: () -> Unit,
         onAutoVerified: (PhoneAuthCredential) -> Unit,
     ) {
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        setState { copy(isLoading = true, error = null) }
         viewModelScope.launch {
             val result = firebaseAuthService.sendVerificationCode(phoneNumber, activity)
             result.fold(
@@ -260,8 +276,12 @@ class ChangePhoneViewModel @Inject constructor(
                     }
                 },
                 onFailure = { e ->
-                    _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "Verification failed")
+                    setState {
+                        copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.change_phone_error_verification_failed),
+                        )
                     }
                 },
             )

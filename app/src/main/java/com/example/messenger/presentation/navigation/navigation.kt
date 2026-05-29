@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.presentation.components.ActiveCallBar
+import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
@@ -56,7 +57,7 @@ sealed class Screens(val route: String) {
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val authViewModel: AuthViewModel = hiltViewModel()
-    val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
 
     val startDestination = if (authState.isAuthenticated) {
         Screens.MainScreen.route
@@ -135,7 +136,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     )
                 },
                 onLogoutClick = {
-                    authViewModel.logout()
+                    authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
@@ -157,7 +158,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onBackClick = { navController.popBackStack() },
                 onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
                 onLogoutClick = {
-                    authViewModel.logout()
+                    authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }
@@ -197,7 +198,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onBackClick = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() },
                 onLogout = {
-                    authViewModel.logout()
+                    authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
                         popUpTo(Screens.MainScreen.route) { inclusive = true }
                     }

@@ -3,6 +3,7 @@ package com.example.messenger.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ForwardMessageUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +27,7 @@ class ForwardMessageViewModel @Inject constructor(
         viewModelScope.launch {
             getConversationsUseCase()
                 .onStart { _uiState.update { it.copy(isLoading = true) } }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
                 .collect { list ->
                     _uiState.update { it.copy(isLoading = false, conversations = list, error = null) }
                 }

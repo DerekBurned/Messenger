@@ -7,6 +7,9 @@ import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
+import com.example.messenger.R
+import com.example.messenger.presentation.base.UiText
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ProfileUiState
 import com.example.messenger.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,10 +51,10 @@ class ProfileViewModel @Inject constructor(
                         it.copy(isLoading = false, user = resource.data ?: authUser)
                     }
                     is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.message)
+                        it.copy(isLoading = false, error = resource.message.toUiText())
                     }
                     is Resource.Failure -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.exception.message)
+                        it.copy(isLoading = false, error = resource.exception.message?.toUiText())
                     }
                     is Resource.Loading -> {}
                 }
@@ -77,7 +80,7 @@ class ProfileViewModel @Inject constructor(
 
     fun updateProfile(username: String) {
         if (username.isBlank()) {
-            _uiState.update { it.copy(error = "Username cannot be empty") }
+            _uiState.update { it.copy(error = UiText.StringResource(R.string.profile_error_username_empty)) }
             return
         }
         viewModelScope.launch {
@@ -89,14 +92,17 @@ class ProfileViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             isEditing = false,
-                            updateSuccess = true,
                             user = it.user?.copy(username = username)
                         )
                     }
                 },
                 onFailure = { e ->
                     _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "Update failed")
+                        it.copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.profile_error_update_failed),
+                        )
                     }
                 }
             )

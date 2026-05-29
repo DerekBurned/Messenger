@@ -1,5 +1,8 @@
 package com.example.messenger.presentation.state
 
+import com.example.messenger.presentation.base.UiState
+import com.example.messenger.presentation.base.UiText
+
 data class EditProfileUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -7,6 +10,5 @@ data class EditProfileUiState(
     val phone: String = "",
     val username: String = "",
     val dob: String = "",
-    val saveSuccess: Boolean = false,
-    val error: String? = null,
-)
+    val error: UiText? = null,
+) : UiState

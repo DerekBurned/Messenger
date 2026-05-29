@@ -1,17 +1,17 @@
 package com.example.messenger.presentation.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
+import com.example.messenger.R
+import com.example.messenger.presentation.base.StateViewModel
+import com.example.messenger.presentation.base.UiText
+import com.example.messenger.presentation.base.toUiText
+import com.example.messenger.presentation.effect.EditContactDataEffect
 import com.example.messenger.presentation.state.EditContactDataUiState
 import com.example.messenger.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,9 +20,9 @@ class EditContactDataViewModel @Inject constructor(
     private val getUserByIdUseCase: GetUserByIdUseCase,
     private val userRepository: IUserRepository,
     savedStateHandle: SavedStateHandle,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(EditContactDataUiState())
-    val uiState: StateFlow<EditContactDataUiState> = _uiState.asStateFlow()
+) : StateViewModel<EditContactDataUiState, EditContactDataEffect>(
+    initialState = EditContactDataUiState(),
+) {
 
     init {
         val contactId: String? = savedStateHandle["contactId"]
@@ -34,45 +34,49 @@ class EditContactDataViewModel @Inject constructor(
             getUserByIdUseCase(contactId).collect { resource ->
                 if (resource is Resource.Success) {
                     val name = resource.data?.username.orEmpty()
-                    _uiState.update {
-                        it.copy(contactId = contactId, name = name, initialName = name)
-                    }
+                    setState { copy(contactId = contactId, name = name, initialName = name) }
                 }
             }
         }
     }
 
-    fun onNameChange(value: String) = _uiState.update { it.copy(name = value) }
-    fun showDeleteConfirm() = _uiState.update { it.copy(showDeleteConfirm = true) }
-    fun dismissDeleteConfirm() = _uiState.update { it.copy(showDeleteConfirm = false) }
+    fun onNameChange(value: String) = setState { copy(name = value) }
+    fun showDeleteConfirm() = setState { copy(showDeleteConfirm = true) }
+    fun dismissDeleteConfirm() = setState { copy(showDeleteConfirm = false) }
 
     fun save() {
-        val state = _uiState.value
+        val state = currentState
         if (state.contactId.isBlank()) {
-            _uiState.update { it.copy(error = "Missing contact id") }
+            setState { copy(error = UiText.StringResource(R.string.edit_contact_error_missing_id)) }
             return
         }
         if (state.name.isBlank()) {
-            _uiState.update { it.copy(error = "Name cannot be empty") }
+            setState { copy(error = UiText.StringResource(R.string.edit_contact_error_name_empty)) }
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, error = null) }
+            setState { copy(isSaving = true, error = null) }
             val result = userRepository.updateContactName(state.contactId, state.name)
             result.fold(
                 onSuccess = {
-                    _uiState.update {
-                        it.copy(isSaving = false, saveSuccess = true, initialName = state.name)
-                    }
+                    setState { copy(isSaving = false, initialName = state.name) }
+                    emitEffect(EditContactDataEffect.Saved)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSaving = false, error = e.message ?: "Save failed") }
+                    setState {
+                        copy(
+                            isSaving = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.edit_contact_error_save_failed),
+                        )
+                    }
                 },
             )
         }
     }
 
     fun delete() {
-        _uiState.update { it.copy(showDeleteConfirm = false, deleted = true) }
+        setState { copy(showDeleteConfirm = false) }
+        emitEffect(EditContactDataEffect.Deleted)
     }
 }

@@ -26,7 +26,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,14 +39,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.components.AuthInputTextField
 import com.example.messenger.presentation.components.AuthMode
 import com.example.messenger.presentation.components.AuthModeToggle
 import com.example.messenger.presentation.components.Countries
 import com.example.messenger.presentation.components.Country
 import com.example.messenger.presentation.components.CountryCodePicker
+import com.example.messenger.presentation.effect.AuthEffect
+import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
@@ -58,7 +60,7 @@ fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onAuthSuccess: () -> Unit = {},
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
 
     var mode by remember { mutableStateOf(AuthMode.LOGIN) }
     var selectedCountry by remember { mutableStateOf(Countries.default) }
@@ -69,11 +71,10 @@ fun AuthScreen(
     val context = LocalContext.current
     val activity = context as? Activity
 
-    LaunchedEffect(uiState.loginSuccess, uiState.registerSuccess) {
-        if (uiState.loginSuccess || uiState.registerSuccess) {
-            viewModel.onLoginNavigated()
-            viewModel.onRegisterNavigated()
-            onAuthSuccess()
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            AuthEffect.AuthSucceeded -> onAuthSuccess()
+            AuthEffect.PhoneLinked -> Unit
         }
     }
 
@@ -84,13 +85,13 @@ fun AuthScreen(
         username = username,
         otp = otp,
         isLoading = uiState.isLoading,
-        error = uiState.error,
+        error = uiState.error?.asString(),
         codeSent = uiState.codeSent,
         onModeChange = { newMode ->
             if (newMode != mode) {
                 mode = newMode
                 if (newMode == AuthMode.LOGIN) username = ""
-                viewModel.clearError()
+                viewModel.dispatch(AuthIntent.ClearError)
             }
         },
         onCountryChange = { selectedCountry = it },
@@ -100,12 +101,14 @@ fun AuthScreen(
         onSendOtp = {
             val fullPhone = selectedCountry.dialCode + nationalNumber
             val nameForVm = if (mode == AuthMode.REGISTER) username else null
-            activity?.let { viewModel.sendVerificationCode(it, fullPhone, nameForVm) }
+            activity?.let {
+                viewModel.dispatch(AuthIntent.SendVerificationCode(it, fullPhone, nameForVm))
+            }
         },
-        onVerifyOtp = { viewModel.verifyOtpAndLogin(otp) },
+        onVerifyOtp = { viewModel.dispatch(AuthIntent.VerifyOtpAndLogin(otp)) },
         onEditPhoneNumber = {
             otp = ""
-            viewModel.onEditPhoneNumber()
+            viewModel.dispatch(AuthIntent.EditPhoneNumber)
         },
     )
 }
