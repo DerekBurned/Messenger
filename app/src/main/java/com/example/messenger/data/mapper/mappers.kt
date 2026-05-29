@@ -3,6 +3,7 @@ package com.example.messenger.data.mapper
 import com.example.messenger.data.local.entity.ConversationEntity
 import com.example.messenger.data.local.entity.MessageEntity
 import com.example.messenger.data.local.entity.UserEntity
+import com.example.messenger.data.local.model.MessageWithSender
 import com.example.messenger.data.remote.dto.ConversationDTO
 import com.example.messenger.data.remote.dto.MessageDTO
 import com.example.messenger.data.remote.dto.UserDTO
@@ -195,3 +196,13 @@ fun Conversation.toDTO(): ConversationDTO {
 
 fun List<ConversationDTO>.toConversationDomainListFromDTO(): List<Conversation> = map { it.toDomain() }
 fun List<Conversation>.toConversationDTOList(): List<ConversationDTO> = map { it.toDTO() }
+
+fun MessageWithSender.toDomain(): Message = Message(
+    id = message.id,
+    conversationId = message.conversationId,
+    senderId = message.senderId,
+    text = message.text,
+    timestamp = message.timestamp,
+    status = message.status,
+    isRead = message.isRead
+)
