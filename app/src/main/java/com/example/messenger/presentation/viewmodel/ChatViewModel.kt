@@ -132,16 +132,28 @@ class ChatViewModel @Inject constructor(
 
     private fun maybeSendReadReceiptForLatestReceived(messages: List<Message>) {
         val me = currentState.currentUserId
-        if (me.isBlank()) return
+        if (me.isBlank()) {
+            Log.w(TAG, "Skip receipts: currentUserId is blank (auth race?)")
+            return
+        }
         val latest = messages
             .asSequence()
             .filter { it.senderId != me }
-            .maxOfOrNull { it.timestamp } ?: return
-        if (latest <= lastSentReceiptTimestamp) return
+            .maxOfOrNull { it.timestamp }
+        if (latest == null) {
+            Log.d(TAG, "Skip receipts: no messages from partner in current list")
+            return
+        }
+        if (latest <= lastSentReceiptTimestamp) {
+            Log.d(TAG, "Skip receipts: already acknowledged ts=$latest")
+            return
+        }
         lastSentReceiptTimestamp = latest
         viewModelScope.launch {
             try {
+                receiptService.sendDeliveryReceipt(conversationId, latest)
                 receiptService.sendReadReceipt(conversationId, latest)
+                Log.d(TAG, "Sent delivery+read receipts for ts=$latest")
             } catch (e: Exception) {
                 Log.w(TAG, "Read receipt send failed (best-effort)", e)
             }
@@ -192,6 +204,13 @@ class ChatViewModel @Inject constructor(
             observeReceiptsUseCase(conversationId)
                 .catch { e -> Log.w(TAG, "Receipt observer errored", e) }
                 .collect { receipts ->
+                    Log.d(
+                        TAG,
+                        "Receipts update: ${receipts.size} entries; partner($partnerId)=" +
+                            (receipts[partnerId]?.let {
+                                "delivered=${it.lastDeliveredTimestamp} read=${it.lastReadTimestamp}"
+                            } ?: "<none>"),
+                    )
                     latestReceipts = receipts
                     setState { copy(messages = applyReceiptStatuses(messages, receipts)) }
                 }
