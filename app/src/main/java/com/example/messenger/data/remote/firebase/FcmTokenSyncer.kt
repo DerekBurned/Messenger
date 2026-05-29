@@ -38,7 +38,7 @@ class FcmTokenSyncer @Inject constructor(
                     val result = firestoreService.updateFcmToken(uid, token)
                     if (result.isSuccess) {
                         lastSyncedUid = uid
-                        Log.d(TAG, "FCM token synced for $uid")
+                        Log.d(TAG, "FCM token synced")
                     } else {
                         Log.w(TAG, "Failed to write FCM token", result.exceptionOrNull())
                     }
