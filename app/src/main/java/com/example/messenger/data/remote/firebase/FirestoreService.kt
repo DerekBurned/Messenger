@@ -114,6 +114,7 @@ class FirestoreService @Inject constructor(
                 .document(message.id)
                 .update("status", MessageStatus.READ.name)
                 .await()
+            Log.d("FirestoreService", "Message marked as read")
             Result.success(Unit)
         }catch (e: Exception){
             Log.e("FirestoreService", "Error marking message as read", e)

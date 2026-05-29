@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -44,6 +45,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.MessageStatusIcon
@@ -137,7 +139,7 @@ fun ChatScreenWithNav(
         onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
-        onMessagesSeen = { timestamp -> viewModel.dispatch(ChatIntent.MessagesSeen(timestamp)) },
+        onMessagesSeen = { messages -> viewModel.dispatch(ChatIntent.MessagesSeen(messages)) },
     )
 }
 
@@ -156,7 +158,7 @@ private fun ChatScreenContent(
     onDelete: (com.example.messenger.domain.model.Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
-    onMessagesSeen: (Long) -> Unit,
+    onMessagesSeen: (List<Message>) -> Unit,
 ) {
 
     val presenceStatusText = when {
@@ -298,18 +300,14 @@ private fun ChatScreenContent(
                             .coerceAtLeast(0)
                         visiblePx.toFloat() / size >= 1f / 3f
                     }
-                    .mapNotNull { item ->
-                        val message = messagesById[item.key as? String]
-                        if (message != null && message.senderId != uiState.currentUserId) {
-                            message.timestamp
-                        } else {
-                            null
-                        }
-                    }
-                    .maxOrNull() ?: 0L
+                    .mapNotNull { item -> messagesById[item.key as? String] }
+                    .filter { it.senderId != uiState.currentUserId && it.status != MessageStatus.READ }
+                    .toList()
             }
-                .distinctUntilChanged()
-                .collect { timestamp -> if (timestamp > 0L) onMessagesSeen(timestamp) }
+                .distinctUntilChanged { old, new ->
+                    old.mapTo(HashSet()) { it.id } == new.mapTo(HashSet()) { it.id }
+                }
+                .collect { messages -> if (messages.isNotEmpty()) onMessagesSeen(messages) }
         }
 
         Column(

@@ -5,18 +5,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.Message
-import com.example.messenger.domain.model.MessageStatus
-import com.example.messenger.domain.model.ReceiptInfo
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
 import com.example.messenger.domain.usecase.message.SyncMessagesUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
-import com.example.messenger.domain.usecase.receipt.ObserveReceiptsUseCase
 import com.example.messenger.domain.usecase.typing.ObserveTypingUseCase
 import com.example.messenger.domain.service.ITypingService
-import com.example.messenger.domain.service.IReceiptService
 import com.example.messenger.R
 import com.example.messenger.presentation.base.MviViewModel
 import com.example.messenger.presentation.base.UiText
@@ -44,9 +40,7 @@ class ChatViewModel @Inject constructor(
     private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val observeTypingUseCase: ObserveTypingUseCase,
-    private val observeReceiptsUseCase: ObserveReceiptsUseCase,
     private val typingService: ITypingService,
-    private val receiptService: IReceiptService,
     firebaseAuthService: FirebaseAuthService,
     savedStateHandle: SavedStateHandle,
 ) : MviViewModel<ChatUiState, ChatIntent, ChatEffect>(initialState = ChatUiState()) {
@@ -57,9 +51,8 @@ class ChatViewModel @Inject constructor(
 
     private var typingJob: Job? = null
     private var typingClearJob: Job? = null
-    private var lastSentReadTimestamp: Long = 0L
 
-    private var latestReceipts: Map<String, ReceiptInfo> = emptyMap()
+    private val markedAsReadIds = mutableSetOf<String>()
 
     private companion object {
         const val TAG = "ChatViewModel"
@@ -84,7 +77,6 @@ class ChatViewModel @Inject constructor(
                 observePartnerPresence()
             }
             observeTyping()
-            observeReceipts()
         }
     }
 
@@ -92,8 +84,7 @@ class ChatViewModel @Inject constructor(
         when (intent) {
             is ChatIntent.TextChanged -> onTextChanged(intent.text)
             is ChatIntent.SendMessage -> sendMessage(intent.text)
-            is ChatIntent.MarkAsRead -> markAsRead(intent.message)
-            is ChatIntent.MessagesSeen -> onMessagesSeen(intent.upToTimestamp)
+            is ChatIntent.MessagesSeen -> onMessagesSeen(intent.messages)
             is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
             is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
             ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
@@ -119,9 +110,7 @@ class ChatViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        val messages = resource.data
-                        val decorated = applyReceiptStatuses(messages, latestReceipts)
-                        setState { copy(isLoading = false, messages = decorated, error = null) }
+                        setState { copy(isLoading = false, messages = resource.data, error = null) }
                     }
                     is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
                     is Resource.Failure -> setState { copy(isLoading = false, error = resource.exception.message?.toUiText()) }
@@ -130,20 +119,15 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun onMessagesSeen(upToTimestamp: Long) {
+    private fun onMessagesSeen(messages: List<Message>) {
         val me = currentState.currentUserId
         if (me.isBlank()) {
             Log.w(TAG, "Skip read receipt: currentUserId is blank (auth race?)")
             return
         }
-        if (upToTimestamp <= lastSentReadTimestamp) return
-        lastSentReadTimestamp = upToTimestamp
-        viewModelScope.launch {
-            try {
-                receiptService.sendReadReceipt(conversationId, upToTimestamp)
-                Log.d(TAG, "Sent read receipt for ts=$upToTimestamp")
-            } catch (e: Exception) {
-                Log.w(TAG, "Read receipt send failed (best-effort)", e)
+        messages.forEach { message ->
+            if (markedAsReadIds.add(message.id)) {
+                markAsRead(message)
             }
         }
     }
@@ -184,41 +168,6 @@ class ChatViewModel @Inject constructor(
                         )
                     }
                 }
-        }
-    }
-
-    private fun observeReceipts() {
-        viewModelScope.launch {
-            observeReceiptsUseCase(conversationId)
-                .catch { e -> Log.w(TAG, "Receipt observer errored", e) }
-                .collect { receipts ->
-                    Log.d(
-                        TAG,
-                        "Receipts update: ${receipts.size} entries; partner($partnerId)=" +
-                            (receipts[partnerId]?.let {
-                                "read=${it.lastReadTimestamp}"
-                            } ?: "<none>"),
-                    )
-                    latestReceipts = receipts
-                    setState { copy(messages = applyReceiptStatuses(messages, receipts)) }
-                }
-        }
-    }
-
-    private fun applyReceiptStatuses(
-        messages: List<Message>,
-        receipts: Map<String, ReceiptInfo>,
-    ): List<Message> {
-        val partnerReceipt = receipts[partnerId] ?: return messages
-        return messages.map { message ->
-            if (message.senderId == partnerId) return@map message
-            if (message.timestamp <= partnerReceipt.lastReadTimestamp &&
-                MessageStatus.READ.ordinal > message.status.ordinal
-            ) {
-                message.copy(status = MessageStatus.READ)
-            } else {
-                message
-            }
         }
     }
 
@@ -269,7 +218,7 @@ class ChatViewModel @Inject constructor(
 
     private fun markAsRead(message: Message) {
         viewModelScope.launch {
-            markMessageAsReadUseCase(message).collect { }
+            markMessageAsReadUseCase(message)
         }
     }
 
