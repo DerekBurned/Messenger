@@ -83,6 +83,8 @@ class MessageRepositoryImpl @Inject constructor(
             val result = firestoreService.markMessageAsRead(message)
             if (result.isSuccess) {
                 messageDao.markAsRead(message.id)
+
+                messageDao.updateMessageStatus(message.id, MessageStatus.READ)
             }
             result
         } catch (e: Exception) {
@@ -90,16 +92,25 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>> = flow {
+    override suspend fun observeRecentMessages(conversationId: String, limit: Long): Flow<Result<Unit>> = flow {
         try {
-            firestoreService.getMessagesStream(conversationId).collect { messages ->
-                messages.forEach { message ->
-                    messageDao.insertMessage(message.toEntity())
-                    emit(Result.success(message))
-                }
+            firestoreService.getRecentMessagesStream(conversationId, limit).collect { messages ->
+                messageDao.insertMessages(messages.map { it.toEntity() })
+                emit(Result.success(Unit))
             }
         } catch (e: Exception) {
             emit(Result.failure(e))
+        }
+    }
+
+    override suspend fun loadOlderMessages(conversationId: String, limit: Long): Result<Int> {
+        val oldestId = messageDao.getOldestMessageId(conversationId)
+            ?: return Result.success(0)
+        return firestoreService.fetchOlderMessages(conversationId, oldestId, limit).map { older ->
+            if (older.isNotEmpty()) {
+                messageDao.insertMessages(older.map { it.toEntity() })
+            }
+            older.size
         }
     }
 }

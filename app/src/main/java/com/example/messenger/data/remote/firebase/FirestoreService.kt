@@ -124,11 +124,12 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlow {
+    fun getRecentMessagesStream(conversationId: String, limit: Long = 100): Flow<List<Message>> = callbackFlow {
         val messagesRef = conversationsCollection
             .document(conversationId)
             .collection("messages")
-            .orderBy("timestamp", Query.Direction.ASCENDING) 
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(limit)
 
         val listener = messagesRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -138,14 +139,43 @@ class FirestoreService @Inject constructor(
             }
 
             if (snapshot != null) {
-                val messages = snapshot.toObjects(Message::class.java).mapIndexed { index, message ->
-                    message.copy(id = snapshot.documents[index].id)
-                }
+                val messages = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Message::class.java)?.copy(id = doc.id)
+                }.reversed()
                 trySend(messages) 
             }
         }
 
         awaitClose { listener.remove() }
+    }
+
+    suspend fun fetchOlderMessages(
+        conversationId: String,
+        oldestLoadedMessageId: String,
+        limit: Long = 100,
+    ): Result<List<Message>> {
+        return try {
+            val messagesCollection = conversationsCollection
+                .document(conversationId)
+                .collection("messages")
+            val anchor = messagesCollection.document(oldestLoadedMessageId).get().await()
+            if (!anchor.exists()) {
+                return Result.success(emptyList())
+            }
+            val snapshot = messagesCollection
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .startAfter(anchor)
+                .limit(limit)
+                .get()
+                .await()
+            val messages = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Message::class.java)?.copy(id = doc.id)
+            }.reversed()
+            Result.success(messages)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching older messages", e)
+            Result.failure(e)
+        }
     }
     suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
