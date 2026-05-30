@@ -257,20 +257,27 @@ private fun ChatScreenContent(
         var didInitialScroll by remember { mutableStateOf(false) }
         var lastKnownNewestId by remember { mutableStateOf<String?>(null) }
 
-        val rows = remember(uiState.messages, uiState.firstUnreadMessageId) {
+        var dividerAnchorId by remember { mutableStateOf<String?>(null) }
+        var seededReopenAnchor by remember { mutableStateOf(false) }
+
+        if (!seededReopenAnchor && uiState.unreadAnchorResolved) {
+            dividerAnchorId = uiState.firstUnreadMessageId
+            seededReopenAnchor = true
+        }
+
+        val rows = remember(uiState.messages, dividerAnchorId) {
             buildList<ChatRow> {
                 uiState.messages.forEach { message ->
-                    if (message.id == uiState.firstUnreadMessageId) add(ChatRow.UnreadDivider)
+                    if (message.id == dividerAnchorId) add(ChatRow.UnreadDivider)
                     add(ChatRow.MessageRow(message))
                 }
             }
         }
 
-        LaunchedEffect(uiState.firstUnreadMessageId) { didInitialScroll = false }
         LaunchedEffect(rows, didInitialScroll) {
             if (didInitialScroll || rows.isEmpty()) return@LaunchedEffect
             val dividerIndex = rows.indexOfFirst { it is ChatRow.UnreadDivider }
-            if (uiState.firstUnreadMessageId != null && dividerIndex >= 0) {
+            if (dividerIndex >= 0) {
                 listState.scrollToItem(dividerIndex)
             } else {
                 listState.scrollToItem(rows.size - 1)
@@ -282,18 +289,29 @@ private fun ChatScreenContent(
             if (!didInitialScroll) return@LaunchedEffect
             val newest = uiState.messages.lastOrNull() ?: return@LaunchedEffect
             if (newest.id == lastKnownNewestId) return@LaunchedEffect
-            val isFirstObservation = lastKnownNewestId == null
+            val prevNewestId = lastKnownNewestId
             lastKnownNewestId = newest.id
-            if (isFirstObservation) return@LaunchedEffect
+            if (prevNewestId == null) return@LaunchedEffect
             if (isAtBottom || newest.senderId == uiState.currentUserId) {
                 listState.animateScrollToItem(rows.size - 1)
             } else {
-                unreadCount += 1
+                val newOnes = uiState.messages
+                    .dropWhile { it.id != prevNewestId }
+                    .drop(1)
+                    .filter { it.senderId != uiState.currentUserId }
+                unreadCount += newOnes.size
+                if (dividerAnchorId == null) {
+                    newOnes.firstOrNull()?.let { dividerAnchorId = it.id }
+                }
             }
         }
 
         LaunchedEffect(isAtBottom) {
-            if (isAtBottom) unreadCount = 0
+            if (isAtBottom) {
+                unreadCount = 0
+                
+                dividerAnchorId = null
+            }
         }
 
         val shouldLoadOlder by remember {
@@ -441,8 +459,8 @@ private fun ChatScreenContent(
                                 count = unreadCount,
                                 onClick = {
                                     coroutineScope.launch {
-                                        if (uiState.messages.isNotEmpty()) {
-                                            listState.animateScrollToItem(uiState.messages.size - 1)
+                                        if (rows.isNotEmpty()) {
+                                            listState.animateScrollToItem(rows.size - 1)
                                         }
                                         unreadCount = 0
                                     }
