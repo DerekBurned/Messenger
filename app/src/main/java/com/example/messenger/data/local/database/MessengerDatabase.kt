@@ -15,7 +15,7 @@ import javax.inject.Singleton
         SyncQueueEntity::class,
         ProfileEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false  
 )
 @TypeConverters(Converters::class)  

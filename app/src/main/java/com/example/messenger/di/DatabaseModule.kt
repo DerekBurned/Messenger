@@ -2,6 +2,8 @@ package com.example.messenger.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.messenger.data.local.dao.ConversationDao
 import com.example.messenger.data.local.dao.MessageDao
 import com.example.messenger.data.local.dao.SyncQueueDao
@@ -18,6 +20,12 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE messages_table ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideMessengerDatabase(
@@ -28,6 +36,7 @@ object DatabaseModule {
             MessengerDatabase::class.java,
             "messenger_database.db"
         )
+            .addMigrations(MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }

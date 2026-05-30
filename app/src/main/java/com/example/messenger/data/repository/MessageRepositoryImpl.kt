@@ -69,7 +69,8 @@ class MessageRepositoryImpl @Inject constructor(
         return try {
             val result = firestoreService.deleteMessage(message)
             if (result.isSuccess) {
-                messageDao.deleteMessage(message.toEntity())
+
+                messageDao.markDeleted(message.id)
             }
             result
         } catch (e: Exception) {
