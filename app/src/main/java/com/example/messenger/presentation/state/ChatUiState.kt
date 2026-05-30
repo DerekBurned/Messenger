@@ -19,4 +19,11 @@ data class ChatUiState(
     val currentUserId: String = "",
     
     val partnerLastSeenDisplay: String = "",
+    
+    val isLoadingOlder: Boolean = false,
+    
+    val hasMoreOlder: Boolean = true,
+    
+    val firstUnreadMessageId: String? = null,
+    val unreadAnchorResolved: Boolean = false,
 ) : UiState

@@ -140,6 +140,7 @@ fun ChatScreenWithNav(
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
         onMessagesSeen = { messages -> viewModel.dispatch(ChatIntent.MessagesSeen(messages)) },
+        onLoadOlderMessages = { viewModel.dispatch(ChatIntent.LoadOlderMessages) },
     )
 }
 
@@ -159,6 +160,7 @@ private fun ChatScreenContent(
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
     onMessagesSeen: (List<Message>) -> Unit,
+    onLoadOlderMessages: () -> Unit,
 ) {
 
     val presenceStatusText = when {
@@ -252,35 +254,59 @@ private fun ChatScreenContent(
         }
 
         var unreadCount by remember { mutableStateOf(0) }
-        var prevMessageCount by remember { mutableStateOf(0) }
         var didInitialScroll by remember { mutableStateOf(false) }
+        var lastKnownNewestId by remember { mutableStateOf<String?>(null) }
 
-        LaunchedEffect(uiState.messages.size, isAtBottom) {
-            val currentCount = uiState.messages.size
-            if (currentCount == 0) {
-                prevMessageCount = 0
-                return@LaunchedEffect
-            }
-            if (!didInitialScroll) {
-                listState.scrollToItem(currentCount - 1)
-                didInitialScroll = true
-                prevMessageCount = currentCount
-                return@LaunchedEffect
-            }
-            if (currentCount > prevMessageCount) {
-                val newOnes = uiState.messages.subList(prevMessageCount, currentCount)
-                val lastIsMine = newOnes.lastOrNull()?.senderId == uiState.currentUserId
-                if (isAtBottom || lastIsMine) {
-                    listState.animateScrollToItem(currentCount - 1)
-                } else {
-                    unreadCount += newOnes.count { it.senderId != uiState.currentUserId }
+        val rows = remember(uiState.messages, uiState.firstUnreadMessageId) {
+            buildList<ChatRow> {
+                uiState.messages.forEach { message ->
+                    if (message.id == uiState.firstUnreadMessageId) add(ChatRow.UnreadDivider)
+                    add(ChatRow.MessageRow(message))
                 }
             }
-            prevMessageCount = currentCount
+        }
+
+        LaunchedEffect(uiState.firstUnreadMessageId) { didInitialScroll = false }
+        LaunchedEffect(rows, didInitialScroll) {
+            if (didInitialScroll || rows.isEmpty()) return@LaunchedEffect
+            val dividerIndex = rows.indexOfFirst { it is ChatRow.UnreadDivider }
+            if (uiState.firstUnreadMessageId != null && dividerIndex >= 0) {
+                listState.scrollToItem(dividerIndex)
+            } else {
+                listState.scrollToItem(rows.size - 1)
+            }
+            didInitialScroll = true
+        }
+
+        LaunchedEffect(uiState.messages, didInitialScroll) {
+            if (!didInitialScroll) return@LaunchedEffect
+            val newest = uiState.messages.lastOrNull() ?: return@LaunchedEffect
+            if (newest.id == lastKnownNewestId) return@LaunchedEffect
+            val isFirstObservation = lastKnownNewestId == null
+            lastKnownNewestId = newest.id
+            if (isFirstObservation) return@LaunchedEffect
+            if (isAtBottom || newest.senderId == uiState.currentUserId) {
+                listState.animateScrollToItem(rows.size - 1)
+            } else {
+                unreadCount += 1
+            }
         }
 
         LaunchedEffect(isAtBottom) {
             if (isAtBottom) unreadCount = 0
+        }
+
+        val shouldLoadOlder by remember {
+            derivedStateOf {
+                val info = listState.layoutInfo
+                val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
+                info.totalItemsCount > 0 && first <= 2
+            }
+        }
+        LaunchedEffect(shouldLoadOlder, didInitialScroll) {
+            if (didInitialScroll && shouldLoadOlder && uiState.hasMoreOlder && !uiState.isLoadingOlder) {
+                onLoadOlderMessages()
+            }
         }
 
         val messagesById = remember(uiState.messages) { uiState.messages.associateBy { it.id } }
@@ -298,7 +324,7 @@ private fun ChatScreenContent(
                         val bottom = top + size
                         val visiblePx = (minOf(bottom, viewportBottom) - maxOf(top, viewportTop))
                             .coerceAtLeast(0)
-                        visiblePx.toFloat() / size >= 1f / 3f
+                        visiblePx.toFloat() / size >= 1f / 4f
                     }
                     .mapNotNull { item -> messagesById[item.key as? String] }
                     .filter { it.senderId != uiState.currentUserId && it.status != MessageStatus.READ }
@@ -365,24 +391,49 @@ private fun ChatScreenContent(
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.Bottom
                         ) {
-                            items(items = uiState.messages, key = { it.id }) { originalMessage ->
-                                val chatMessage = ChatMessage(
-                                    text = originalMessage.text,
-                                    isMe = originalMessage.senderId == uiState.currentUserId,
-                                    status = originalMessage.status,
-                                    timestamp = originalMessage.timestamp,
-                                )
-                                MessageWithContextMenu(
-                                    message = chatMessage,
-                                    onCopy = { onCopy(originalMessage.text) },
-                                    onReply = { onReply(originalMessage) },
-                                    onEdit = {  },
-                                    onPin = {  },
-                                    onForward = {  },
-                                    onDelete = { onDelete(originalMessage) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            items(
+                                items = rows,
+                                key = { row ->
+                                    when (row) {
+                                        is ChatRow.MessageRow -> row.message.id
+                                        ChatRow.UnreadDivider -> "unread_divider"
+                                    }
+                                },
+                            ) { row ->
+                                when (row) {
+                                    ChatRow.UnreadDivider -> UnreadMessagesDivider()
+                                    is ChatRow.MessageRow -> {
+                                        val originalMessage = row.message
+                                        val chatMessage = ChatMessage(
+                                            text = originalMessage.text,
+                                            isMe = originalMessage.senderId == uiState.currentUserId,
+                                            status = originalMessage.status,
+                                            timestamp = originalMessage.timestamp,
+                                        )
+                                        MessageWithContextMenu(
+                                            message = chatMessage,
+                                            onCopy = { onCopy(originalMessage.text) },
+                                            onReply = { onReply(originalMessage) },
+                                            onEdit = {  },
+                                            onPin = {  },
+                                            onForward = {  },
+                                            onDelete = { onDelete(originalMessage) }
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
                             }
+                        }
+
+                        if (uiState.isLoadingOlder) {
+                            CircularProgressIndicator(
+                                color = PrimaryBlue,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 8.dp)
+                                    .size(28.dp),
+                            )
                         }
 
                         if (unreadCount > 0) {
@@ -553,6 +604,31 @@ data class ChatMessage(
     val timestamp: Long = 0L
 )
 
+private sealed interface ChatRow {
+    data class MessageRow(val message: Message) : ChatRow
+    data object UnreadDivider : ChatRow
+}
+
+@Composable
+private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
+        Text(
+            text = "Unread messages",
+            color = PrimaryBlue,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
+    }
+}
+
 @Composable
 private fun NewMessagesPill(
     count: Int,
@@ -623,6 +699,7 @@ private fun ChatScreenPreview() {
             onAttachmentClick = {},
             onIntercultorProfileClick = {},
             onMessagesSeen = {},
+            onLoadOlderMessages = {},
         )
     }
 }

@@ -5,8 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.Message
+import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
+import com.example.messenger.domain.usecase.message.LoadOlderMessagesUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
 import com.example.messenger.domain.usecase.message.SyncMessagesUseCase
@@ -36,6 +38,7 @@ class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getMessagesUseCase: GetMessagesUseCase,
     private val syncMessagesUseCase: SyncMessagesUseCase,
+    private val loadOlderMessagesUseCase: LoadOlderMessagesUseCase,
     private val markMessageAsReadUseCase: MarkMessageAsReadUseCase,
     private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
@@ -56,6 +59,7 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "ChatViewModel"
+        const val PAGE_SIZE = 100L
         const val TYPING_DEBOUNCE_MS = 500L
         const val TYPING_TTL_MS = 5000L
         const val LAST_SEEN_TICK_MS = 60_000L
@@ -85,12 +89,32 @@ class ChatViewModel @Inject constructor(
             is ChatIntent.TextChanged -> onTextChanged(intent.text)
             is ChatIntent.SendMessage -> sendMessage(intent.text)
             is ChatIntent.MessagesSeen -> onMessagesSeen(intent.messages)
+            ChatIntent.LoadOlderMessages -> loadOlder()
             is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
             is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
             ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
             is ChatIntent.Forward -> setState { copy(forwardingMessage = intent.message) }
             ChatIntent.ClearForward -> setState { copy(forwardingMessage = null) }
             ChatIntent.ClearError -> setState { copy(error = null) }
+        }
+    }
+
+    private fun loadOlder() {
+        if (currentState.isLoadingOlder || !currentState.hasMoreOlder) return
+        viewModelScope.launch {
+            setState { copy(isLoadingOlder = true) }
+            val result = loadOlderMessagesUseCase(conversationId)
+            val fetched = result.getOrDefault(0)
+            if (result.isFailure) {
+                Log.w(TAG, "Loading older messages failed", result.exceptionOrNull())
+            }
+
+            setState {
+                copy(
+                    isLoadingOlder = false,
+                    hasMoreOlder = if (result.isSuccess) fetched >= PAGE_SIZE else hasMoreOlder,
+                )
+            }
         }
     }
 
@@ -110,7 +134,22 @@ class ChatViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        setState { copy(isLoading = false, messages = resource.data, error = null) }
+                        setState {
+
+                            val resolvedAnchor = if (
+                                !unreadAnchorResolved &&
+                                currentUserId.isNotBlank() &&
+                                resource.data.isNotEmpty()
+                            ) {
+                                val anchorId = resource.data.firstOrNull {
+                                    it.senderId != currentUserId && it.status != MessageStatus.READ
+                                }?.id
+                                copy(firstUnreadMessageId = anchorId, unreadAnchorResolved = true)
+                            } else {
+                                this
+                            }
+                            resolvedAnchor.copy(isLoading = false, messages = resource.data, error = null)
+                        }
                     }
                     is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
                     is Resource.Failure -> setState { copy(isLoading = false, error = resource.exception.message?.toUiText()) }
