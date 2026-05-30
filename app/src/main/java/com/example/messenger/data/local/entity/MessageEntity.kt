@@ -26,5 +26,7 @@ data class MessageEntity(
     val text: String,
     val timestamp: Long,
     val status: MessageStatus,
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    @ColumnInfo(name = "deleted")
+    val deleted: Boolean = false
 )

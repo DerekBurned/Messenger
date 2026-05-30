@@ -87,7 +87,8 @@ fun MessageEntity.toDomain(): Message {
         text = text,
         timestamp = timestamp,
         status = status,
-        isRead = isRead
+        isRead = isRead,
+        deleted = deleted
     )
 }
 
@@ -99,7 +100,8 @@ fun Message.toEntity(): MessageEntity {
         text = text,
         timestamp = timestamp,
         status = status,
-        isRead = isRead
+        isRead = isRead,
+        deleted = deleted
     )
 }
 
@@ -204,5 +206,6 @@ fun MessageWithSender.toDomain(): Message = Message(
     text = message.text,
     timestamp = message.timestamp,
     status = message.status,
-    isRead = message.isRead
+    isRead = message.isRead,
+    deleted = message.deleted
 )

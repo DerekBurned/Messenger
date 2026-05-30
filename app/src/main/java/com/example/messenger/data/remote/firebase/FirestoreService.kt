@@ -98,7 +98,9 @@ class FirestoreService @Inject constructor(
             conversationsCollection
                 .document(message.conversationId)
                 .collection("messages")
-                .document(message.id).delete()
+                .document(message.id)
+                .update("deleted", true)
+                .await()
             Result.success(Unit)
         }catch (e: Exception)
         {

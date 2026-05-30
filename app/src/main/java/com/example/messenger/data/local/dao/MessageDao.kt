@@ -15,8 +15,11 @@ import kotlinx.coroutines.flow.Flow
 interface MessageDao {
 
     @Transaction
-    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM messages_table WHERE conversation_id = :conversationId AND deleted = 0 ORDER BY timestamp ASC")
     fun getMessagesWithSendersDesc(conversationId: String): Flow<List<MessageWithSender>>
+
+    @Query("SELECT id FROM messages_table WHERE conversation_id = :conversationId ORDER BY timestamp ASC LIMIT 1")
+    suspend fun getOldestMessageId(conversationId: String): String?
 
     @Query("SELECT * FROM messages_table WHERE id = :messageId LIMIT 1")
     suspend fun getMessageById(messageId: String): MessageEntity?
@@ -35,4 +38,7 @@ interface MessageDao {
 
     @Query("UPDATE messages_table SET isRead = 1 WHERE id = :messageId")
     suspend fun markAsRead(messageId: String)
+
+    @Query("UPDATE messages_table SET deleted = 1 WHERE id = :messageId")
+    suspend fun markDeleted(messageId: String)
 }
