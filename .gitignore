@@ -165,3 +165,4 @@ fabric.properties
 # Local-only artifacts
 /ruvector.db
 /graphify-out/
+app/objectbox-models/*.bak
