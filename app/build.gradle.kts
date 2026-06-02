@@ -99,11 +99,6 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.google.gms.auth.phone)
 
-    // Room (being replaced by ObjectBox — removed in the final migration phase)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-
     implementation(libs.androidx.compose.foundation)
 
     // Hilt - using KSP
