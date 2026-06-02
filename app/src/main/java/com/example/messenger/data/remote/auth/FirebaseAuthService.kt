@@ -4,7 +4,6 @@ import android.app.Activity
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.messenger.BuildConfig
-import com.example.messenger.data.local.database.MessengerDatabase
 import com.example.messenger.data.local.repository.ILocalRepository
 import com.example.messenger.util.VerificationResult
 import com.google.firebase.FirebaseException
