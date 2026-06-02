@@ -5,10 +5,8 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.serialization)
-    // Realm Kotlin plugin is disabled: realm-kotlin 3.0.0 is incompatible with Kotlin 2.3.10
-    // (compiler API NoSuchMethodError on FirResolvedTypeRef.getType()). Realm is now abandoned
-    // (EOL); ObjectBox replaces Room — see docs/room-vs-objectbox-and-migration-plan.md.
-    // alias(libs.plugins.realm.kotlin)
+    // Hilt/Room use KSP. ObjectBox has no KSP support yet (objectbox-java#1075), so it requires
+    // kapt — the two annotation processors coexist; see docs/room-vs-objectbox-and-migration-plan.md.
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.objectbox)
 }
@@ -101,14 +99,11 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.google.gms.auth.phone)
 
-    // Room (kept during Room→Realm transition; Realm is primary cache per tech spec)
+    // Room (being replaced by ObjectBox — removed in the final migration phase)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // Realm Kotlin SDK is declared in libs.versions.toml but not wired here — blocked by
-    // Kotlin 2.3 incompatibility; see plugins block comment.
-    // implementation(libs.realm.base)
     implementation(libs.androidx.compose.foundation)
 
     // Hilt - using KSP
