@@ -32,6 +32,8 @@ class MessengerApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        runCatching { deleteDatabase("messenger_database.db") }
         NotificationChannels.ensureCreated(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         syncCoordinator.start()
