@@ -6,9 +6,11 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.serialization)
     // Realm Kotlin plugin is disabled: realm-kotlin 3.0.0 is incompatible with Kotlin 2.3.10
-    // (compiler API NoSuchMethodError on FirResolvedTypeRef.getType()). Re-enable once Realm
-    // ships a Kotlin 2.3-compatible release, then complete Phase 2 of the integration plan.
+    // (compiler API NoSuchMethodError on FirResolvedTypeRef.getType()). Realm is now abandoned
+    // (EOL); ObjectBox replaces Room — see docs/room-vs-objectbox-and-migration-plan.md.
     // alias(libs.plugins.realm.kotlin)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.objectbox)
 }
 
 android {
