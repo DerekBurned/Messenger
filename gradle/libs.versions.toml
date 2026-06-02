@@ -30,9 +30,6 @@ navigation3 = "1.1.2"
 lifecycleViewmodelNavigation3 = "2.10.0"
 kotlinxSerialization = "1.11.0"
 
-# Realm Kotlin SDK (replaces Room)
-realm = "3.0.0"
-
 # Coroutines
 coroutines = "1.11.0"
 
@@ -100,9 +97,6 @@ androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-
 androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNavigation3" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
-# Realm (replaces Room)
-realm-base = { group = "io.realm.kotlin", name = "library-base", version.ref = "realm" }
-
 # Coroutines
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
@@ -125,7 +119,7 @@ coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp"
 # DataStore (for preferences)
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# Gson (for type converters in Room)
+# Gson (used by ObjectBox/Room property converters)
 google-gson = { group = "com.google.code.gson", name = "gson", version = "2.13.2" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
@@ -138,7 +132,6 @@ google-services = { id = "com.google.gms.google-services", version = "4.4.4" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-realm-kotlin = { id = "io.realm.kotlin", version.ref = "realm" }
 # ObjectBox annotation processing runs via kapt; AGP 9 exposes kapt through com.android.legacy-kapt.
 kotlin-kapt = { id = "com.android.legacy-kapt", version.ref = "agp" }
 objectbox = { id = "io.objectbox", version.ref = "objectbox" }
