@@ -76,7 +76,6 @@ class SyncRepositoryImpl @Inject constructor(
     private suspend fun retrySend(item: SyncQueueEntity) {
         val entity = messageDao.getMessageById(item.entityId)
         if (entity == null) {
-            
             syncQueueDao.delete(item)
             return
         }
