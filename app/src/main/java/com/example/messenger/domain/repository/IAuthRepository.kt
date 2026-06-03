@@ -9,7 +9,11 @@ import kotlinx.coroutines.flow.Flow
 interface IAuthRepository {
     suspend fun linkPhoneToAccount(credential: PhoneAuthCredential): Flow<Resource<Unit>>
 
-    suspend fun loginWithPhone(credential: PhoneAuthCredential, username: String? = null): Resource<User>
+    suspend fun loginWithPhone(
+        credential: PhoneAuthCredential,
+        username: String? = null,
+        isRegistration: Boolean = false,
+    ): Resource<User>
 
     suspend fun logout()
     fun getCurrentUser(): User?

@@ -13,5 +13,6 @@ class LoginWithPhoneNumberUseCase @Inject constructor(
     suspend operator fun invoke(
         credential: PhoneAuthCredential,
         username: String? = null,
-    ): Resource<User> = authRepository.loginWithPhone(credential, username)
+        isRegistration: Boolean = false,
+    ): Resource<User> = authRepository.loginWithPhone(credential, username, isRegistration)
 }

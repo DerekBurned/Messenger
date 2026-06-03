@@ -72,8 +72,12 @@ fun AuthScreen(
     val activity = context as? Activity
 
     ObserveAsEvents(viewModel.effect) { effect ->
+        android.util.Log.d("AUTHFLOW_UI", "effect: $effect")
         when (effect) {
-            AuthEffect.AuthSucceeded -> onAuthSuccess()
+            AuthEffect.AuthSucceeded -> {
+                android.util.Log.d("AUTHFLOW_UI", "AuthSucceeded -> onAuthSuccess() (navigate to Main)")
+                onAuthSuccess()
+            }
             AuthEffect.PhoneLinked -> Unit
         }
     }
@@ -100,9 +104,10 @@ fun AuthScreen(
         onOtpChange = { otp = it },
         onSendOtp = {
             val fullPhone = selectedCountry.dialCode + nationalNumber
-            val nameForVm = if (mode == AuthMode.REGISTER) username else null
+            val isRegister = mode == AuthMode.REGISTER
+            val nameForVm = if (isRegister) username else null
             activity?.let {
-                viewModel.dispatch(AuthIntent.SendVerificationCode(it, fullPhone, nameForVm))
+                viewModel.dispatch(AuthIntent.SendVerificationCode(it, fullPhone, nameForVm, isRegister))
             }
         },
         onVerifyOtp = { viewModel.dispatch(AuthIntent.VerifyOtpAndLogin(otp)) },
