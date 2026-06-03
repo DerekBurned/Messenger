@@ -138,7 +138,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onLogoutClick = {
                     authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
                 onProfileClick = {
@@ -150,6 +150,9 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onSettingsClick = {
                     navController.navigate(Screens.SettingsScreen.route)
                 },
+                onContactClick = { userId ->
+                    navController.navigate(Screens.ChatUserProfileScreen.createRoute(userId))
+                },
             )
         }
 
@@ -160,7 +163,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onLogoutClick = {
                     authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
             )
@@ -171,7 +174,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = {
                     navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
                 onStartEditing = {
@@ -200,7 +203,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onLogout = {
                     authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(Screens.MainScreen.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
                 onChangeAccount = { navController.navigate(Screens.ChangeAccountScreen.route) },

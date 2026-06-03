@@ -81,6 +81,7 @@ fun MainScreenWithNav(
     onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onContactClick: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -92,6 +93,7 @@ fun MainScreenWithNav(
         onLogoutClick = onLogoutClick,
         onProfileClick = onProfileClick,
         onSettingsClick = onSettingsClick,
+        onContactClick = onContactClick,
     )
 }
 
@@ -105,6 +107,7 @@ private fun MainScreenContent(
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onContactClick: (String) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
 
@@ -151,7 +154,7 @@ private fun MainScreenContent(
                     onChatClick = onChatClick,
                 )
                 MainTab.CALLS -> CallsScreenContent()
-                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { /* TODO navigate to user profile */ })
+                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { user -> onContactClick(user.id) })
                 MainTab.SETTINGS -> Unit 
             }
         }
@@ -507,6 +510,7 @@ private fun MainScreenPreview() {
             onLogoutClick = {},
             onProfileClick = {},
             onSettingsClick = {},
+            onContactClick = {},
         )
     }
 }

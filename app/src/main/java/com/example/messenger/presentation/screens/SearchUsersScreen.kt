@@ -58,10 +58,11 @@ fun SearchUsersScreen(
         when (effect) {
             is SearchUsersEffect.ConversationCreated -> {
                 val conversation = effect.conversation
-                val partnerId = conversation.participantIds.firstOrNull { id ->
-                    id != com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                } ?: ""
-                val partnerName = conversation.participantNames.firstOrNull() ?: "Unknown"
+                val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                val partnerIdx = conversation.participantIds.indexOfFirst { id -> id != myUid }
+                val partnerId = conversation.participantIds.getOrNull(partnerIdx) ?: ""
+                val partnerName = conversation.participantNames.getOrNull(partnerIdx)
+                    ?.takeIf { it.isNotBlank() } ?: "Unknown"
                 onConversationCreated(conversation.id, partnerId, partnerName)
             }
         }
