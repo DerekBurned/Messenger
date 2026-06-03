@@ -47,6 +47,7 @@ class CallForegroundService : Service() {
     private var tickerJob: Job? = null
     private var statusObserverJob: Job? = null
     private var ringTimeoutJob: Job? = null
+    private var outgoingTimeoutJob: Job? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus: Boolean = false
 
@@ -97,6 +98,7 @@ class CallForegroundService : Service() {
                         calleeId = call.calleeId,
                         channelName = call.channelName,
                         status = CallStatus.RINGING,
+                        timestamp = System.currentTimeMillis(),
                     ),
                 )
             }
@@ -104,9 +106,27 @@ class CallForegroundService : Service() {
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.callerId))
         observeRemoteStatus(call.calleeId, call.callId, isCaller = true)
+        startOutgoingTimeout()
     }
 
     private fun handleStartIncoming(intent: Intent) {
+        val newCallId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
+        val existing = ActiveCallHolder.snapshot()
+        if (existing != null && existing.callId != newCallId) {
+
+            Log.d(TAG, "busy: declining concurrent call $newCallId while on ${existing.callId}")
+            val existingNotification =
+                if (existing.isActive || !existing.isIncoming) buildOngoingNotification(existing)
+                else buildRingingNotification(existing)
+            startForegroundCompat(existingNotification)
+            val newCalleeId = intent.getStringExtra(EXTRA_CALLEE_ID).orEmpty()
+            scope.launch {
+                runCatching {
+                    signalingService.updateCallStatus(newCalleeId, newCallId, CallStatus.DECLINED)
+                }
+            }
+            return
+        }
         val call = ActiveCallHolder.ActiveCall(
             callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty(),
             callerId = intent.getStringExtra(EXTRA_CALLER_ID).orEmpty(),
@@ -155,6 +175,10 @@ class CallForegroundService : Service() {
                 runCatching {
                     signalingService.updateCallStatus(call.calleeId, call.callId, status)
                 }.onFailure { Log.w(TAG, "Failed to write terminal status=$status", it) }
+
+                runCatching {
+                    signalingService.clearCall(call.calleeId, call.callId)
+                }.onFailure { Log.w(TAG, "Failed to clear call node", it) }
             } ?: Log.w(TAG, "Terminal status write timed out (status=$status)")
             stopSelfClean()
         }
@@ -221,7 +245,20 @@ class CallForegroundService : Service() {
             runCatching {
                 signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.ENDED)
             }
+            runCatching {
+                signalingService.clearCall(call.calleeId, call.callId)
+            }
             stopSelfClean()
+        }
+    }
+
+    private fun startOutgoingTimeout() {
+        outgoingTimeoutJob?.cancel()
+        outgoingTimeoutJob = scope.launch {
+            delay(OUTGOING_TIMEOUT_MS)
+            if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
+            Log.d(TAG, "outgoing timeout fired — no answer, ending call")
+            terminate(CallStatus.ENDED)
         }
     }
 
@@ -231,6 +268,8 @@ class CallForegroundService : Service() {
         statusObserverJob = null
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
+        outgoingTimeoutJob?.cancel()
+        outgoingTimeoutJob = null
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -244,6 +283,9 @@ class CallForegroundService : Service() {
     }
 
     private fun startTicker() {
+        
+        outgoingTimeoutJob?.cancel()
+        outgoingTimeoutJob = null
         stopTicker()
         tickerJob = scope.launch {
             while (true) {
@@ -413,6 +455,8 @@ class CallForegroundService : Service() {
     override fun onDestroy() {
         stopTicker()
         releaseAudioFocus()
+
+        callService.clearEventListener(eventListener)
         scope.coroutineContext[Job]?.cancel()
         super.onDestroy()
     }
@@ -441,6 +485,8 @@ class CallForegroundService : Service() {
         private const val REQ_END = 4
         private const val STATUS_WRITE_TIMEOUT_MS = 4_000L
         private const val RING_TIMEOUT_MS = 60_000L
+
+        private const val OUTGOING_TIMEOUT_MS = 65_000L
 
         fun outgoingIntent(
             ctx: Context,

@@ -1,6 +1,7 @@
 package com.example.messenger.data.remote.call
 
 import android.content.Context
+import android.util.Log
 import com.example.messenger.BuildConfig
 import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.domain.service.CallEventListener
@@ -28,7 +29,10 @@ class AgoraCallService @Inject constructor(
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
-            listener?.onRemoteUserLeft(uid)
+
+            if (reason == io.agora.rtc2.Constants.USER_OFFLINE_QUIT) {
+                listener?.onRemoteUserLeft(uid)
+            }
         }
 
         override fun onError(err: Int) {
@@ -54,16 +58,23 @@ class AgoraCallService @Inject constructor(
             engine = RtcEngine.create(config)
             engine?.enableAudio()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to create Agora RtcEngine", e)
         }
     }
 
     override fun joinChannel(channelName: String, uid: Int) {
+        val engine = engine
+        if (engine == null) {
+
+            Log.e(TAG, "joinChannel called but engine is unavailable")
+            listener?.onError(ERR_ENGINE_UNAVAILABLE)
+            return
+        }
         val options = ChannelMediaOptions().apply {
             channelProfile = io.agora.rtc2.Constants.CHANNEL_PROFILE_COMMUNICATION
             clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
         }
-        engine?.joinChannel("", channelName, uid, options)
+        engine.joinChannel("", channelName, uid, options)
     }
 
     override fun leaveChannel() {
@@ -82,6 +93,10 @@ class AgoraCallService @Inject constructor(
         this.listener = listener
     }
 
+    override fun clearEventListener(listener: CallEventListener) {
+        if (this.listener === listener) this.listener = null
+    }
+
     private fun Int.toCallConnectionState(): CallConnectionState = when (this) {
         io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTING -> CallConnectionState.CONNECTING
         io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTED -> CallConnectionState.CONNECTED
@@ -89,5 +104,11 @@ class AgoraCallService @Inject constructor(
         io.agora.rtc2.Constants.CONNECTION_STATE_FAILED -> CallConnectionState.FAILED
         io.agora.rtc2.Constants.CONNECTION_STATE_DISCONNECTED -> CallConnectionState.DISCONNECTED
         else -> CallConnectionState.DISCONNECTED
+    }
+
+    private companion object {
+        const val TAG = "AgoraCallService"
+        
+        const val ERR_ENGINE_UNAVAILABLE = -1
     }
 }
