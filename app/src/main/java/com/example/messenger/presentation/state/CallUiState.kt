@@ -1,5 +1,9 @@
 package com.example.messenger.presentation.state
 
+import com.example.messenger.domain.service.CallConnectionState
+import com.example.messenger.presentation.base.UiState
+import com.example.messenger.presentation.base.UiText
+
 data class CallUiState(
     val partnerName: String = "",
     val partnerPhone: String = "",
@@ -9,5 +13,6 @@ data class CallUiState(
     val seconds: Int = 0,
     val speakerOn: Boolean = false,
     val muted: Boolean = false,
-    val error: String? = null,
-)
+    val connectionState: CallConnectionState = CallConnectionState.CONNECTING,
+    val error: UiText? = null,
+) : UiState

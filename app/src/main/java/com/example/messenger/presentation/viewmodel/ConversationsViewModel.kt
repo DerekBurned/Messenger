@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.conversation.CreateConversationUseCase
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
-import com.example.messenger.domain.usecase.conversation.ObserveConversationsUseCase
 import com.example.messenger.domain.usecase.conversation.SyncConversationsUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ConversationsUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,36 +27,26 @@ class ConversationsViewModel @Inject constructor(
     private val deleteConversationUseCase: DeleteConversationUseCase,
     private val createConversationUseCase: CreateConversationUseCase,
     private val syncConversationsUseCase: SyncConversationsUseCase,
-    private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ConversationsUiState())
+    private val _uiState = MutableStateFlow(
+        ConversationsUiState(currentUserId = firebaseAuth.currentUser?.uid.orEmpty()),
+    )
     val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
 
     private var presenceJob: Job? = null
 
     init {
         loadConversations()
-        syncRemoteConversations()
-    }
-
-    private fun syncRemoteConversations() {
-        viewModelScope.launch {
-            try {
-                observeConversationsUseCase().collect {
-
-                }
-            } catch (_: Exception) { }
-        }
     }
 
     private fun loadConversations() {
         viewModelScope.launch {
             getConversationsUseCase()
                 .onStart { _uiState.update { it.copy(isLoading = true) } }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
                 .collect { conversations ->
                     _uiState.update {
                         it.copy(isLoading = false, conversations = conversations, error = null)
@@ -91,7 +81,7 @@ class ConversationsViewModel @Inject constructor(
             val result = deleteConversationUseCase(conversationId)
             result.fold(
                 onSuccess = { _uiState.update { it.copy(isLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
             )
         }
     }
@@ -102,7 +92,7 @@ class ConversationsViewModel @Inject constructor(
             val result = createConversationUseCase(participantId)
             result.fold(
                 onSuccess = { _uiState.update { it.copy(isLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
             )
         }
     }

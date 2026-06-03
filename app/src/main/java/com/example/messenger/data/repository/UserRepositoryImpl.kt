@@ -1,34 +1,33 @@
 package com.example.messenger.data.repository
 
-import com.example.messenger.data.local.dao.UserDao
-import com.example.messenger.data.mapper.toDomain
-import com.example.messenger.data.mapper.toEntity
+import com.example.messenger.data.local.obx.ObxConversation
+import com.example.messenger.data.local.obx.ObxUser
+import com.example.messenger.data.local.obx.ObxUser_
+import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.toDomain
+import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IUserRepository
+import io.objectbox.Box
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
-    private val userDao: UserDao,
+    private val userBox: Box<ObxUser>,
+    private val conversationBox: Box<ObxConversation>,
     private val firestoreService: FirestoreService,
     private val authService: FirebaseAuthService,
 ) : IUserRepository {
 
     override suspend fun getUserById(userId: String): Result<User?> {
         return try {
-            
-            val localUser = userDao.getUserById(userId)
-            if (localUser != null) {
-                return Result.success(localUser.toDomain())
-            }
-            
+            findByUid(userId)?.let { return Result.success(it.toDomain()) }
             val remoteResult = firestoreService.getUserProfile(userId)
-            remoteResult.onSuccess { user ->
-                userDao.insertUser(user.toEntity())
-            }
+            remoteResult.onSuccess { user -> upsert(user.toObx()) }
             Result.success(remoteResult.getOrNull())
         } catch (e: Exception) {
             Result.failure(e)
@@ -38,23 +37,19 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
             val currentUserId = authService.getCurrentUserId()
-
-            val localUser = userDao.getUserByUsername(query)
-            if (localUser != null && localUser.id != currentUserId) {
-                return Result.success(listOf(localUser.toDomain()))
+            val local = userBox.query(ObxUser_.username.equal(query)).build().use { it.findFirst() }
+            if (local != null && local.uid != currentUserId) {
+                return Result.success(listOf(local.toDomain()))
             }
-
-            val remoteResult = firestoreService.searchUsers(query)
-            remoteResult.fold(
+            firestoreService.searchUsers(query).fold(
                 onSuccess = { users ->
                     val filtered = users.filter { it.id != currentUserId }
-                    
                     if (filtered.isNotEmpty()) {
-                        userDao.insertUsers(filtered.map { it.toEntity() })
+                        userBox.put(filtered.map { it.toObx() })
                     }
                     Result.success(filtered)
                 },
-                onFailure = { e -> Result.failure(e) }
+                onFailure = { e -> Result.failure(e) },
             )
         } catch (e: Exception) {
             Result.failure(e)
@@ -62,9 +57,9 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun observeUser(userId: String): Flow<User?> {
-        return userDao.getAllUsers().map { users ->
-            users.find { it.id == userId }?.toDomain()
-        }
+        return userBox.query(ObxUser_.uid.equal(userId)).build()
+            .asFlow()
+            .map { rows -> rows.firstOrNull()?.toDomain() }
     }
 
     override suspend fun updateUserStatus(isOnline: Boolean): Result<Unit> {
@@ -90,18 +85,16 @@ class UserRepositoryImpl @Inject constructor(
             val uid = authService.getCurrentUserId() ?: return Result.failure(Exception("Not logged in"))
             val result = firestoreService.updateUserProfile(uid, updates)
             result.onSuccess {
-                
-                val localUser = userDao.getUserById(uid)
-                if (localUser != null) {
-                    var updated = localUser
+                findByUid(uid)?.let { local ->
                     updates.forEach { (key, value) ->
                         when (key) {
-                            "username" -> updated = updated?.copy(username = value as String)
-                            "email" -> updated = updated?.copy(email = value as? String)
-                            "avatarUrl" -> updated = updated?.copy(avatarUrl = value as? String)
+                            "username" -> local.username = value as String
+                            "email" -> local.email = value as? String
+                            "avatarUrl" -> local.avatarUrl = value as? String
+                            "phoneNumber" -> local.phoneNumber = value as? PhoneNumber
                         }
                     }
-                    userDao.updateUser(updated!!)
+                    userBox.put(local)
                 }
             }
             result
@@ -110,27 +103,43 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateContactName(
-        contactId: String,
-        newName: String,
-    ): Result<Unit> = try {
+    override suspend fun updateContactName(contactId: String, newName: String): Result<Unit> = try {
         val trimmed = newName.trim()
         if (trimmed.isBlank()) {
             Result.failure(IllegalArgumentException("Name cannot be empty"))
         } else {
-            val local = userDao.getUserById(contactId)
+            val local = findByUid(contactId)
             if (local == null) {
-                
                 val remote = firestoreService.getUserProfile(contactId).getOrNull()
-                val seed = remote?.copy(username = trimmed)?.toEntity()
-                    ?: User(id = contactId, username = trimmed).toEntity()
-                userDao.insertUser(seed)
+                val seed = remote?.copy(username = trimmed)?.toObx()
+                    ?: User(id = contactId, username = trimmed).toObx()
+                upsert(seed)
             } else {
-                userDao.updateUser(local.copy(username = trimmed))
+                local.username = trimmed
+                userBox.put(local)
             }
+            propagateRenameToConversations(contactId, trimmed)
             Result.success(Unit)
         }
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    private fun propagateRenameToConversations(contactId: String, newName: String) {
+        conversationBox.all.forEach { conv ->
+            val idx = conv.participantIds.indexOf(contactId)
+            if (idx < 0 || idx >= conv.participantNames.size) return@forEach
+            if (conv.participantNames[idx] == newName) return@forEach
+            conv.participantNames = conv.participantNames.toMutableList().apply { this[idx] = newName }
+            conversationBox.put(conv)
+        }
+    }
+
+    private fun findByUid(uid: String): ObxUser? =
+        userBox.query(ObxUser_.uid.equal(uid)).build().use { it.findFirst() }
+
+    private fun upsert(user: ObxUser) {
+        findByUid(user.uid)?.let { user.boxId = it.boxId }
+        userBox.put(user)
     }
 }

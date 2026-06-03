@@ -1,17 +1,15 @@
 package com.example.messenger.presentation.viewmodel
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.ObserveConversationsUseCase
+import com.example.messenger.presentation.base.StateViewModel
+import com.example.messenger.presentation.base.toUiText
+import com.example.messenger.presentation.effect.EditChatEffect
 import com.example.messenger.presentation.state.EditChatUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,22 +17,20 @@ import javax.inject.Inject
 class EditChatViewModel @Inject constructor(
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val deleteConversationUseCase: DeleteConversationUseCase,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(EditChatUiState())
-    val uiState: StateFlow<EditChatUiState> = _uiState.asStateFlow()
+) : StateViewModel<EditChatUiState, EditChatEffect>(initialState = EditChatUiState()) {
 
     init {
         viewModelScope.launch {
             observeConversationsUseCase()
-                .onStart { _uiState.update { it.copy(isLoading = true) } }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+                .onStart { setState { copy(isLoading = true) } }
+                .catch { e -> setState { copy(isLoading = false, error = e.message?.toUiText()) } }
                 .collect { list ->
-                    _uiState.update {
-                        it.copy(
+                    setState {
+                        copy(
                             isLoading = false,
                             conversations = list,
                             
-                            selectedIds = if (it.selectedIds.isEmpty()) list.map { c -> c.id }.toSet() else it.selectedIds,
+                            selectedIds = if (selectedIds.isEmpty()) list.map { c -> c.id }.toSet() else selectedIds,
                         )
                     }
                 }
@@ -42,24 +38,24 @@ class EditChatViewModel @Inject constructor(
     }
 
     fun toggle(id: String) {
-        _uiState.update {
-            val next = it.selectedIds.toMutableSet().apply {
+        setState {
+            val next = selectedIds.toMutableSet().apply {
                 if (contains(id)) remove(id) else add(id)
             }
-            it.copy(selectedIds = next)
+            copy(selectedIds = next)
         }
     }
 
-    fun deleteSelected(onComplete: () -> Unit = {}) {
-        val ids = _uiState.value.selectedIds.toList()
+    fun deleteSelected() {
+        val ids = currentState.selectedIds.toList()
         viewModelScope.launch {
             ids.forEach { deleteConversationUseCase(it) }
-            onComplete()
+            emitEffect(EditChatEffect.Done)
         }
     }
 
-    fun markAllRead(onComplete: () -> Unit = {}) {
+    fun markAllRead() {
         
-        onComplete()
+        emitEffect(EditChatEffect.Done)
     }
 }

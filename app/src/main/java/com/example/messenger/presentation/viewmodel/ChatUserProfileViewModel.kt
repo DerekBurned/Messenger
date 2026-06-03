@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ChatUserProfileUiState
 import com.example.messenger.presentation.state.MediaTab
 import com.example.messenger.util.Resource
@@ -41,8 +42,8 @@ class ChatUserProfileViewModel @Inject constructor(
                             isOnline = resource.data?.isOnline == true,
                         )
                     }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message) }
-                    is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message) }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message.toUiText()) }
+                    is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message?.toUiText()) }
                 }
             }
         }

@@ -22,11 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.effect.SearchUsersEffect
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.viewmodel.SearchUsersViewModel
 import kotlinx.coroutines.delay
@@ -38,7 +40,7 @@ fun SearchUsersScreen(
     onBackClick: () -> Unit = {},
     onConversationCreated: (conversationId: String, partnerId: String, partnerName: String) -> Unit = { _, _, _ -> }
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
@@ -52,14 +54,17 @@ fun SearchUsersScreen(
         viewModel.searchUsers(searchQuery)
     }
 
-    LaunchedEffect(uiState.createdConversation) {
-        uiState.createdConversation?.let { conversation ->
-            val partnerId = conversation.participantIds.firstOrNull { id ->
-                id != com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-            } ?: ""
-            val partnerName = conversation.participantNames.firstOrNull() ?: "Unknown"
-            viewModel.onConversationNavigated()
-            onConversationCreated(conversation.id, partnerId, partnerName)
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            is SearchUsersEffect.ConversationCreated -> {
+                val conversation = effect.conversation
+                val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                val partnerIdx = conversation.participantIds.indexOfFirst { id -> id != myUid }
+                val partnerId = conversation.participantIds.getOrNull(partnerIdx) ?: ""
+                val partnerName = conversation.participantNames.getOrNull(partnerIdx)
+                    ?.takeIf { it.isNotBlank() } ?: "Unknown"
+                onConversationCreated(conversation.id, partnerId, partnerName)
+            }
         }
     }
 
@@ -144,7 +149,7 @@ private fun SearchUsersScreenContent(
                 }
                 uiState.error != null -> {
                     Text(
-                        text = uiState.error!!,
+                        text = uiState.error.asString(),
                         color = Color.Gray,
                         modifier = Modifier.align(Alignment.Center).padding(16.dp)
                     )

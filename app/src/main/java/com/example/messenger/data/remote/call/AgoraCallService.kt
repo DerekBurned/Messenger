@@ -1,9 +1,10 @@
 package com.example.messenger.data.remote.call
 
 import android.content.Context
+import com.example.messenger.BuildConfig
+import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.domain.service.CallEventListener
 import com.example.messenger.domain.service.ICallService
-import com.example.messenger.util.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -11,7 +12,9 @@ import io.agora.rtc2.RtcConnection
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AgoraCallService @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) : ICallService {
@@ -20,27 +23,31 @@ class AgoraCallService @Inject constructor(
     private var listener: CallEventListener? = null
 
     private val handler = object : IRtcEngineEventHandler() {
-        fun onUserJoined(connection: RtcConnection?, remoteUid: Int, elapsed: Int) {
-            listener?.onRemoteUserJoined(remoteUid)
+        override fun onUserJoined(uid: Int, elapsed: Int) {
+            listener?.onRemoteUserJoined(uid)
         }
 
-        fun onUserOffline(connection: RtcConnection?, remoteUid: Int, reason: Int) {
-            listener?.onRemoteUserLeft(remoteUid)
+        override fun onUserOffline(uid: Int, reason: Int) {
+            listener?.onRemoteUserLeft(uid)
         }
 
         override fun onError(err: Int) {
             listener?.onError(err)
         }
+
+        override fun onConnectionStateChanged(state: Int, reason: Int) {
+            listener?.onConnectionStateChanged(state.toCallConnectionState())
+        }
     }
 
     init {
-        require(Constants.AGORA_APP_ID.isNotBlank()) {
-            "Agora App ID is missing or invalid. Please check your Constants.kt file."
+        require(BuildConfig.AGORA_APP_ID.isNotBlank()) {
+            "BuildConfig.AGORA_APP_ID is missing. Set AGORA_APP_ID in gradle.properties / local.properties."
         }
 
         try {
             val config = RtcEngineConfig().apply {
-                mAppId = Constants.AGORA_APP_ID
+                mAppId = BuildConfig.AGORA_APP_ID
                 mContext = context
                 mEventHandler = handler
             }
@@ -73,5 +80,14 @@ class AgoraCallService @Inject constructor(
 
     override fun setEventListener(listener: CallEventListener) {
         this.listener = listener
+    }
+
+    private fun Int.toCallConnectionState(): CallConnectionState = when (this) {
+        io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTING -> CallConnectionState.CONNECTING
+        io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTED -> CallConnectionState.CONNECTED
+        io.agora.rtc2.Constants.CONNECTION_STATE_RECONNECTING -> CallConnectionState.RECONNECTING
+        io.agora.rtc2.Constants.CONNECTION_STATE_FAILED -> CallConnectionState.FAILED
+        io.agora.rtc2.Constants.CONNECTION_STATE_DISCONNECTED -> CallConnectionState.DISCONNECTED
+        else -> CallConnectionState.DISCONNECTED
     }
 }

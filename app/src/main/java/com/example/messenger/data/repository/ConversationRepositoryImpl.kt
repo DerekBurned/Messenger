@@ -1,55 +1,63 @@
 package com.example.messenger.data.repository
 
-import com.example.messenger.data.local.dao.ConversationDao
-import com.example.messenger.data.local.dao.UserDao
-import com.example.messenger.data.mapper.toDomain
-import com.example.messenger.data.mapper.toEntity
+import android.util.Log
+import com.example.messenger.data.local.obx.ObxConversation
+import com.example.messenger.data.local.obx.ObxConversation_
+import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.toDomain
+import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Profile
 import com.example.messenger.domain.repository.IConversationRepository
+import io.objectbox.Box
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
     private val firestoreService: FirestoreService,
-    private val dao: ConversationDao,
+    private val conversationBox: Box<ObxConversation>,
     private val authService: FirebaseAuthService,
-    private val userDao: UserDao,
 ) : IConversationRepository {
 
-    override fun getAllConversations(): Flow<List<Conversation>> {
-
-        return combine(dao.getAllConversations(), userDao.getAllUsers()) { summaries, users ->
-            val usersById = users.associateBy { it.id }
-            summaries.map { summary ->
-                val conv = summary.conversation.toDomain()
-                val previewText = summary.latestMessageText
-                    ?: conv.lastMessage?.takeIf { it.isNotBlank() }
-                val previewTs = summary.latestMessageTimestamp?.takeIf { it > 0L }
-                    ?: conv.lastMessageTimestamp
-                val resolvedNames = conv.participantIds.mapIndexed { index, id ->
-                    val localName = usersById[id]?.username
-                    localName?.takeIf { it.isNotBlank() }
-                        ?: conv.participantNames.getOrNull(index)
-                        ?: ""
-                }
-                conv.copy(
-                    participantNames = resolvedNames,
-                    lastMessage = previewText,
-                    lastMessageTimestamp = previewTs,
-                )
+    override fun getAllConversations(): Flow<List<Conversation>> = channelFlow {
+        val remoteJob = launch {
+            val userId = authService.getCurrentUserId()
+            if (userId.isNullOrBlank()) {
+                Log.w(TAG, "getAllConversations: no signed-in user; skipping remote listener")
+                return@launch
             }
+            try {
+                firestoreService.getAllConversations(userId).collect { conversations ->
+                    conversations.forEach { upsert(it) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Remote conversation listener errored", e)
+            }
+        }
+        val localJob = launch {
+            conversationBox.query()
+                .orderDesc(ObxConversation_.lastMessageTimestamp)
+                .build()
+                .asFlow()
+                .map { rows -> rows.map { it.toDomain() } }
+                .collect { send(it) }
+        }
+        awaitClose {
+            remoteJob.cancel()
+            localJob.cancel()
         }
     }
 
     override suspend fun getConversationById(conversationId: String): Result<Conversation?> {
         return try {
-            val entity = dao.getConversationById(conversationId)
-            Result.success(entity?.toDomain())
+            Result.success(findByUid(conversationId)?.toDomain())
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -57,7 +65,6 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun getConversationsForProfile(profile: Profile): Result<List<Conversation>> {
         return try {
-            
             Result.success(emptyList())
         } catch (e: Exception) {
             Result.failure(e)
@@ -66,18 +73,16 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun createConversation(participantIds: List<String>): Result<Conversation> {
         return try {
-            
             val existingResult = firestoreService.findExistingConversation(participantIds)
             existingResult.getOrNull()?.let { existing ->
-                dao.insertConversation(existing.toEntity())
+                upsert(existing)
                 return Result.success(existing)
             }
 
             val names = mutableListOf<String>()
             val avatars = mutableListOf<String?>()
             for (id in participantIds) {
-                val userResult = firestoreService.getUserProfile(id)
-                val user = userResult.getOrNull()
+                val user = firestoreService.getUserProfile(id).getOrNull()
                 names.add(user?.username ?: "Unknown")
                 avatars.add(user?.avatarUrl)
             }
@@ -87,14 +92,12 @@ class ConversationRepositoryImpl @Inject constructor(
                 participantNames = names,
                 participantAvatars = avatars,
                 lastMessage = null,
-                lastMessageTimestamp = System.currentTimeMillis()
+                lastMessageTimestamp = System.currentTimeMillis(),
             )
 
-            val createResult = firestoreService.createConversation(conversation)
-            val firestoreId = createResult.getOrThrow()
+            val firestoreId = firestoreService.createConversation(conversation).getOrThrow()
             val savedConversation = conversation.copy(id = firestoreId)
-
-            dao.insertConversation(savedConversation.toEntity())
+            upsert(savedConversation)
             Result.success(savedConversation)
         } catch (e: Exception) {
             Result.failure(e)
@@ -103,7 +106,8 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun deleteConversation(conversationId: String): Result<Unit> {
         return try {
-            dao.deleteConversationById(conversationId)
+            conversationBox.query(ObxConversation_.uid.equal(conversationId)).build()
+                .use { it.remove() }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -112,9 +116,9 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun markConversationAsRead(conversationId: String): Result<Unit> {
         return try {
-            val entity = dao.getConversationById(conversationId)
-            if (entity != null) {
-                dao.insertConversation(entity.copy(unreadCount = 0))
+            findByUid(conversationId)?.let { conv ->
+                conv.unreadCount = 0
+                conversationBox.put(conv)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -125,15 +129,41 @@ class ConversationRepositoryImpl @Inject constructor(
     override suspend fun observeRemoteConversations(): Flow<List<Conversation>> {
         val userId = authService.getCurrentUserId() ?: ""
         return firestoreService.getAllConversations(userId)
-            .onEach { conversations ->
-                conversations.forEach { dao.insertConversation(it.toEntity()) }
-            }
+            .onEach { conversations -> conversations.forEach { upsert(it) } }
     }
 
     override suspend fun syncConversations() {
         try {
-            val userId = authService.getCurrentUserId() ?: return
+            val userId = authService.getCurrentUserId()
+            if (userId.isNullOrBlank()) {
+                Log.w(TAG, "syncConversations: no signed-in user")
+                return
+            }
+            val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull()
+            if (remote == null) {
+                Log.w(TAG, "syncConversations: remote fetch returned null")
+                return
+            }
+            remote.forEach { upsert(it) }
+        } catch (e: Exception) {
+            Log.w(TAG, "Conversation sync failed (SyncWorker will retry)", e)
+        }
+    }
 
-        } catch (_: Exception) { }
+    private fun findByUid(uid: String): ObxConversation? =
+        conversationBox.query(ObxConversation_.uid.equal(uid)).build().use { it.findFirst() }
+
+    private fun upsert(conversation: Conversation) {
+        val incoming = conversation.toObx()
+        findByUid(conversation.id)?.let { existing ->
+            incoming.boxId = existing.boxId
+            incoming.latestMessageText = existing.latestMessageText
+            incoming.latestMessageTimestamp = existing.latestMessageTimestamp
+        }
+        conversationBox.put(incoming)
+    }
+
+    private companion object {
+        const val TAG = "ConversationRepo"
     }
 }

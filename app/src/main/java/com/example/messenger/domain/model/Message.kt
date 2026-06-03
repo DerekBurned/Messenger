@@ -7,5 +7,6 @@ data class Message(
     val text: String = "",
     val timestamp: Long = 0L,
     val status: MessageStatus = MessageStatus.SENT,
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    val deleted: Boolean = false
 )

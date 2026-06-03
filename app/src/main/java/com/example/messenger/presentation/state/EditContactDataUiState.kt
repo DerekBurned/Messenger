@@ -1,12 +1,13 @@
 package com.example.messenger.presentation.state
 
+import com.example.messenger.presentation.base.UiState
+import com.example.messenger.presentation.base.UiText
+
 data class EditContactDataUiState(
     val contactId: String = "",
     val name: String = "",
     val initialName: String = "",
     val isSaving: Boolean = false,
     val showDeleteConfirm: Boolean = false,
-    val saveSuccess: Boolean = false,
-    val deleted: Boolean = false,
-    val error: String? = null,
-)
+    val error: UiText? = null,
+) : UiState

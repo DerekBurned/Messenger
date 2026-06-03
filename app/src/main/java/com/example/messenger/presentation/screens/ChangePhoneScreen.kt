@@ -3,6 +3,7 @@ package com.example.messenger.presentation.screens
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,10 +18,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.components.AuthInputTextField
 import com.example.messenger.presentation.components.CountryCodePicker
+import com.example.messenger.presentation.effect.ChangePhoneEffect
+import com.example.messenger.presentation.intent.ChangePhoneIntent
 import com.example.messenger.presentation.screens.ui.theme.OnSurface
 import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -34,12 +38,14 @@ fun ChangePhoneScreen(
     onBackClick: () -> Unit = {},
     onDone: () -> Unit = {},
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity
 
-    LaunchedEffect(state.step) {
-        if (state.step == ChangePhoneStep.DONE) onDone()
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            ChangePhoneEffect.Done -> onDone()
+        }
     }
 
     Scaffold(
@@ -55,7 +61,6 @@ fun ChangePhoneScreen(
                             ChangePhoneStep.ENTER_NEW,
                             ChangePhoneStep.VERIFY_NEW,
                             -> "Set new number"
-                            ChangePhoneStep.DONE -> "Done"
                         },
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
@@ -64,7 +69,7 @@ fun ChangePhoneScreen(
                 navigationIcon = {
                     IconButton(onClick = {
                         if (state.step == ChangePhoneStep.CONFIRM_CURRENT) onBackClick()
-                        else viewModel.goBack()
+                        else viewModel.dispatch(ChangePhoneIntent.GoBack)
                     }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
@@ -82,42 +87,83 @@ fun ChangePhoneScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color.White)
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 28.dp),
         ) {
+            StepIndicator(step = state.step)
+            Spacer(modifier = Modifier.height(20.dp))
+
             when (state.step) {
                 ChangePhoneStep.CONFIRM_CURRENT -> ConfirmCurrentStep(
                     currentPhone = state.currentPhone,
                     isLoading = state.isLoading,
-                    onSendCode = { activity?.let { viewModel.sendCodeToCurrentPhone(it) } },
+                    onSendCode = {
+                        activity?.let { viewModel.dispatch(ChangePhoneIntent.SendCodeToCurrentPhone(it)) }
+                    },
                 )
                 ChangePhoneStep.VERIFY_CURRENT -> OtpStep(
                     label = "Enter the code we sent to ${state.currentPhone}",
                     otp = state.otp,
-                    onOtpChange = viewModel::onOtpChange,
+                    onOtpChange = { viewModel.dispatch(ChangePhoneIntent.OtpChange(it)) },
                     isLoading = state.isLoading,
-                    onVerify = viewModel::verifyCurrentOtp,
+                    onVerify = { viewModel.dispatch(ChangePhoneIntent.VerifyCurrentOtp) },
                 )
                 ChangePhoneStep.ENTER_NEW -> EnterNewStep(
                     state = state,
-                    onCountrySelected = viewModel::onNewCountrySelected,
-                    onNumberChange = viewModel::onNewNumberChange,
-                    onSendCode = { activity?.let { viewModel.sendCodeToNewPhone(it) } },
+                    onCountrySelected = { viewModel.dispatch(ChangePhoneIntent.NewCountrySelected(it)) },
+                    onNumberChange = { viewModel.dispatch(ChangePhoneIntent.NewNumberChange(it)) },
+                    onSendCode = {
+                        activity?.let { viewModel.dispatch(ChangePhoneIntent.SendCodeToNewPhone(it)) }
+                    },
                 )
                 ChangePhoneStep.VERIFY_NEW -> OtpStep(
                     label = "Enter the code we sent to " +
                         "${state.newCountry.dialCode} ${state.newNationalNumber}",
                     otp = state.otp,
-                    onOtpChange = viewModel::onOtpChange,
+                    onOtpChange = { viewModel.dispatch(ChangePhoneIntent.OtpChange(it)) },
                     isLoading = state.isLoading,
-                    onVerify = viewModel::verifyNewOtp,
+                    onVerify = { viewModel.dispatch(ChangePhoneIntent.VerifyNewOtp) },
                 )
-                ChangePhoneStep.DONE -> Unit
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (state.error != null) {
-                Text(state.error!!, color = Color.Red, fontSize = 13.sp)
+            state.error?.let { err ->
+                Text(err.asString(), color = Color.Red, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepIndicator(step: ChangePhoneStep) {
+    val currentIndex = when (step) {
+        ChangePhoneStep.CONFIRM_CURRENT, ChangePhoneStep.VERIFY_CURRENT -> 0
+        ChangePhoneStep.ENTER_NEW -> 1
+        ChangePhoneStep.VERIFY_NEW -> 2
+    }
+    val labels = listOf("Verify current", "New number", "Verify new")
+    Column {
+        Text(
+            text = "Step ${currentIndex + 1} of 3 · ${labels[currentIndex]}",
+            color = OnSurfaceMuted,
+            fontSize = 12.sp,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            repeat(3) { i ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp)
+                        .background(
+                            color = if (i <= currentIndex) PrimaryBlue else PrimaryBlue.copy(alpha = 0.15f),
+                            shape = CircleShape,
+                        ),
+                )
             }
         }
     }

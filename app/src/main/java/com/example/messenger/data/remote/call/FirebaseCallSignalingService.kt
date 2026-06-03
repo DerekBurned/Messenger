@@ -17,17 +17,21 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class FirebaseCallSignalingService @Inject constructor(
-    private val db: FirebaseDatabase
+    private val db: FirebaseDatabase,
 ) : ICallSignalingService {
 
     private val callsRef get() = db.reference.child("calls")
 
     override suspend fun sendCallSignal(signal: CallSignal) {
-        callsRef.child(signal.callId).setValue(signal.toDto()).await()
+        callsRef
+            .child(signal.calleeId)
+            .child(signal.callId)
+            .setValue(signal.toDto())
+            .await()
     }
 
     override fun observeIncomingCall(myUserId: String): Flow<CallSignal?> = callbackFlow {
-        val query = callsRef.orderByChild("calleeId").equalTo(myUserId)
+        val inbox = callsRef.child(myUserId)
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val signal = snapshot.children
@@ -40,11 +44,40 @@ class FirebaseCallSignalingService @Inject constructor(
                 trySend(null)
             }
         }
-        query.addValueEventListener(listener)
-        awaitClose { query.removeEventListener(listener) }
+        inbox.addValueEventListener(listener)
+        awaitClose { inbox.removeEventListener(listener) }
     }
 
-    override suspend fun updateCallStatus(callId: String, status: CallStatus) {
-        callsRef.child(callId).child("status").setValue(status.name).await()
+    override suspend fun updateCallStatus(
+        calleeId: String,
+        callId: String,
+        status: CallStatus,
+    ) {
+        callsRef
+            .child(calleeId)
+            .child(callId)
+            .child("status")
+            .setValue(status.name)
+            .await()
     }
+
+    override fun observeCallStatus(calleeId: String, callId: String): Flow<CallStatus?> =
+        callbackFlow {
+            val ref = callsRef.child(calleeId).child(callId).child("status")
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val raw = snapshot.getValue(String::class.java)
+                    val status = raw?.let { name ->
+                        runCatching { CallStatus.valueOf(name) }.getOrNull()
+                    }
+                    trySend(status)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    trySend(null)
+                }
+            }
+            ref.addValueEventListener(listener)
+            awaitClose { ref.removeEventListener(listener) }
+        }
 }

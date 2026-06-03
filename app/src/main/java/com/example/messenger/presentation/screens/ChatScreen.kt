@@ -11,20 +11,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -39,14 +41,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.MessageStatusIcon
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.components.TypingIndicator
+import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.effect.ChatEffect
+import com.example.messenger.presentation.intent.ChatIntent
+import com.example.messenger.presentation.notification.CurrentConversationHolder
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
 import com.example.messenger.presentation.screens.ui.theme.BubbleSent
@@ -54,9 +62,9 @@ import com.example.messenger.presentation.screens.ui.theme.ChatBackground
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.OnlineGreen
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.state.ChatUiState
 import com.example.messenger.presentation.viewmodel.ChatViewModel
 import com.example.messenger.util.DateUtils
-import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,11 +74,16 @@ fun ChatScreenWithNav(
     onCallClick: () -> Unit = {},
     onIntercultorProfileClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var messageText by remember { mutableStateOf("") }
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
+    var messageText by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            is ChatEffect.ShowError -> Toast.makeText(context, effect.message.asString(context), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val attachmentPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -78,33 +91,25 @@ fun ChatScreenWithNav(
             Toast.makeText(context, "Attachment selected: $uri (upload coming soon)", Toast.LENGTH_SHORT).show()
         }
     }
-    val chatMessages = remember(uiState.messages) {
-        uiState.messages.map { msg ->
-            ChatMessage(
-                text = msg.text,
-                isMe = msg.senderId == currentUserId,
-                status = msg.status,
-                timestamp = msg.timestamp
-            )
-        }
-    }
 
-    LaunchedEffect(uiState.messages) {
-        val latestReceivedTimestamp = uiState.messages
-            .filter { it.senderId != currentUserId }
-            .maxOfOrNull { it.timestamp }
-        if (latestReceivedTimestamp != null) {
-            viewModel.sendReadReceipt(latestReceivedTimestamp)
+    val conversationId = viewModel.conversationId
+    DisposableEffect(conversationId) {
+        if (conversationId.isNotBlank()) {
+            CurrentConversationHolder.setOpen(conversationId)
+        }
+        onDispose {
+            if (conversationId.isNotBlank()) {
+                CurrentConversationHolder.clear(conversationId)
+            }
         }
     }
 
     ChatScreenContent(
         uiState = uiState,
-        chatMessages = chatMessages,
         messageText = messageText,
         onMessageTextChange = { newText ->
             messageText = newText
-            viewModel.onTextChanged(newText)
+            viewModel.dispatch(ChatIntent.TextChanged(newText))
         },
         onSendClick = {
             if (messageText.isNotBlank()) {
@@ -113,8 +118,8 @@ fun ChatScreenWithNav(
                 } else {
                     messageText
                 }
-                viewModel.sendMessage(textToSend)
-                viewModel.clearReply()
+                viewModel.dispatch(ChatIntent.SendMessage(textToSend))
+                viewModel.dispatch(ChatIntent.ClearReply)
                 messageText = ""
             }
         },
@@ -124,24 +129,25 @@ fun ChatScreenWithNav(
             clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
             Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
         },
-        onReply = { message -> viewModel.setReplyTo(message) },
+        onReply = { message -> viewModel.dispatch(ChatIntent.SetReplyTo(message)) },
         onDelete = { message ->
-            if (message.senderId == currentUserId) {
-                viewModel.deleteMessage(message)
+            if (message.senderId == uiState.currentUserId) {
+                viewModel.dispatch(ChatIntent.DeleteMessage(message))
             }
         },
-        onClearReply = { viewModel.clearReply() },
+        onClearReply = { viewModel.dispatch(ChatIntent.ClearReply) },
         onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
+        onMessagesSeen = { messages -> viewModel.dispatch(ChatIntent.MessagesSeen(messages)) },
+        onLoadOlderMessages = { viewModel.dispatch(ChatIntent.LoadOlderMessages) },
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatScreenContent(
-    uiState: com.example.messenger.presentation.state.ChatUiState,
-    chatMessages: List<ChatMessage>,
+    uiState: ChatUiState,
     messageText: String,
     onMessageTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
@@ -153,12 +159,17 @@ private fun ChatScreenContent(
     onDelete: (com.example.messenger.domain.model.Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
+    onMessagesSeen: (List<Message>) -> Unit,
+    onLoadOlderMessages: () -> Unit,
 ) {
+
     val presenceStatusText = when {
         uiState.isPartnerTyping -> "typing..."
         uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
         uiState.partnerPresence.state == PresenceState.AWAY -> "Away"
-        else -> DateUtils.formatLastSeen(uiState.partnerPresence.lastSeen)
+        else -> uiState.partnerLastSeenDisplay.ifBlank {
+            DateUtils.formatLastSeen(uiState.partnerPresence.lastSeen)
+        }
     }
 
     val statusColor = when {
@@ -196,9 +207,10 @@ private fun ChatScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick =  onCallClick ) {
-                        Icon(Icons.Default.Call,
-                            contentDescription = "Close",
+                    IconButton(onClick = onCallClick) {
+                        Icon(
+                            Icons.Default.Call,
+                            contentDescription = "Voice call",
                             tint = Color.White
                         )
                     }
@@ -232,7 +244,6 @@ private fun ChatScreenContent(
         val coroutineScope = rememberCoroutineScope()
         val focusManager = LocalFocusManager.current
         val keyboardController = LocalSoftwareKeyboardController.current
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
         val isAtBottom by remember {
             derivedStateOf {
@@ -243,35 +254,104 @@ private fun ChatScreenContent(
         }
 
         var unreadCount by remember { mutableStateOf(0) }
-        var prevMessageCount by remember { mutableStateOf(0) }
         var didInitialScroll by remember { mutableStateOf(false) }
+        var lastKnownNewestId by remember { mutableStateOf<String?>(null) }
 
-        LaunchedEffect(uiState.messages.size, isAtBottom) {
-            val currentCount = uiState.messages.size
-            if (currentCount == 0) {
-                prevMessageCount = 0
-                return@LaunchedEffect
-            }
-            if (!didInitialScroll) {
-                listState.scrollToItem(currentCount - 1)
-                didInitialScroll = true
-                prevMessageCount = currentCount
-                return@LaunchedEffect
-            }
-            if (currentCount > prevMessageCount) {
-                val newOnes = uiState.messages.subList(prevMessageCount, currentCount)
-                val lastIsMine = newOnes.lastOrNull()?.senderId == currentUserId
-                if (isAtBottom || lastIsMine) {
-                    listState.animateScrollToItem(currentCount - 1)
-                } else {
-                    unreadCount += newOnes.count { it.senderId != currentUserId }
+        var dividerAnchorId by remember { mutableStateOf<String?>(null) }
+        var seededReopenAnchor by remember { mutableStateOf(false) }
+
+        if (!seededReopenAnchor && uiState.unreadAnchorResolved) {
+            dividerAnchorId = uiState.firstUnreadMessageId
+            seededReopenAnchor = true
+        }
+
+        val rows = remember(uiState.messages, dividerAnchorId) {
+            buildList<ChatRow> {
+                uiState.messages.forEach { message ->
+                    if (message.id == dividerAnchorId) add(ChatRow.UnreadDivider)
+                    add(ChatRow.MessageRow(message))
                 }
             }
-            prevMessageCount = currentCount
+        }
+
+        LaunchedEffect(rows, didInitialScroll) {
+            if (didInitialScroll || rows.isEmpty()) return@LaunchedEffect
+            val dividerIndex = rows.indexOfFirst { it is ChatRow.UnreadDivider }
+            if (dividerIndex >= 0) {
+                listState.scrollToItem(dividerIndex)
+            } else {
+                listState.scrollToItem(rows.size - 1)
+            }
+            didInitialScroll = true
+        }
+
+        LaunchedEffect(uiState.messages, didInitialScroll) {
+            if (!didInitialScroll) return@LaunchedEffect
+            val newest = uiState.messages.lastOrNull() ?: return@LaunchedEffect
+            if (newest.id == lastKnownNewestId) return@LaunchedEffect
+            val prevNewestId = lastKnownNewestId
+            lastKnownNewestId = newest.id
+            if (prevNewestId == null) return@LaunchedEffect
+            if (isAtBottom || newest.senderId == uiState.currentUserId) {
+                listState.animateScrollToItem(rows.size - 1)
+            } else {
+                val newOnes = uiState.messages
+                    .dropWhile { it.id != prevNewestId }
+                    .drop(1)
+                    .filter { it.senderId != uiState.currentUserId }
+                unreadCount += newOnes.size
+                if (dividerAnchorId == null) {
+                    newOnes.firstOrNull()?.let { dividerAnchorId = it.id }
+                }
+            }
         }
 
         LaunchedEffect(isAtBottom) {
-            if (isAtBottom) unreadCount = 0
+            if (isAtBottom) {
+                unreadCount = 0
+                
+                dividerAnchorId = null
+            }
+        }
+
+        val shouldLoadOlder by remember {
+            derivedStateOf {
+                val info = listState.layoutInfo
+                val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
+                info.totalItemsCount > 0 && first <= 2
+            }
+        }
+        LaunchedEffect(shouldLoadOlder, didInitialScroll) {
+            if (didInitialScroll && shouldLoadOlder && uiState.hasMoreOlder && !uiState.isLoadingOlder) {
+                onLoadOlderMessages()
+            }
+        }
+
+        val messagesById = remember(uiState.messages) { uiState.messages.associateBy { it.id } }
+        LaunchedEffect(listState, messagesById, uiState.currentUserId) {
+            snapshotFlow {
+                val info = listState.layoutInfo
+                val viewportTop = info.viewportStartOffset
+                val viewportBottom = info.viewportEndOffset
+                info.visibleItemsInfo
+                    .asSequence()
+                    .filter { item ->
+                        val size = item.size
+                        if (size <= 0) return@filter false
+                        val top = item.offset
+                        val bottom = top + size
+                        val visiblePx = (minOf(bottom, viewportBottom) - maxOf(top, viewportTop))
+                            .coerceAtLeast(0)
+                        visiblePx.toFloat() / size >= 1f / 4f
+                    }
+                    .mapNotNull { item -> messagesById[item.key as? String] }
+                    .filter { it.senderId != uiState.currentUserId && it.status != MessageStatus.READ }
+                    .toList()
+            }
+                .distinctUntilChanged { old, new ->
+                    old.mapTo(HashSet()) { it.id } == new.mapTo(HashSet()) { it.id }
+                }
+                .collect { messages -> if (messages.isNotEmpty()) onMessagesSeen(messages) }
         }
 
         Column(
@@ -281,7 +361,7 @@ private fun ChatScreenContent(
                 .imePadding()
         ) {
             when {
-                uiState.isLoading && chatMessages.isEmpty() -> {
+                uiState.isLoading && uiState.messages.isEmpty() -> {
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center
@@ -289,12 +369,25 @@ private fun ChatScreenContent(
                         CircularProgressIndicator(color = PrimaryBlue)
                     }
                 }
-                uiState.error != null && chatMessages.isEmpty() -> {
+                uiState.error != null && uiState.messages.isEmpty() -> {
+                    val errorMessage = uiState.error.asString()
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = uiState.error!!, color = Color.Red)
+                        Text(text = errorMessage, color = Color.Red)
+                    }
+                }
+                uiState.messages.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "No messages yet — say hi 👋",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                        )
                     }
                 }
                 else -> {
@@ -316,20 +409,49 @@ private fun ChatScreenContent(
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.Bottom
                         ) {
-                            items(uiState.messages.size) { index ->
-                                val originalMessage = uiState.messages[index]
-                                val chatMessage = chatMessages[index]
-                                MessageWithContextMenu(
-                                    message = chatMessage,
-                                    onCopy = { onCopy(originalMessage.text) },
-                                    onReply = { onReply(originalMessage) },
-                                    onEdit = {  },
-                                    onPin = {  },
-                                    onForward = {  },
-                                    onDelete = { onDelete(originalMessage) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            items(
+                                items = rows,
+                                key = { row ->
+                                    when (row) {
+                                        is ChatRow.MessageRow -> row.message.id
+                                        ChatRow.UnreadDivider -> "unread_divider"
+                                    }
+                                },
+                            ) { row ->
+                                when (row) {
+                                    ChatRow.UnreadDivider -> UnreadMessagesDivider()
+                                    is ChatRow.MessageRow -> {
+                                        val originalMessage = row.message
+                                        val chatMessage = ChatMessage(
+                                            text = originalMessage.text,
+                                            isMe = originalMessage.senderId == uiState.currentUserId,
+                                            status = originalMessage.status,
+                                            timestamp = originalMessage.timestamp,
+                                        )
+                                        MessageWithContextMenu(
+                                            message = chatMessage,
+                                            onCopy = { onCopy(originalMessage.text) },
+                                            onReply = { onReply(originalMessage) },
+                                            onEdit = {  },
+                                            onPin = {  },
+                                            onForward = {  },
+                                            onDelete = { onDelete(originalMessage) }
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
                             }
+                        }
+
+                        if (uiState.isLoadingOlder) {
+                            CircularProgressIndicator(
+                                color = PrimaryBlue,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 8.dp)
+                                    .size(28.dp),
+                            )
                         }
 
                         if (unreadCount > 0) {
@@ -337,8 +459,8 @@ private fun ChatScreenContent(
                                 count = unreadCount,
                                 onClick = {
                                     coroutineScope.launch {
-                                        if (uiState.messages.isNotEmpty()) {
-                                            listState.animateScrollToItem(uiState.messages.size - 1)
+                                        if (rows.isNotEmpty()) {
+                                            listState.animateScrollToItem(rows.size - 1)
                                         }
                                         unreadCount = 0
                                     }
@@ -360,7 +482,8 @@ private fun ChatScreenContent(
                 )
             }
 
-            if (uiState.replyingTo != null) {
+            val replyingTo = uiState.replyingTo
+            if (replyingTo != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -369,14 +492,14 @@ private fun ChatScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Reply,
+                        imageVector = Icons.AutoMirrored.Filled.Reply,
                         contentDescription = null,
                         tint = PrimaryBlue,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = uiState.replyingTo!!.text,
+                        text = replyingTo.text,
                         color = Color.DarkGray,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -410,7 +533,7 @@ private fun ChatScreenContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
+                        contentDescription = "Add attachment",
                         tint = Color.White
                     )
                 }
@@ -499,6 +622,31 @@ data class ChatMessage(
     val timestamp: Long = 0L
 )
 
+private sealed interface ChatRow {
+    data class MessageRow(val message: Message) : ChatRow
+    data object UnreadDivider : ChatRow
+}
+
+@Composable
+private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
+        Text(
+            text = "Unread messages",
+            color = PrimaryBlue,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
+    }
+}
+
 @Composable
 private fun NewMessagesPill(
     count: Int,
@@ -546,22 +694,17 @@ private fun ChatScreenPreview() {
         ),
         com.example.messenger.domain.model.Message(
             id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L,
-            status = MessageStatus.DELIVERED
+            status = MessageStatus.SENT
         ),
-    )
-    val fakeChatMessages = listOf(
-        ChatMessage(text = "Hey there!", isMe = true, status = MessageStatus.READ, timestamp = 1_700_000_000_000L),
-        ChatMessage(text = "Hi! How are you?", isMe = false, status = MessageStatus.SENT, timestamp = 1_700_000_060_000L),
-        ChatMessage(text = "All good, thanks!", isMe = true, status = MessageStatus.DELIVERED, timestamp = 1_700_000_120_000L),
     )
     MessengerTheme {
         ChatScreenContent(
-            uiState = com.example.messenger.presentation.state.ChatUiState(
+            uiState = ChatUiState(
                 messages = fakeMessages,
                 partnerUsername = "Alice",
                 isLoading = false,
+                currentUserId = "me",
             ),
-            chatMessages = fakeChatMessages,
             messageText = "",
             onMessageTextChange = {},
             onSendClick = {},
@@ -572,7 +715,9 @@ private fun ChatScreenPreview() {
             onDelete = {},
             onClearReply = {},
             onAttachmentClick = {},
-            onIntercultorProfileClick = {}
+            onIntercultorProfileClick = {},
+            onMessagesSeen = {},
+            onLoadOlderMessages = {},
         )
     }
 }

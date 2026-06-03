@@ -1,11 +1,13 @@
 package com.example.messenger.di
 
+import com.example.messenger.data.local.repository.ILocalRepository
 import com.example.messenger.data.sync.NetworkObserver
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.IMessageRepository
 import com.example.messenger.domain.repository.ISyncRepository
 import com.example.messenger.domain.repository.IUserRepository
+import com.example.messenger.domain.service.ISessionCleaner
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
@@ -49,9 +51,11 @@ object UseCaseModule {
     @Provides
     fun provideLogoutUseCase(
         authRepository: IAuthRepository,
-        userRepository: IUserRepository
+        userRepository: IUserRepository,
+        localRepository: ILocalRepository,
+        sessionCleaner: ISessionCleaner,
     ): LogoutUseCase {
-        return LogoutUseCase(authRepository, userRepository)
+        return LogoutUseCase(authRepository, userRepository, localRepository, sessionCleaner)
     }
 
     @Provides

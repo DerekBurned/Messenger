@@ -12,7 +12,7 @@ class SyncMessagesUseCase @Inject constructor(
     suspend operator fun invoke(conversationId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading)
-            messageRepository.observeRemoteMessages(conversationId).collect { result ->
+            messageRepository.observeRecentMessages(conversationId).collect { result ->
                 result.fold(
                     onSuccess = { emit(Resource.Success(Unit)) },
                     onFailure = { e -> emit(Resource.Error(e.message ?: "Sync failed")) }

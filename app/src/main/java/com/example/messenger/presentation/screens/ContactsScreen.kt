@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
@@ -37,7 +37,7 @@ fun ContactsScreenContent(
     viewModel: SearchUsersViewModel = hiltViewModel(),
     onContactClick: (User) -> Unit = {},
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
 
     ContactsScreenContentInner(

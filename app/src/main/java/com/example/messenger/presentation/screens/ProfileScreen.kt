@@ -1,27 +1,25 @@
 package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.PresenceIndicator
@@ -162,24 +160,6 @@ private fun ProfileScreenContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            ProfileMenuItem(
-                icon = Icons.Default.Notifications,
-                title = "Notifications",
-                onClick = { /* TODO */ },
-            )
-            ProfileMenuItem(
-                icon = Icons.Default.Lock,
-                title = "Privacy",
-                onClick = { /* TODO */ },
-            )
-            ProfileMenuItem(
-                icon = Icons.Default.Settings,
-                title = "Settings",
-                onClick = { /* TODO */ },
-            )
-
             Spacer(modifier = Modifier.weight(1f))
 
             OutlinedButton(
@@ -202,49 +182,6 @@ private fun ProfileScreenContent(
 
             Spacer(modifier = Modifier.height(28.dp))
         }
-    }
-}
-
-@Composable
-fun ProfileMenuItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(PrimaryBlue.copy(alpha = 0.12f), CircleShape)
-                .border(0.dp, Color.Transparent, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = PrimaryBlue,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            color = OnSurface,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = OnSurfaceMuted,
-        )
     }
 }
 
