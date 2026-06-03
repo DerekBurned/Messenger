@@ -62,6 +62,23 @@
             android:showOnLockScreen="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.Messenger" />
+
+        <!--
+          Remove WorkManager's default startup initializer so it does NOT auto-initialize with the
+          default WorkerFactory. MessengerApplication implements Configuration.Provider and supplies
+          a HiltWorkerFactory; on-demand initialization then uses it, which is required to construct
+          @HiltWorker / @AssistedInject workers like SyncWorker.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>
