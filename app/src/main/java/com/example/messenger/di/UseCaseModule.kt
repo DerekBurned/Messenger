@@ -7,6 +7,7 @@ import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.IMessageRepository
 import com.example.messenger.domain.repository.ISyncRepository
 import com.example.messenger.domain.repository.IUserRepository
+import com.example.messenger.domain.service.ISessionCleaner
 import com.example.messenger.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
@@ -52,8 +53,9 @@ object UseCaseModule {
         authRepository: IAuthRepository,
         userRepository: IUserRepository,
         localRepository: ILocalRepository,
+        sessionCleaner: ISessionCleaner,
     ): LogoutUseCase {
-        return LogoutUseCase(authRepository, userRepository, localRepository)
+        return LogoutUseCase(authRepository, userRepository, localRepository, sessionCleaner)
     }
 
     @Provides
