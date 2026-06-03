@@ -12,5 +12,7 @@ interface ICallSignalingService {
 
     suspend fun updateCallStatus(calleeId: String, callId: String, status: CallStatus)
 
+    suspend fun clearCall(calleeId: String, callId: String)
+
     fun observeCallStatus(calleeId: String, callId: String): Flow<CallStatus?>
 }

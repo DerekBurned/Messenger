@@ -45,7 +45,9 @@ class CallViewModel @Inject constructor(
     private val pendingPartnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
 
     val needsOutgoingStart: Boolean
-        get() = ActiveCallHolder.snapshot() == null && pendingPartnerId.isNotBlank()
+        get() = ActiveCallHolder.snapshot() == null &&
+            pendingPartnerId.isNotBlank() &&
+            pendingPartnerId != RESUME_PARTNER_ID
 
     init {
         if (ActiveCallHolder.snapshot() == null) {
@@ -90,8 +92,8 @@ class CallViewModel @Inject constructor(
             Log.w(TAG, "startOutgoing aborted: no signed-in user")
             return
         }
-        if (pendingPartnerId.isBlank()) {
-            Log.w(TAG, "startOutgoing aborted: no partner id")
+        if (pendingPartnerId.isBlank() || pendingPartnerId == RESUME_PARTNER_ID) {
+            Log.w(TAG, "startOutgoing aborted: no real partner id (was '$pendingPartnerId')")
             return
         }
         val callId = UUID.randomUUID().toString()
@@ -124,5 +126,7 @@ class CallViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "CallViewModel"
+
+        const val RESUME_PARTNER_ID = "active"
     }
 }

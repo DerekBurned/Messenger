@@ -16,11 +16,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.domain.service.CallConnectionState
-import kotlinx.coroutines.delay
 
 private val ActiveBarGreen = Color(0xFF2E7D32)
 
@@ -39,14 +34,6 @@ fun ActiveCallBar(onClick: () -> Unit) {
     val active by ActiveCallHolder.state.collectAsStateWithLifecycle()
     val call = active ?: return
     if (!call.isActive) return
-
-    var displaySeconds by remember(call.seconds) { mutableIntStateOf(call.seconds) }
-    LaunchedEffect(call.seconds) {
-        while (true) {
-            delay(1000)
-            displaySeconds += 1
-        }
-    }
 
     Row(
         modifier = Modifier
@@ -73,7 +60,7 @@ fun ActiveCallBar(onClick: () -> Unit) {
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = formatHms(displaySeconds),
+            text = formatHms(call.seconds),
             color = Color.White.copy(0.9f),
             fontSize = 13.sp,
         )

@@ -34,9 +34,12 @@ class FirebaseCallSignalingService @Inject constructor(
         val inbox = callsRef.child(myUserId)
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                val now = System.currentTimeMillis()
                 val signal = snapshot.children
                     .mapNotNull { it.getValue(CallSignalDto::class.java)?.toCallSignal() }
-                    .firstOrNull { it.status == CallStatus.RINGING }
+
+                    .filter { it.status == CallStatus.RINGING && now - it.timestamp < RINGING_TTL_MS }
+                    .maxByOrNull { it.timestamp }
                 trySend(signal)
             }
 
@@ -80,4 +83,17 @@ class FirebaseCallSignalingService @Inject constructor(
             ref.addValueEventListener(listener)
             awaitClose { ref.removeEventListener(listener) }
         }
+
+    override suspend fun clearCall(calleeId: String, callId: String) {
+        callsRef
+            .child(calleeId)
+            .child(callId)
+            .removeValue()
+            .await()
+    }
+
+    private companion object {
+        
+        const val RINGING_TTL_MS = 60_000L
+    }
 }

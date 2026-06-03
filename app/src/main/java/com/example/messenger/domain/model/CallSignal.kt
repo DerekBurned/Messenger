@@ -5,7 +5,9 @@ data class CallSignal(
     val callerId: String = "",
     val calleeId: String = "",
     val channelName: String = "",
-    val status: CallStatus = CallStatus.RINGING
+    val status: CallStatus = CallStatus.RINGING,
+    
+    val timestamp: Long = 0L,
 )
 
 enum class CallStatus { RINGING, ACTIVE, DECLINED, ENDED }

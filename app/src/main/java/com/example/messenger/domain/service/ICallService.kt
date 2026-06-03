@@ -6,6 +6,8 @@ interface ICallService {
     fun muteLocalAudio(mute: Boolean)
     fun setSpeakerphone(enable: Boolean)
     fun setEventListener(listener: CallEventListener)
+
+    fun clearEventListener(listener: CallEventListener)
 }
 
 enum class CallConnectionState { CONNECTING, CONNECTED, RECONNECTING, FAILED, DISCONNECTED }
