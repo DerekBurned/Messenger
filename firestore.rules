@@ -21,6 +21,18 @@ service cloud.firestore {
       return field is string && field.size() > 0 && field.size() <= maxLen;
     }
 
+    // "deletedFor" holds the uids that have hidden this message for themselves.
+    function deletedForOf(data) {
+      return data.get('deletedFor', []);
+    }
+
+    // True when an update leaves everyone else's deletedFor membership intact,
+    // i.e. the caller may only add/remove their OWN uid, never someone else's.
+    function onlyTogglesOwnDeletedFor() {
+      return deletedForOf(request.resource.data).removeAll([request.auth.uid])
+             == deletedForOf(resource.data).removeAll([request.auth.uid]);
+    }
+
     // ── /users/{userId} ───────────────────────────────────────────
 
     match /users/{userId} {
@@ -72,10 +84,14 @@ service cloud.firestore {
                            get(/databases/$(database)/documents/conversations/$(conversationId)).data
                          )
                       && request.resource.data.senderId == resource.data.senderId
-                      && request.resource.data.conversationId == resource.data.conversationId;
+                      && request.resource.data.conversationId == resource.data.conversationId
+                      // a participant may only hide/unhide the message for themselves,
+                      // never toggle the other participant's deletedFor entry
+                      && onlyTogglesOwnDeletedFor();
 
-        allow delete: if isAuthenticated()
-                      && resource.data.senderId == request.auth.uid;
+        // Hard delete is disallowed: it would remove the message for every
+        // participant. "Delete for me" is a soft delete done via update above
+        // (the client adds its own uid to deletedFor and filters on read).
       }
     }
   }
