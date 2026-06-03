@@ -21,6 +21,7 @@ class FirebaseCallSignalingService @Inject constructor(
 ) : ICallSignalingService {
 
     private val callsRef get() = db.reference.child("calls")
+    private val callAcksRef get() = db.reference.child("callAcks")
 
     override suspend fun sendCallSignal(signal: CallSignal) {
         callsRef
@@ -87,6 +88,38 @@ class FirebaseCallSignalingService @Inject constructor(
     override suspend fun clearCall(calleeId: String, callId: String) {
         callsRef
             .child(calleeId)
+            .child(callId)
+            .removeValue()
+            .await()
+    }
+
+    override suspend fun ackRinging(callerId: String, callId: String, calleeId: String) {
+        callAcksRef
+            .child(callerId)
+            .child(callId)
+            .setValue(mapOf("calleeId" to calleeId, "ringingAt" to System.currentTimeMillis()))
+            .await()
+    }
+
+    override fun observeRingingAck(callerId: String, callId: String): Flow<Boolean> =
+        callbackFlow {
+            val ref = callAcksRef.child(callerId).child(callId)
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    trySend(snapshot.exists())
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    trySend(false)
+                }
+            }
+            ref.addValueEventListener(listener)
+            awaitClose { ref.removeEventListener(listener) }
+        }
+
+    override suspend fun clearRingingAck(callerId: String, callId: String) {
+        callAcksRef
+            .child(callerId)
             .child(callId)
             .removeValue()
             .await()

@@ -178,13 +178,13 @@ private fun CallScreenContent(
     }
 }
 
-private fun callStatusText(state: CallUiState): String = when {
+internal fun callStatusText(state: CallUiState): String = when {
     state.isIncoming -> "Incoming call…"
     state.isActive && state.connectionState == CallConnectionState.CONNECTED -> formatSeconds(state.seconds)
     state.isActive -> "Connecting…"
-    state.connectionState == CallConnectionState.CONNECTED -> "Ringing…"
     state.connectionState == CallConnectionState.FAILED -> "Call failed"
     state.connectionState == CallConnectionState.DISCONNECTED -> "Disconnected"
+    state.remoteRinging -> "Ringing…"
     else -> "Requesting…"
 }
 
@@ -263,6 +263,21 @@ fun CallScreenActivePreview() {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CallScreenRingingPreview() {
+    MessengerTheme {
+        CallScreenContent(
+            state = CallUiState(
+                partnerName = "Alice",
+                partnerPhone = "+1 555 0100",
+                remoteRinging = true,
+                connectionState = CallConnectionState.CONNECTED,
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CallScreenRequestingPreview() {
     MessengerTheme {
         CallScreenContent(
             state = CallUiState(

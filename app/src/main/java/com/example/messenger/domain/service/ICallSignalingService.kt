@@ -15,4 +15,10 @@ interface ICallSignalingService {
     suspend fun clearCall(calleeId: String, callId: String)
 
     fun observeCallStatus(calleeId: String, callId: String): Flow<CallStatus?>
+
+    suspend fun ackRinging(callerId: String, callId: String, calleeId: String)
+
+    fun observeRingingAck(callerId: String, callId: String): Flow<Boolean>
+
+    suspend fun clearRingingAck(callerId: String, callId: String)
 }

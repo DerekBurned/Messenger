@@ -9,6 +9,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -47,9 +48,14 @@ class CallForegroundService : Service() {
     private var tickerJob: Job? = null
     private var statusObserverJob: Job? = null
     private var ringTimeoutJob: Job? = null
+    private var requestingTimeoutJob: Job? = null
     private var outgoingTimeoutJob: Job? = null
+    private var ringingAckJob: Job? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus: Boolean = false
+    private var ringbackTone: ToneGenerator? = null
+    
+    private var ringingStarted: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -77,6 +83,7 @@ class CallForegroundService : Service() {
     }
 
     private fun handleStartOutgoing(intent: Intent) {
+        ringingStarted = false
         val call = ActiveCallHolder.ActiveCall(
             callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty(),
             callerId = intent.getStringExtra(EXTRA_CALLER_ID).orEmpty(),
@@ -106,7 +113,8 @@ class CallForegroundService : Service() {
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.callerId))
         observeRemoteStatus(call.calleeId, call.callId, isCaller = true)
-        startOutgoingTimeout()
+        observeRingingAck(call.callerId, call.callId)
+        startRequestingTimeout()
     }
 
     private fun handleStartIncoming(intent: Intent) {
@@ -138,6 +146,12 @@ class CallForegroundService : Service() {
         )
         ActiveCallHolder.set(call)
         if (!startForegroundCompat(buildRingingNotification(call))) return
+
+        scope.launch {
+            runCatching {
+                signalingService.ackRinging(call.callerId, call.callId, call.calleeId)
+            }.onFailure { Log.w(TAG, "Failed to write ringing ack", it) }
+        }
         observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
         startRingTimeout(call)
     }
@@ -179,6 +193,10 @@ class CallForegroundService : Service() {
                 runCatching {
                     signalingService.clearCall(call.calleeId, call.callId)
                 }.onFailure { Log.w(TAG, "Failed to clear call node", it) }
+                
+                runCatching {
+                    signalingService.clearRingingAck(call.callerId, call.callId)
+                }
             } ?: Log.w(TAG, "Terminal status write timed out (status=$status)")
             stopSelfClean()
         }
@@ -248,28 +266,82 @@ class CallForegroundService : Service() {
             runCatching {
                 signalingService.clearCall(call.calleeId, call.callId)
             }
+            runCatching {
+                signalingService.clearRingingAck(call.callerId, call.callId)
+            }
             stopSelfClean()
         }
     }
 
-    private fun startOutgoingTimeout() {
-        outgoingTimeoutJob?.cancel()
-        outgoingTimeoutJob = scope.launch {
-            delay(OUTGOING_TIMEOUT_MS)
+    private fun observeRingingAck(callerId: String, callId: String) {
+        ringingAckJob?.cancel()
+        ringingAckJob = scope.launch {
+            signalingService.observeRingingAck(callerId, callId).collectLatest { ringing ->
+                if (!ringing || ringingStarted) return@collectLatest
+                if (ActiveCallHolder.snapshot()?.isActive == true) return@collectLatest
+                ringingStarted = true
+                Log.d(TAG, "callee confirmed ringing — entering Ringing state")
+                requestingTimeoutJob?.cancel()
+                requestingTimeoutJob = null
+                ActiveCallHolder.update { it.copy(remoteRinging = true) }
+                startRingback()
+                startRingingTimeout()
+            }
+        }
+    }
+
+    private fun startRequestingTimeout() {
+        requestingTimeoutJob?.cancel()
+        requestingTimeoutJob = scope.launch {
+            delay(REQUESTING_TIMEOUT_MS)
             if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
-            Log.d(TAG, "outgoing timeout fired — no answer, ending call")
+            Log.d(TAG, "requesting timeout fired — callee never confirmed ringing, ending call")
             terminate(CallStatus.ENDED)
         }
     }
 
+    private fun startRingingTimeout() {
+        outgoingTimeoutJob?.cancel()
+        outgoingTimeoutJob = scope.launch {
+            delay(OUTGOING_TIMEOUT_MS)
+            if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
+            Log.d(TAG, "ringing timeout fired — no answer, ending call")
+            terminate(CallStatus.ENDED)
+        }
+    }
+
+    private fun startRingback() {
+        if (ringbackTone != null) return
+        ringbackTone = runCatching {
+            ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME)
+                .also { it.startTone(ToneGenerator.TONE_SUP_RINGTONE) }
+        }.onFailure { Log.w(TAG, "ringback tone unavailable", it) }.getOrNull()
+    }
+
+    private fun stopRingback() {
+        ringbackTone?.let {
+            runCatching {
+                it.stopTone()
+                it.release()
+            }
+        }
+        ringbackTone = null
+    }
+
     private fun stopSelfClean() {
         stopTicker()
+        stopRingback()
         statusObserverJob?.cancel()
         statusObserverJob = null
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
+        requestingTimeoutJob?.cancel()
+        requestingTimeoutJob = null
         outgoingTimeoutJob?.cancel()
         outgoingTimeoutJob = null
+        ringingAckJob?.cancel()
+        ringingAckJob = null
+        ringingStarted = false
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -283,7 +355,10 @@ class CallForegroundService : Service() {
     }
 
     private fun startTicker() {
-        
+
+        stopRingback()
+        requestingTimeoutJob?.cancel()
+        requestingTimeoutJob = null
         outgoingTimeoutJob?.cancel()
         outgoingTimeoutJob = null
         stopTicker()
@@ -457,6 +532,7 @@ class CallForegroundService : Service() {
 
     override fun onDestroy() {
         stopTicker()
+        stopRingback()
         releaseAudioFocus()
 
         callService.clearEventListener(eventListener)
@@ -490,6 +566,10 @@ class CallForegroundService : Service() {
         private const val RING_TIMEOUT_MS = 60_000L
 
         private const val OUTGOING_TIMEOUT_MS = 65_000L
+
+        private const val REQUESTING_TIMEOUT_MS = 30_000L
+        
+        private const val RINGBACK_VOLUME = 80
 
         fun outgoingIntent(
             ctx: Context,
