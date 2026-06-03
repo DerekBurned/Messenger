@@ -8,7 +8,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +24,8 @@ class PresenceManager @Inject constructor(
     private val transitions = Channel<PresenceState>(Channel.CONFLATED)
     private var collector: Job? = null
     private var offlineTimerJob: Job? = null
+
+    private var lastAppliedState: PresenceState? = null
 
     fun goOnline(scope: CoroutineScope) {
         ensureCollector(scope)
@@ -43,6 +44,13 @@ class PresenceManager @Inject constructor(
         }
     }
 
+    fun goIdleAway(scope: CoroutineScope) {
+        ensureCollector(scope)
+        offlineTimerJob?.cancel()
+        offlineTimerJob = null
+        transitions.trySend(PresenceState.AWAY)
+    }
+
     fun goOffline(scope: CoroutineScope) {
         ensureCollector(scope)
         offlineTimerJob?.cancel()
@@ -53,6 +61,8 @@ class PresenceManager @Inject constructor(
     fun disconnect(scope: CoroutineScope) {
         offlineTimerJob?.cancel()
         offlineTimerJob = null
+
+        lastAppliedState = null
         scope.launch {
             try {
                 presenceService.removePresence()
@@ -66,12 +76,17 @@ class PresenceManager @Inject constructor(
         if (collector?.isActive == true) return
         collector = scope.launch {
             transitions.consumeAsFlow()
-                .distinctUntilChanged()
                 .collect { state ->
+                    
+                    if (state == lastAppliedState) return@collect
                     try {
-                        presenceService.setMyPresence(state)
-                        if (state == PresenceState.ONLINE) {
-                            presenceService.setupOnDisconnect()
+                        val applied = presenceService.setMyPresence(state)
+                        Log.d(TAG, "setMyPresence($state) applied=$applied")
+                        if (applied) {
+                            if (state == PresenceState.ONLINE) {
+                                presenceService.setupOnDisconnect()
+                            }
+                            lastAppliedState = state
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to set $state presence", e)
