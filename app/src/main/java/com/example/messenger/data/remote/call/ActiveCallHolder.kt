@@ -17,6 +17,8 @@ object ActiveCallHolder {
         val partnerPhone: String,
         val isIncoming: Boolean,
         val isActive: Boolean = false,
+        
+        val remoteRinging: Boolean = false,
         val muted: Boolean = false,
         val speakerOn: Boolean = false,
         val seconds: Int = 0,

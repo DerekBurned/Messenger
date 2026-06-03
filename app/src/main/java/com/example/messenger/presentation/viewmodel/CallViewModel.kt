@@ -76,6 +76,7 @@ class CallViewModel @Inject constructor(
                     channelName = active.channelName,
                     isIncoming = active.isIncoming,
                     isActive = active.isActive,
+                    remoteRinging = active.remoteRinging,
                     seconds = active.seconds,
                     muted = active.muted,
                     speakerOn = active.speakerOn,

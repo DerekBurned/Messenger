@@ -51,6 +51,16 @@
         }
       }
     },
+    "callAcks": {
+      "$callerId": {
+        ".read": "auth != null && auth.uid === $callerId",
+        "$callId": {
+          ".write": "auth != null && ((newData.exists() && newData.child('calleeId').val() === auth.uid) || (!newData.exists() && (auth.uid === $callerId || data.child('calleeId').val() === auth.uid)))",
+          "calleeId":  { ".validate": "newData.isString()" },
+          "ringingAt": { ".validate": "newData.isNumber()" }
+        }
+      }
+    },
     "$other": {
       ".read": false,
       ".write": false
