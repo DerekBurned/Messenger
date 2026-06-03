@@ -122,7 +122,8 @@ class CallViewModel @Inject constructor(
         Log.d(TAG, "sendAction $action")
         val intent = android.content.Intent(context, CallForegroundService::class.java)
             .setAction(action)
-        ContextCompat.startForegroundService(context, intent)
+        runCatching { context.startService(intent) }
+            .onFailure { Log.w(TAG, "sendAction $action failed", it) }
     }
 
     private companion object {
