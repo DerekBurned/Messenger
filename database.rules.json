@@ -1,0 +1,59 @@
+{
+  "rules": {
+    "presence": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $userId",
+        ".validate": "newData.hasChildren(['state', 'lastSeen'])",
+        "state": {
+          ".validate": "newData.isString() && (newData.val() === 'online' || newData.val() === 'away' || newData.val() === 'offline')"
+        },
+        "lastSeen": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastChanged": {
+          ".validate": "newData.val() === now"
+        }
+      }
+    },
+    "typing": {
+      "$conversationId": {
+        "$userId": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $userId",
+          ".validate": "newData.hasChild('timestamp') || !newData.exists()",
+          "timestamp": {
+            ".validate": "newData.val() === now"
+          }
+        }
+      }
+    },
+    "receipts": {
+      "$conversationId": {
+        "$userId": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $userId",
+          "lastReadTimestamp": {
+            ".validate": "newData.isNumber()"
+          }
+        }
+      }
+    },
+    "calls": {
+      "$calleeId": {
+        ".read": "auth != null && auth.uid === $calleeId",
+        "$callId": {
+          ".write": "auth != null && (newData.child('callerId').val() === auth.uid || data.child('callerId').val() === auth.uid || auth.uid === $calleeId)",
+          "callerId":    { ".validate": "newData.isString()" },
+          "calleeId":    { ".validate": "newData.isString() && newData.val() === $calleeId" },
+          "channelName": { ".validate": "newData.isString()" },
+          "status":      { ".validate": "newData.isString()" }
+        }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

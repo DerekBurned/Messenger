@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isParticipant(conversationData) {
+      return isAuthenticated() && request.auth.uid in conversationData.participantIds;
+    }
+
+    function isValidString(field, maxLen) {
+      return field is string && field.size() > 0 && field.size() <= maxLen;
+    }
+
+    // "deletedFor" holds the uids that have hidden this message for themselves.
+    function deletedForOf(data) {
+      return data.get('deletedFor', []);
+    }
+
+    // True when an update leaves everyone else's deletedFor membership intact,
+    // i.e. the caller may only add/remove their OWN uid, never someone else's.
+    function onlyTogglesOwnDeletedFor() {
+      return deletedForOf(request.resource.data).removeAll([request.auth.uid])
+             == deletedForOf(resource.data).removeAll([request.auth.uid]);
+    }
+
+    // ── /users/{userId} ───────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId)
+                    && isValidString(request.resource.data.username, 50)
+                    && request.resource.data.id == userId;
+
+      allow update: if isOwner(userId)
+                    && request.resource.data.id == resource.data.id;
+
+      allow delete: if isOwner(userId);
+    }
+
+    // ── /conversations/{conversationId} ───────────────────────────
+
+    match /conversations/{conversationId} {
+      allow read: if isParticipant(resource.data);
+
+      allow create: if isAuthenticated()
+                    && request.auth.uid in request.resource.data.participantIds
+                    && request.resource.data.participantIds.size() >= 2
+                    && request.resource.data.participantIds.size() <= 50;
+
+      allow update: if isParticipant(resource.data)
+                    && request.resource.data.participantIds == resource.data.participantIds;
+
+      allow delete: if isParticipant(resource.data);
+
+      // ── /conversations/{conversationId}/messages/{messageId} ──
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated()
+                    && isParticipant(
+                         get(/databases/$(database)/documents/conversations/$(conversationId)).data
+                       );
+
+        allow create: if isAuthenticated()
+                      && request.resource.data.senderId == request.auth.uid
+                      && isValidString(request.resource.data.text, 5000)
+                      && request.resource.data.conversationId == conversationId
+                      && isParticipant(
+                           get(/databases/$(database)/documents/conversations/$(conversationId)).data
+                         );
+
+        allow update: if isAuthenticated()
+                      && isParticipant(
+                           get(/databases/$(database)/documents/conversations/$(conversationId)).data
+                         )
+                      && request.resource.data.senderId == resource.data.senderId
+                      && request.resource.data.conversationId == resource.data.conversationId
+                      // a participant may only hide/unhide the message for themselves,
+                      // never toggle the other participant's deletedFor entry
+                      && onlyTogglesOwnDeletedFor();
+
+        // Hard delete is disallowed: it would remove the message for every
+        // participant. "Delete for me" is a soft delete done via update above
+        // (the client adds its own uid to deletedFor and filters on read).
+      }
+    }
+  }
+}

@@ -39,13 +39,14 @@ class FirebasePresenceService @Inject constructor(
         }
     }
 
-    override suspend fun setMyPresence(state: PresenceState) {
-        val userId = firebaseAuth.currentUser?.uid ?: return
+    override suspend fun setMyPresence(state: PresenceState): Boolean {
+        val userId = firebaseAuth.currentUser?.uid ?: return false
         realtimeDbService.setPresence(
             userId = userId,
             state = state.name.lowercase(),
             lastSeen = System.currentTimeMillis()
         )
+        return true
     }
 
     override suspend fun setupOnDisconnect() {

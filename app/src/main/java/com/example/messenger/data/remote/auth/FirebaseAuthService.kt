@@ -3,7 +3,6 @@ package com.example.messenger.data.remote.auth
 import android.app.Activity
 import android.util.Log
 import androidx.core.net.toUri
-import com.example.messenger.data.local.database.MessengerDatabase
 import com.example.messenger.data.local.repository.ILocalRepository
 import com.example.messenger.util.VerificationResult
 import com.google.firebase.FirebaseException
@@ -26,7 +25,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 @Singleton
 class FirebaseAuthService @Inject constructor(
@@ -37,14 +35,21 @@ class FirebaseAuthService @Inject constructor(
     private var verificationId: String? = null
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
 
+    private companion object {
+        const val TAG = "AUTHFLOW_SVC"
+    }
+
     suspend fun sendVerificationCode(
         phoneNumber: String,
         activity: Activity
     ): Result<VerificationResult> = suspendCancellableCoroutine { continuation ->
 
+        Log.d(TAG, "sendVerificationCode: requesting for '$phoneNumber'")
+
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
 
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                Log.d(TAG, "onVerificationCompleted (auto-verified)")
                 if (continuation.isActive) {
                     continuation.resume(
                         Result.success(VerificationResult.AutoVerified(credential))
@@ -53,8 +58,10 @@ class FirebaseAuthService @Inject constructor(
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
+                Log.e(TAG, "onVerificationFailed: ${e::class.simpleName}", e)
+
                 if (continuation.isActive) {
-                    continuation.resumeWithException(e)
+                    continuation.resume(Result.failure(e))
                 }
             }
 
@@ -62,9 +69,9 @@ class FirebaseAuthService @Inject constructor(
                 verId: String,
                 token: PhoneAuthProvider.ForceResendingToken
             ) {
+                Log.d(TAG, "onCodeSent: verId=$verId")
                 verificationId = verId
                 resendToken = token
-                Log.d("FirebaseAuthService", "onCodeSent: $verId")
                 if (continuation.isActive) {
                     continuation.resume(
                         Result.success(VerificationResult.CodeSent(verId))
@@ -80,27 +87,34 @@ class FirebaseAuthService @Inject constructor(
             .setCallbacks(callbacks)
             .build()
 
+        Log.d(TAG, "sendVerificationCode: calling verifyPhoneNumber")
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
     suspend fun verifyCode(code: String): Result<PhoneAuthCredential> {
+        Log.d(TAG, "verifyCode: code='$code' verId=$verificationId")
         return try {
             val verId = verificationId
                 ?: return Result.failure(Exception("No verification ID found"))
 
             val credential = PhoneAuthProvider.getCredential(verId, code)
+            Log.d(TAG, "verifyCode: credential built OK")
             Result.success(credential)
         } catch (e: Exception) {
+            Log.e(TAG, "verifyCode: FAILED", e)
             Result.failure(e)
         }
     }
 
     suspend fun signInWithPhone(credential: PhoneAuthCredential): Result<FirebaseUser> {
+        Log.d(TAG, "signInWithPhone: signInWithCredential...")
         return try {
             val result = auth.signInWithCredential(credential).await()
             val user = result.user ?: throw Exception("Sign in failed")
+            Log.d(TAG, "signInWithPhone: OK uid=${user.uid} isNewUser=${result.additionalUserInfo?.isNewUser}")
             Result.success(user)
         } catch (e: Exception) {
+            Log.e(TAG, "signInWithPhone: FAILED", e)
             Result.failure(e)
         }
     }
@@ -232,8 +246,10 @@ class FirebaseAuthService @Inject constructor(
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
+                Log.e(TAG, "resendVerificationCode.onVerificationFailed: ${e::class.simpleName}", e)
+                
                 if (continuation.isActive) {
-                    continuation.resumeWithException(e)
+                    continuation.resume(Result.failure(e))
                 }
             }
 

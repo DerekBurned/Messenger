@@ -22,25 +22,31 @@ class FirestoreService @Inject constructor(
     private val conversationsCollection = firestore.collection("conversations")
 
     suspend fun createUserProfile(user: User): Result<Unit> {
+        Log.d("AUTHFLOW_FS", "createUserProfile: id=${user.id} username=${user.username}")
         return try {
             
             usersCollection.document(user.id).set(user).await()
+            Log.d("AUTHFLOW_FS", "createUserProfile: OK")
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("AUTHFLOW_FS", "createUserProfile: FAILED", e)
             Result.failure(e)
         }
     }
 
     suspend fun getUserProfile(uid: String): Result<User> {
+        Log.d("AUTHFLOW_FS", "getUserProfile: uid=$uid")
         return try {
             val snapshot = usersCollection.document(uid).get().await()
             val user = snapshot.toObject(User::class.java)
+            Log.d("AUTHFLOW_FS", "getUserProfile: exists=${snapshot.exists()} parsed=${user != null}")
             if (user != null) {
                 Result.success(user)
             } else {
                 Result.failure(Exception("User profile not found"))
             }
         } catch (e: Exception) {
+            Log.e("AUTHFLOW_FS", "getUserProfile: FAILED", e)
             Result.failure(e)
         }
     }
@@ -64,13 +70,31 @@ class FirestoreService @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun deleteFcmToken(uid: String): Result<Unit> {
+        return try {
+            usersCollection.document(uid)
+                .update("fcmToken", com.google.firebase.firestore.FieldValue.delete())
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w("AUTHFLOW_FS", "deleteFcmToken failed", e)
+            Result.failure(e)
+        }
+    }
     suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
+
+            val remoteMessage = if (message.status == MessageStatus.SENDING) {
+                message.copy(status = MessageStatus.SENT)
+            } else {
+                message
+            }
             val conversationRef = conversationsCollection.document(message.conversationId)
             conversationRef
                 .collection("messages")
-                .document(message.id)
-                .set(message)
+                .document(remoteMessage.id)
+                .set(remoteMessage)
                 .await()
             conversationRef
                 .update(
@@ -92,7 +116,9 @@ class FirestoreService @Inject constructor(
             conversationsCollection
                 .document(message.conversationId)
                 .collection("messages")
-                .document(message.id).delete()
+                .document(message.id)
+                .update("deleted", true)
+                .await()
             Result.success(Unit)
         }catch (e: Exception)
         {
@@ -108,6 +134,7 @@ class FirestoreService @Inject constructor(
                 .document(message.id)
                 .update("status", MessageStatus.READ.name)
                 .await()
+            Log.d("FirestoreService", "Message marked as read")
             Result.success(Unit)
         }catch (e: Exception){
             Log.e("FirestoreService", "Error marking message as read", e)
@@ -115,11 +142,12 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    fun getMessagesStream(conversationId: String): Flow<List<Message>> = callbackFlow {
+    fun getRecentMessagesStream(conversationId: String, limit: Long = 100): Flow<List<Message>> = callbackFlow {
         val messagesRef = conversationsCollection
             .document(conversationId)
             .collection("messages")
-            .orderBy("timestamp", Query.Direction.ASCENDING) 
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(limit)
 
         val listener = messagesRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -129,14 +157,43 @@ class FirestoreService @Inject constructor(
             }
 
             if (snapshot != null) {
-                val messages = snapshot.toObjects(Message::class.java).mapIndexed { index, message ->
-                    message.copy(id = snapshot.documents[index].id)
-                }
+                val messages = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Message::class.java)?.copy(id = doc.id)
+                }.reversed()
                 trySend(messages) 
             }
         }
 
         awaitClose { listener.remove() }
+    }
+
+    suspend fun fetchOlderMessages(
+        conversationId: String,
+        oldestLoadedMessageId: String,
+        limit: Long = 100,
+    ): Result<List<Message>> {
+        return try {
+            val messagesCollection = conversationsCollection
+                .document(conversationId)
+                .collection("messages")
+            val anchor = messagesCollection.document(oldestLoadedMessageId).get().await()
+            if (!anchor.exists()) {
+                return Result.success(emptyList())
+            }
+            val snapshot = messagesCollection
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .startAfter(anchor)
+                .limit(limit)
+                .get()
+                .await()
+            val messages = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Message::class.java)?.copy(id = doc.id)
+            }.reversed()
+            Result.success(messages)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching older messages", e)
+            Result.failure(e)
+        }
     }
     suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
@@ -178,6 +235,24 @@ class FirestoreService @Inject constructor(
             Result.success(docRef.id)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error creating conversation", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchAllConversationsOnce(userId: String): Result<List<Conversation>> {
+        return try {
+            val snapshot = conversationsCollection
+                .whereArrayContains("participantIds", userId)
+                .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val conversations = snapshot.toObjects(Conversation::class.java)
+                .mapIndexed { index, conversation ->
+                    conversation.copy(id = snapshot.documents[index].id)
+                }
+            Result.success(conversations)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching conversations once", e)
             Result.failure(e)
         }
     }

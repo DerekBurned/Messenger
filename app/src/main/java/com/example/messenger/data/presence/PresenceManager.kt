@@ -5,7 +5,9 @@ import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.domain.service.IPresenceService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,64 +21,77 @@ class PresenceManager @Inject constructor(
         private const val AWAY_TO_OFFLINE_DELAY_MS = 5 * 60 * 1000L 
     }
 
+    private val transitions = Channel<PresenceState>(Channel.CONFLATED)
+    private var collector: Job? = null
     private var offlineTimerJob: Job? = null
-    private var isActive = false
+
+    private var lastAppliedState: PresenceState? = null
 
     fun goOnline(scope: CoroutineScope) {
-        if (isActive) return
-        isActive = true
+        ensureCollector(scope)
         offlineTimerJob?.cancel()
-        scope.launch {
-            try {
-                presenceService.setMyPresence(PresenceState.ONLINE)
-                presenceService.setupOnDisconnect()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set online presence", e)
-            }
-        }
+        offlineTimerJob = null
+        transitions.trySend(PresenceState.ONLINE)
     }
 
     fun goAway(scope: CoroutineScope) {
-        isActive = false
+        ensureCollector(scope)
+        transitions.trySend(PresenceState.AWAY)
         offlineTimerJob?.cancel()
-        scope.launch {
-            try {
-                presenceService.setMyPresence(PresenceState.AWAY)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set away presence", e)
-            }
-        }
         offlineTimerJob = scope.launch {
             delay(AWAY_TO_OFFLINE_DELAY_MS)
-            try {
-                presenceService.setMyPresence(PresenceState.OFFLINE)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set offline presence", e)
-            }
+            transitions.trySend(PresenceState.OFFLINE)
         }
+    }
+
+    fun goIdleAway(scope: CoroutineScope) {
+        ensureCollector(scope)
+        offlineTimerJob?.cancel()
+        offlineTimerJob = null
+        transitions.trySend(PresenceState.AWAY)
     }
 
     fun goOffline(scope: CoroutineScope) {
-        isActive = false
+        ensureCollector(scope)
         offlineTimerJob?.cancel()
-        scope.launch {
-            try {
-                presenceService.setMyPresence(PresenceState.OFFLINE)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set offline presence", e)
-            }
-        }
+        offlineTimerJob = null
+        transitions.trySend(PresenceState.OFFLINE)
     }
 
     fun disconnect(scope: CoroutineScope) {
-        isActive = false
         offlineTimerJob?.cancel()
+        offlineTimerJob = null
+
+        lastAppliedState = null
         scope.launch {
             try {
                 presenceService.removePresence()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to remove presence", e)
             }
+        }
+    }
+
+    private fun ensureCollector(scope: CoroutineScope) {
+        if (collector?.isActive == true) return
+        collector = scope.launch {
+            transitions.consumeAsFlow()
+                .collect { state ->
+                    
+                    if (state == lastAppliedState) return@collect
+                    try {
+                        val applied = presenceService.setMyPresence(state)
+                        Log.d(TAG, "setMyPresence($state) applied=$applied")
+                        if (applied) {
+                            if (state == PresenceState.ONLINE) {
+                                presenceService.setupOnDisconnect()
+                            }
+                            lastAppliedState = state
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to set $state presence", e)
+                    }
+                }
         }
     }
 }

@@ -3,8 +3,8 @@
 # Keep domain models used by Firestore toObject() deserialization
 -keep class com.example.messenger.domain.model.** { *; }
 
-# Keep Room entities
--keep class com.example.messenger.data.local.entity.** { *; }
+# Keep ObjectBox entities and generated model classes
+-keep class com.example.messenger.data.local.obx.** { *; }
 
 # Keep DTOs used for Firebase serialization
 -keep class com.example.messenger.data.remote.dto.** { *; }

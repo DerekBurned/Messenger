@@ -1,15 +1,17 @@
 package com.example.messenger.data.repository
 
+import android.util.Log
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.DomainUser
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IAuthRepository
 import com.example.messenger.util.Resource
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuthService,
@@ -19,11 +21,28 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun loginWithPhone(
         credential: PhoneAuthCredential,
         username: String?,
+        isRegistration: Boolean,
     ): Resource<User> {
+        Log.d(TAG, "loginWithPhone: start username='$username' isRegistration=$isRegistration")
         return try {
             val firebaseUser = auth.signInWithPhone(credential).getOrThrow()
+            Log.d(TAG, "loginWithPhone: signed in uid=${firebaseUser.uid}")
             val existing = firestore.getUserProfile(firebaseUser.uid).getOrNull()
-            val user = existing ?: User(
+            Log.d(TAG, "loginWithPhone: existing profile=${existing != null}")
+
+            if (existing != null) {
+                Log.d(TAG, "loginWithPhone: LOGIN existing user ${existing.id}")
+                return Resource.Success(existing)
+            }
+
+            if (!isRegistration) {
+                Log.w(TAG, "loginWithPhone: LOGIN for unregistered phone — rejecting and deleting orphan auth user")
+                auth.deleteAccount()
+                    .onFailure { Log.e(TAG, "loginWithPhone: failed to delete orphan auth user", it) }
+                return Resource.Error("User does not exist. Please register first.")
+            }
+
+            val user = User(
                 id = firebaseUser.uid,
                 username = username?.takeIf { it.isNotBlank() } ?: firebaseUser.displayName,
                 email = null,
@@ -32,9 +51,14 @@ class AuthRepositoryImpl @Inject constructor(
                 lastSeen = System.currentTimeMillis(),
                 isOnline = true,
                 fcmToken = null,
-            ).also { firestore.createUserProfile(it).getOrThrow() }
+            ).also {
+                Log.d(TAG, "loginWithPhone: REGISTER creating Firestore profile for ${it.id}")
+                firestore.createUserProfile(it).getOrThrow()
+                Log.d(TAG, "loginWithPhone: profile created")
+            }
             Resource.Success(user)
         } catch (e: Exception) {
+            Log.e(TAG, "loginWithPhone: FAILED", e)
             Resource.Error("${e.message}, Phone sign-in failed")
         }
     }
@@ -69,8 +93,17 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun observeAuthState(): Flow<FirebaseUser?> {
-        return auth.observeAuthState()
+    override fun observeAuthState(): Flow<DomainUser?> {
+        return auth.observeAuthState().map { firebaseUser ->
+            firebaseUser?.let {
+                DomainUser(
+                    id = it.uid,
+                    displayName = it.displayName,
+                    phoneNumber = it.phoneNumber,
+                    photoUrl = it.photoUrl?.toString(),
+                )
+            }
+        }
     }
 
     override suspend fun updateUserProfile(
@@ -78,5 +111,9 @@ class AuthRepositoryImpl @Inject constructor(
         avatarUrl: String?,
     ): Result<Unit> {
         return auth.updateProfile(username, avatarUrl)
+    }
+
+    private companion object {
+        const val TAG = "AUTHFLOW_REPO"
     }
 }

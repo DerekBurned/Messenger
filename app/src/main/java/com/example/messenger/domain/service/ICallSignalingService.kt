@@ -5,7 +5,12 @@ import com.example.messenger.domain.model.CallStatus
 import kotlinx.coroutines.flow.Flow
 
 interface ICallSignalingService {
+    
     suspend fun sendCallSignal(signal: CallSignal)
+
     fun observeIncomingCall(myUserId: String): Flow<CallSignal?>
-    suspend fun updateCallStatus(callId: String, status: CallStatus)
+
+    suspend fun updateCallStatus(calleeId: String, callId: String, status: CallStatus)
+
+    fun observeCallStatus(calleeId: String, callId: String): Flow<CallStatus?>
 }

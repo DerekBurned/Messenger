@@ -1,57 +1,80 @@
 package com.example.messenger.data.repository
 
-import com.example.messenger.data.local.dao.ConversationDao
-import com.example.messenger.data.local.dao.MessageDao
-import com.example.messenger.data.mapper.toDomain
-import com.example.messenger.data.mapper.toEntity
+import com.example.messenger.data.local.obx.ObxConversation
+import com.example.messenger.data.local.obx.ObxConversation_
+import com.example.messenger.data.local.obx.ObxMessage
+import com.example.messenger.data.local.obx.ObxMessage_
+import com.example.messenger.data.local.obx.ObxSyncQueueItem
+import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.toDomain
+import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
+import com.example.messenger.domain.model.sync.SyncAction
 import com.example.messenger.domain.repository.IMessageRepository
+import io.objectbox.Box
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
-    private val messageDao: MessageDao,
-    private val messageService: FirestoreService,
-    private val conversationDao: ConversationDao,
+    private val messageBox: Box<ObxMessage>,
+    private val conversationBox: Box<ObxConversation>,
+    private val syncQueueBox: Box<ObxSyncQueueItem>,
+    private val firestoreService: FirestoreService,
 ) : IMessageRepository {
 
     override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
-        return messageDao.getMessagesWithSendersDesc(conversationId)
-            .map { list -> list.map { it.toDomain() } }
+        return messageBox.query(
+            ObxMessage_.conversationId.equal(conversationId)
+                .and(ObxMessage_.deleted.equal(false)),
+        )
+            .order(ObxMessage_.timestamp)
+            .build()
+            .asFlow()
+            .map { rows -> rows.map { it.toDomain() } }
     }
 
     override suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
             
-            messageDao.insertMessage(message.toEntity())
-            conversationDao.updateLastMessage(
-                conversationId = message.conversationId,
-                lastMessage = message.text,
-                lastMessageTimestamp = message.timestamp,
-            )
-            
-            val result = messageService.sendMessage(message)
+            messageBox.put(message.toObx())
+            updateConversationPreview(message)
+
+            val result = firestoreService.sendMessage(message.copy(status = MessageStatus.SENT))
             if (result.isSuccess) {
-                messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
+                updateMessage(message.id) { it.status = MessageStatus.SENT.name }
             } else {
-                messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
+                updateMessage(message.id) { it.status = MessageStatus.FAILED.name }
+                enqueueRetry(message.id)
             }
             result
         } catch (e: Exception) {
-            runCatching { messageDao.updateMessageStatus(message.id, MessageStatus.FAILED) }
+            runCatching { updateMessage(message.id) { it.status = MessageStatus.FAILED.name } }
+            runCatching { enqueueRetry(message.id) }
             Result.failure(e)
         }
     }
 
+    private fun enqueueRetry(messageId: String) {
+        syncQueueBox.put(
+            ObxSyncQueueItem(
+                entityType = com.example.messenger.domain.model.sync.SyncEntityType.MESSAGE,
+                entityId = messageId,
+                action = SyncAction.SEND,
+                timestamp = System.currentTimeMillis(),
+            ),
+        )
+    }
+
     override suspend fun deleteMessage(message: Message): Result<Unit> {
         return try {
-            val result = messageService.deleteMessage(message)
+            val result = firestoreService.deleteMessage(message)
             if (result.isSuccess) {
-                messageDao.deleteMessage(message.toEntity())
+                
+                updateMessage(message.id) { it.deleted = true }
             }
             result
         } catch (e: Exception) {
@@ -61,9 +84,12 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun markMessageAsRead(message: Message): Result<Unit> {
         return try {
-            val result = messageService.markMessageAsRead(message)
+            val result = firestoreService.markMessageAsRead(message)
             if (result.isSuccess) {
-                messageDao.markAsRead(message.id)
+                updateMessage(message.id) {
+                    it.isRead = true
+                    it.status = MessageStatus.READ.name
+                }
             }
             result
         } catch (e: Exception) {
@@ -71,25 +97,45 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun markMessagesAsDelivered(conversationId: String, message: Message): Result<Unit> {
-        return try {
-            messageDao.updateMessageStatus(message.id, MessageStatus.DELIVERED)
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun observeRemoteMessages(conversationId: String): Flow<Result<Message>> = flow {
+    override suspend fun observeRecentMessages(conversationId: String, limit: Long): Flow<Result<Unit>> = flow {
         try {
-            messageService.getMessagesStream(conversationId).collect { messages ->
-                messages.forEach { message ->
-                    messageDao.insertMessage(message.toEntity())
-                    emit(Result.success(message))
-                }
+            firestoreService.getRecentMessagesStream(conversationId, limit).collect { messages ->
+                messageBox.put(messages.map { it.toObx() })
+                emit(Result.success(Unit))
             }
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
+    }
+
+    override suspend fun loadOlderMessages(conversationId: String, limit: Long): Result<Int> {
+        val oldestId = messageBox.query(ObxMessage_.conversationId.equal(conversationId))
+            .order(ObxMessage_.timestamp)
+            .build()
+            .use { it.findFirst()?.uid }
+            ?: return Result.success(0)
+        return firestoreService.fetchOlderMessages(conversationId, oldestId, limit).map { older ->
+            if (older.isNotEmpty()) {
+                messageBox.put(older.map { it.toObx() })
+            }
+            older.size
+        }
+    }
+
+    private fun updateMessage(id: String, mutate: (ObxMessage) -> Unit) {
+        val existing = messageBox.query(ObxMessage_.uid.equal(id)).build()
+            .use { it.findFirst() } ?: return
+        mutate(existing)
+        messageBox.put(existing)
+    }
+
+    private fun updateConversationPreview(message: Message) {
+        val conv = conversationBox.query(ObxConversation_.uid.equal(message.conversationId)).build()
+            .use { it.findFirst() } ?: return
+        conv.lastMessage = message.text
+        conv.lastMessageTimestamp = message.timestamp
+        conv.latestMessageText = message.text
+        conv.latestMessageTimestamp = message.timestamp
+        conversationBox.put(conv)
     }
 }

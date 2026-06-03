@@ -19,10 +19,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -59,7 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.UserPresence
@@ -70,7 +70,6 @@ import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.state.ConversationsUiState
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import com.example.messenger.util.DateUtils
-import com.google.firebase.auth.FirebaseAuth
 
 enum class MainTab { CHATS, CALLS, CONTACTS, SETTINGS }
 
@@ -82,6 +81,7 @@ fun MainScreenWithNav(
     onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onContactClick: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -93,6 +93,7 @@ fun MainScreenWithNav(
         onLogoutClick = onLogoutClick,
         onProfileClick = onProfileClick,
         onSettingsClick = onSettingsClick,
+        onContactClick = onContactClick,
     )
 }
 
@@ -106,6 +107,7 @@ private fun MainScreenContent(
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onContactClick: (String) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
 
@@ -152,7 +154,7 @@ private fun MainScreenContent(
                     onChatClick = onChatClick,
                 )
                 MainTab.CALLS -> CallsScreenContent()
-                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { /* TODO navigate to user profile */ })
+                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { user -> onContactClick(user.id) })
                 MainTab.SETTINGS -> Unit 
             }
         }
@@ -175,7 +177,7 @@ private fun ChatsTabContent(
 ) {
     when {
         uiState.isLoading -> ChatsLoading()
-        uiState.error != null -> ChatsError(message = uiState.error, onRetry = onRefresh)
+        uiState.error != null -> ChatsError(message = uiState.error.asString(), onRetry = onRefresh)
         uiState.conversations.isEmpty() -> ChatsEmpty()
         else -> ChatsList(uiState = uiState, onRefresh = onRefresh, onChatClick = onChatClick)
     }
@@ -217,7 +219,7 @@ private fun ChatsList(
     onRefresh: () -> Unit,
     onChatClick: (String, String, String) -> Unit,
 ) {
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val currentUserId = uiState.currentUserId
     PullToRefreshBox(
         isRefreshing = uiState.isRefreshing,
         onRefresh = onRefresh,
@@ -257,7 +259,7 @@ private fun MainTopBar(
         navigationIcon = {
             IconButton(onClick = onLogoutClick) {
                 Icon(
-                    imageVector = Icons.Filled.Logout,
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
                     tint = Color.White,
                     contentDescription = "Logout",
                 )
@@ -508,6 +510,7 @@ private fun MainScreenPreview() {
             onLogoutClick = {},
             onProfileClick = {},
             onSettingsClick = {},
+            onContactClick = {},
         )
     }
 }

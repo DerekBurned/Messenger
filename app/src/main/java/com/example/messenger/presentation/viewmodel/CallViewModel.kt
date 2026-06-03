@@ -1,159 +1,128 @@
 package com.example.messenger.presentation.viewmodel
 
+import android.app.Application
+import android.content.Context
+import android.util.Log
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.messenger.domain.model.CallSignal
-import com.example.messenger.domain.model.CallStatus
-import com.example.messenger.domain.service.CallEventListener
-import com.example.messenger.domain.service.ICallService
-import com.example.messenger.domain.service.ICallSignalingService
+import com.example.messenger.data.remote.call.ActiveCallHolder
+import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.math.abs
 
 @HiltViewModel
 class CallViewModel @Inject constructor(
-    private val callService: ICallService,
-    private val signalingService: ICallSignalingService,
+    application: Application,
     private val auth: FirebaseAuth,
     savedStateHandle: SavedStateHandle,
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
-    private val myUserId: String get() = auth.currentUser?.uid.orEmpty()
-    private val myUid: Int get() = abs(myUserId.hashCode())
+    private val _callEnded = Channel<Unit>(Channel.BUFFERED)
+    val callEnded = _callEnded.receiveAsFlow()
 
-    private var currentCallId: String = ""
-    private var tickerJob: Job? = null
+    private val context: Context get() = getApplication()
+    private var hadActiveCall = false
+
+    private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
+    private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
+    private val pendingPartnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
+
+    val needsOutgoingStart: Boolean
+        get() = ActiveCallHolder.snapshot() == null && pendingPartnerId.isNotBlank()
 
     init {
-        val partnerId: String = savedStateHandle["partnerId"] ?: ""
-        val partnerName: String = savedStateHandle["partnerName"] ?: ""
-        val partnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
-
-        val channelName = listOf(myUserId, partnerId).sorted().joinToString("_")
-
-        _uiState.update {
-            it.copy(partnerName = partnerName, partnerPhone = partnerPhone, channelName = channelName)
+        if (ActiveCallHolder.snapshot() == null) {
+            
+            _uiState.update { it.copy(partnerName = pendingPartnerName, partnerPhone = pendingPartnerPhone) }
         }
-
-        setupAgoraListener()
-
-        if (partnerId.isNotBlank()) {
-            startOutgoingCall(partnerId, channelName)
-        }
+        observeActiveCall()
     }
 
-    private fun setupAgoraListener() {
-        callService.setEventListener(object : CallEventListener {
-            override fun onRemoteUserJoined(uid: Int) {
-                _uiState.update { it.copy(isActive = true, isIncoming = false) }
-                startTicker()
-            }
-
-            override fun onRemoteUserLeft(uid: Int) {
-                endCall()
-            }
-
-            override fun onError(code: Int) {
-                _uiState.update { it.copy(error = "Call error: $code") }
-            }
-        })
-    }
-
-    private fun startOutgoingCall(partnerId: String, channelName: String) {
-        currentCallId = UUID.randomUUID().toString()
+    private fun observeActiveCall() {
         viewModelScope.launch {
-            signalingService.sendCallSignal(
-                CallSignal(
-                    callId = currentCallId,
-                    callerId = myUserId,
-                    calleeId = partnerId,
-                    channelName = channelName,
-                    status = CallStatus.RINGING,
+            ActiveCallHolder.state.collectLatest { active ->
+                if (active == null) {
+                    
+                    _uiState.value = CallUiState()
+                    if (hadActiveCall) {
+                        hadActiveCall = false
+                        _callEnded.trySend(Unit)
+                    }
+                    return@collectLatest
+                }
+                hadActiveCall = true
+                _uiState.value = CallUiState(
+                    partnerName = active.partnerName,
+                    partnerPhone = active.partnerPhone,
+                    channelName = active.channelName,
+                    isIncoming = active.isIncoming,
+                    isActive = active.isActive,
+                    seconds = active.seconds,
+                    muted = active.muted,
+                    speakerOn = active.speakerOn,
+                    connectionState = active.connectionState,
+                    error = active.error?.toUiText(),
                 )
-            )
-        }
-        callService.joinChannel(channelName, myUid)
-    }
-
-    fun acceptCall() {
-        val channelName = _uiState.value.channelName
-        viewModelScope.launch {
-            if (currentCallId.isNotBlank()) {
-                signalingService.updateCallStatus(currentCallId, CallStatus.ACTIVE)
-            }
-        }
-        callService.joinChannel(channelName, myUid)
-        _uiState.update { it.copy(isIncoming = false, isActive = true, seconds = 0) }
-        startTicker()
-    }
-
-    fun declineCall() {
-        stopTicker()
-        viewModelScope.launch {
-            if (currentCallId.isNotBlank()) {
-                signalingService.updateCallStatus(currentCallId, CallStatus.DECLINED)
-            }
-        }
-        callService.leaveChannel()
-        _uiState.update { CallUiState() }
-    }
-
-    fun endCall() {
-        stopTicker()
-        viewModelScope.launch {
-            if (currentCallId.isNotBlank()) {
-                signalingService.updateCallStatus(currentCallId, CallStatus.ENDED)
-            }
-        }
-        callService.leaveChannel()
-        _uiState.update { CallUiState() }
-    }
-
-    fun toggleMute() {
-        val muted = !_uiState.value.muted
-        callService.muteLocalAudio(muted)
-        _uiState.update { it.copy(muted = muted) }
-    }
-
-    fun toggleSpeaker() {
-        val speakerOn = !_uiState.value.speakerOn
-        callService.setSpeakerphone(speakerOn)
-        _uiState.update { it.copy(speakerOn = speakerOn) }
-    }
-
-    private fun startTicker() {
-        stopTicker()
-        tickerJob = viewModelScope.launch {
-            while (true) {
-                delay(1000)
-                _uiState.update { it.copy(seconds = it.seconds + 1) }
             }
         }
     }
 
-    private fun stopTicker() {
-        tickerJob?.cancel()
-        tickerJob = null
+    fun startOutgoing() {
+        val myUserId = auth.currentUser?.uid.orEmpty()
+        if (myUserId.isBlank()) {
+            Log.w(TAG, "startOutgoing aborted: no signed-in user")
+            return
+        }
+        if (pendingPartnerId.isBlank()) {
+            Log.w(TAG, "startOutgoing aborted: no partner id")
+            return
+        }
+        val callId = UUID.randomUUID().toString()
+        val channelName = "call-" + UUID.randomUUID().toString()
+        Log.d(TAG, "startOutgoing")
+        val intent = CallForegroundService.outgoingIntent(
+            ctx = context,
+            callId = callId,
+            callerId = myUserId,
+            calleeId = pendingPartnerId,
+            channelName = channelName,
+            partnerName = pendingPartnerName,
+            partnerPhone = pendingPartnerPhone,
+        )
+        ContextCompat.startForegroundService(context, intent)
     }
 
-    override fun onCleared() {
-        stopTicker()
-        callService.leaveChannel()
-        super.onCleared()
+    fun acceptCall() = sendAction(CallForegroundService.ACTION_ACCEPT)
+    fun declineCall() = sendAction(CallForegroundService.ACTION_DECLINE)
+    fun endCall() = sendAction(CallForegroundService.ACTION_END)
+    fun toggleMute() = sendAction(CallForegroundService.ACTION_TOGGLE_MUTE)
+    fun toggleSpeaker() = sendAction(CallForegroundService.ACTION_TOGGLE_SPEAKER)
+
+    private fun sendAction(action: String) {
+        Log.d(TAG, "sendAction $action")
+        val intent = android.content.Intent(context, CallForegroundService::class.java)
+            .setAction(action)
+        ContextCompat.startForegroundService(context, intent)
+    }
+
+    private companion object {
+        const val TAG = "CallViewModel"
     }
 }

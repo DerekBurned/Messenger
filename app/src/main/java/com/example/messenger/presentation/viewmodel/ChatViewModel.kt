@@ -1,31 +1,35 @@
 package com.example.messenger.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
-import com.example.messenger.domain.model.ReceiptInfo
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
+import com.example.messenger.domain.usecase.message.LoadOlderMessagesUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
 import com.example.messenger.domain.usecase.message.SyncMessagesUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
-import com.example.messenger.domain.usecase.receipt.ObserveReceiptsUseCase
 import com.example.messenger.domain.usecase.typing.ObserveTypingUseCase
 import com.example.messenger.domain.service.ITypingService
-import com.example.messenger.domain.service.IReceiptService
+import com.example.messenger.R
+import com.example.messenger.presentation.base.MviViewModel
+import com.example.messenger.presentation.base.UiText
+import com.example.messenger.presentation.base.toUiText
+import com.example.messenger.presentation.effect.ChatEffect
+import com.example.messenger.presentation.intent.ChatIntent
 import com.example.messenger.presentation.state.ChatUiState
+import com.example.messenger.util.DateUtils
 import com.example.messenger.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,18 +38,15 @@ class ChatViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getMessagesUseCase: GetMessagesUseCase,
     private val syncMessagesUseCase: SyncMessagesUseCase,
+    private val loadOlderMessagesUseCase: LoadOlderMessagesUseCase,
     private val markMessageAsReadUseCase: MarkMessageAsReadUseCase,
     private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val observeTypingUseCase: ObserveTypingUseCase,
-    private val observeReceiptsUseCase: ObserveReceiptsUseCase,
     private val typingService: ITypingService,
-    private val receiptService: IReceiptService,
-    savedStateHandle: SavedStateHandle
-) : ViewModel() {
-
-    private val _uiState = MutableStateFlow(ChatUiState())
-    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    firebaseAuthService: FirebaseAuthService,
+    savedStateHandle: SavedStateHandle,
+) : MviViewModel<ChatUiState, ChatIntent, ChatEffect>(initialState = ChatUiState()) {
 
     val conversationId: String = savedStateHandle.get<String>("conversationId") ?: ""
     private val partnerId: String = savedStateHandle.get<String>("partnerId") ?: ""
@@ -53,12 +54,26 @@ class ChatViewModel @Inject constructor(
 
     private var typingJob: Job? = null
     private var typingClearJob: Job? = null
+
+    private val markedAsReadIds = mutableSetOf<String>()
+
     private companion object {
+        const val TAG = "ChatViewModel"
+        const val PAGE_SIZE = 100L
         const val TYPING_DEBOUNCE_MS = 500L
         const val TYPING_TTL_MS = 5000L
+        const val LAST_SEEN_TICK_MS = 60_000L
     }
 
     init {
+        val currentUserId = firebaseAuthService.getCurrentUserId().orEmpty()
+        setState {
+            copy(
+                currentUserId = currentUserId,
+                partnerUsername = partnerName.ifBlank { partnerUsername },
+                partnerLastSeenDisplay = DateUtils.formatLastSeen(partnerPresence.lastSeen),
+            )
+        }
         if (conversationId.isNotBlank()) {
             loadMessages()
             syncMessages()
@@ -66,10 +81,40 @@ class ChatViewModel @Inject constructor(
                 observePartnerPresence()
             }
             observeTyping()
-            observeReceipts()
         }
-        if (partnerName.isNotBlank()) {
-            _uiState.update { it.copy(partnerUsername = partnerName) }
+    }
+
+    override fun handleIntent(intent: ChatIntent) {
+        when (intent) {
+            is ChatIntent.TextChanged -> onTextChanged(intent.text)
+            is ChatIntent.SendMessage -> sendMessage(intent.text)
+            is ChatIntent.MessagesSeen -> onMessagesSeen(intent.messages)
+            ChatIntent.LoadOlderMessages -> loadOlder()
+            is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
+            is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
+            ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
+            is ChatIntent.Forward -> setState { copy(forwardingMessage = intent.message) }
+            ChatIntent.ClearForward -> setState { copy(forwardingMessage = null) }
+            ChatIntent.ClearError -> setState { copy(error = null) }
+        }
+    }
+
+    private fun loadOlder() {
+        if (currentState.isLoadingOlder || !currentState.hasMoreOlder) return
+        viewModelScope.launch {
+            setState { copy(isLoadingOlder = true) }
+            val result = loadOlderMessagesUseCase(conversationId)
+            val fetched = result.getOrDefault(0)
+            if (result.isFailure) {
+                Log.w(TAG, "Loading older messages failed", result.exceptionOrNull())
+            }
+
+            setState {
+                copy(
+                    isLoadingOlder = false,
+                    hasMoreOlder = if (result.isSuccess) fetched >= PAGE_SIZE else hasMoreOlder,
+                )
+            }
         }
     }
 
@@ -77,7 +122,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 syncMessagesUseCase(conversationId).collect { }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.w(TAG, "Message sync stream errored", e)
+            }
         }
     }
 
@@ -85,151 +132,152 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             getMessagesUseCase(conversationId).collect { resource ->
                 when (resource) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
+                    is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val messages = (resource.data as? List<*>)?.filterIsInstance<Message>() ?: emptyList()
-                        _uiState.update { it.copy(isLoading = false, messages = messages, error = null) }
+                        setState {
+
+                            val resolvedAnchor = if (
+                                !unreadAnchorResolved &&
+                                currentUserId.isNotBlank() &&
+                                resource.data.isNotEmpty()
+                            ) {
+                                val anchorId = resource.data.firstOrNull {
+                                    it.senderId != currentUserId && it.status != MessageStatus.READ
+                                }?.id
+                                copy(firstUnreadMessageId = anchorId, unreadAnchorResolved = true)
+                            } else {
+                                this
+                            }
+                            resolvedAnchor.copy(isLoading = false, messages = resource.data, error = null)
+                        }
                     }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.message)
-                    }
-                    is Resource.Failure -> _uiState.update {
-                        it.copy(isLoading = false, error = resource.exception.message)
-                    }
+                    is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
+                    is Resource.Failure -> setState { copy(isLoading = false, error = resource.exception.message?.toUiText()) }
                 }
+            }
+        }
+    }
+
+    private fun onMessagesSeen(messages: List<Message>) {
+        val me = currentState.currentUserId
+        if (me.isBlank()) {
+            Log.w(TAG, "Skip read receipt: currentUserId is blank (auth race?)")
+            return
+        }
+        messages.forEach { message ->
+            if (markedAsReadIds.add(message.id)) {
+                markAsRead(message)
             }
         }
     }
 
     private fun observePartnerPresence() {
         viewModelScope.launch {
-            observeUserPresenceUseCase(partnerId)
-                .catch {  }
-                .collect { presence ->
-                    _uiState.update { it.copy(partnerPresence = presence) }
-                }
-        }
-    }
-
-    private fun observeTyping() {
-        viewModelScope.launch {
-            observeTypingUseCase(conversationId)
-                .catch {  }
-                .collect { typingUserIds ->
-                    _uiState.update {
-                        it.copy(
-                            typingUsernames = typingUserIds.toList(),
-                            isPartnerTyping = typingUserIds.isNotEmpty()
+            val presence = observeUserPresenceUseCase(partnerId)
+                .catch { e -> Log.w(TAG, "Presence observer errored", e) }
+            combine(presence, tickerFlow(LAST_SEEN_TICK_MS)) { p, _ -> p }
+                .collect { p ->
+                    setState {
+                        copy(
+                            partnerPresence = p,
+                            partnerLastSeenDisplay = DateUtils.formatLastSeen(p.lastSeen),
                         )
                     }
                 }
         }
     }
 
-    private fun observeReceipts() {
+    private fun tickerFlow(periodMs: Long) = flow {
+        emit(Unit)
+        while (true) {
+            delay(periodMs)
+            emit(Unit)
+        }
+    }
+
+    private fun observeTyping() {
         viewModelScope.launch {
-            observeReceiptsUseCase(conversationId)
-                .catch {  }
-                .collect { receipts ->
-                    updateMessageStatuses(receipts)
+            observeTypingUseCase(conversationId)
+                .catch { e -> Log.w(TAG, "Typing observer errored", e) }
+                .collect { typingUserIds ->
+                    setState {
+                        copy(
+                            typingUsernames = typingUserIds.toList(),
+                            isPartnerTyping = typingUserIds.isNotEmpty(),
+                        )
+                    }
                 }
         }
     }
 
-    private fun updateMessageStatuses(receipts: Map<String, ReceiptInfo>) {
-        _uiState.update { state ->
-            val updatedMessages = state.messages.map { message ->
-                if (message.senderId == partnerId) return@map message
-                val partnerReceipt = receipts[partnerId] ?: return@map message
-                val newStatus = when {
-                    message.timestamp <= partnerReceipt.lastReadTimestamp -> MessageStatus.READ
-                    message.timestamp <= partnerReceipt.lastDeliveredTimestamp -> MessageStatus.DELIVERED
-                    else -> message.status
-                }
-                if (newStatus.ordinal > message.status.ordinal) {
-                    message.copy(status = newStatus)
-                } else {
-                    message
-                }
-            }
-            state.copy(messages = updatedMessages)
-        }
-    }
-
-    fun onTextChanged(text: String) {
+    private fun onTextChanged(text: String) {
         typingJob?.cancel()
         typingClearJob?.cancel()
 
         if (text.isBlank()) {
             viewModelScope.launch {
-                try { typingService.clearTyping(conversationId) } catch (_: Exception) {}
+                try { typingService.clearTyping(conversationId) } catch (e: Exception) {
+                    Log.w(TAG, "Typing clear failed", e)
+                }
             }
             return
         }
 
         typingJob = viewModelScope.launch {
             delay(TYPING_DEBOUNCE_MS)
-            try { typingService.setTyping(conversationId) } catch (_: Exception) {}
+            try { typingService.setTyping(conversationId) } catch (e: Exception) {
+                Log.w(TAG, "Typing set failed", e)
+            }
         }
 
         typingClearJob = viewModelScope.launch {
             delay(TYPING_TTL_MS)
-            try { typingService.clearTyping(conversationId) } catch (_: Exception) {}
+            try { typingService.clearTyping(conversationId) } catch (e: Exception) {
+                Log.w(TAG, "Typing clear (TTL) failed", e)
+            }
         }
     }
 
-    fun sendMessage(text: String) {
+    private fun sendMessage(text: String) {
         viewModelScope.launch {
             typingService.clearTyping(conversationId)
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isSending = true) }
+            setState { copy(isSending = true) }
             sendMessageUseCase(conversationId, text).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {}
-                    is Resource.Success -> _uiState.update { it.copy(isSending = false, error = null) }
-                    is Resource.Error -> _uiState.update { it.copy(isSending = false, error = resource.message) }
-                    is Resource.Failure -> _uiState.update { it.copy(isSending = false, error = resource.exception.message) }
+                    is Resource.Success -> setState { copy(isSending = false, error = null) }
+                    is Resource.Error -> setState { copy(isSending = false, error = resource.message.toUiText()) }
+                    is Resource.Failure -> setState { copy(isSending = false, error = resource.exception.message?.toUiText()) }
                 }
             }
         }
     }
 
-    fun markAsRead(message: Message) {
+    private fun markAsRead(message: Message) {
         viewModelScope.launch {
-            markMessageAsReadUseCase(message).collect { }
+            markMessageAsReadUseCase(message)
         }
     }
 
-    fun sendReadReceipt(latestTimestamp: Long) {
-        viewModelScope.launch {
-            try { receiptService.sendReadReceipt(conversationId, latestTimestamp) } catch (_: Exception) {}
-        }
-    }
-
-    fun deleteMessage(message: Message) {
+    private fun deleteMessage(message: Message) {
         viewModelScope.launch {
             deleteMessageUseCase(message).collect { resource ->
                 when (resource) {
-                    is Resource.Error -> _uiState.update { it.copy(error = resource.message) }
-                    is Resource.Failure -> _uiState.update { it.copy(error = resource.exception.message) }
+                    is Resource.Error -> emitEffect(
+                        ChatEffect.ShowError(resource.message.toUiText()),
+                    )
+                    is Resource.Failure -> emitEffect(
+                        ChatEffect.ShowError(
+                            resource.exception.message?.toUiText()
+                                ?: UiText.StringResource(R.string.chat_error_delete_failed),
+                        ),
+                    )
                     else -> {}
                 }
             }
         }
-    }
-
-    fun setReplyTo(message: Message) {
-        _uiState.update { it.copy(replyingTo = message) }
-    }
-
-    fun clearReply() {
-        _uiState.update { it.copy(replyingTo = null) }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
     }
 
     override fun onCleared() {

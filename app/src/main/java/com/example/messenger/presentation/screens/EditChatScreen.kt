@@ -24,9 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.Conversation
+import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.effect.EditChatEffect
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -38,13 +40,18 @@ fun EditChatScreen(
     viewModel: EditChatViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    ObserveAsEvents(viewModel.effect) { effect ->
+        when (effect) {
+            EditChatEffect.Done -> onBackClick()
+        }
+    }
     EditChatScreenContent(
         state = state,
         onBackClick = onBackClick,
         onToggle = viewModel::toggle,
-        onDelete = { viewModel.deleteSelected(onComplete = onBackClick) },
-        onMarkAllRead = { viewModel.markAllRead(onComplete = onBackClick) },
+        onDelete = { viewModel.deleteSelected() },
+        onMarkAllRead = { viewModel.markAllRead() },
     )
 }
 

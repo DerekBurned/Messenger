@@ -12,12 +12,10 @@ import dagger.assisted.AssistedInject
 class SyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted private val parameters: WorkerParameters,
-    
     private val syncAllDataUseCase: SyncAllDataUseCase
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
-        
         val result = syncAllDataUseCase()
 
         return if (result.isSuccess) {
