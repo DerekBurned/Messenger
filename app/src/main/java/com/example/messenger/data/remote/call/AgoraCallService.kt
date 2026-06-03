@@ -55,10 +55,17 @@ class AgoraCallService @Inject constructor(
                 mContext = context
                 mEventHandler = handler
             }
-            engine = RtcEngine.create(config)
-            engine?.enableAudio()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create Agora RtcEngine", e)
+            val created = RtcEngine.create(config)
+            if (created == null) {
+
+                Log.e(TAG, "RtcEngine.create returned null — calls will have no audio")
+            } else {
+                created.enableAudio()
+            }
+            engine = created
+        } catch (t: Throwable) {
+
+            Log.e(TAG, "Failed to create Agora RtcEngine", t)
         }
     }
 

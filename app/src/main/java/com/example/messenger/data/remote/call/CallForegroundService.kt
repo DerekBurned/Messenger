@@ -87,7 +87,7 @@ class CallForegroundService : Service() {
             isIncoming = false,
         )
         ActiveCallHolder.set(call)
-        startForegroundCompat(buildOngoingNotification(call))
+        if (!startForegroundCompat(buildOngoingNotification(call))) return
 
         scope.launch {
             runCatching {
@@ -137,7 +137,7 @@ class CallForegroundService : Service() {
             isIncoming = true,
         )
         ActiveCallHolder.set(call)
-        startForegroundCompat(buildRingingNotification(call))
+        if (!startForegroundCompat(buildRingingNotification(call))) return
         observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
         startRingTimeout(call)
     }
@@ -154,7 +154,7 @@ class CallForegroundService : Service() {
         }
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.calleeId))
-        startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call))
+        if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call))) return
         startTicker()
     }
 
@@ -356,8 +356,8 @@ class CallForegroundService : Service() {
         hasAudioFocus = false
     }
 
-    private fun startForegroundCompat(notification: Notification) {
-        try {
+    private fun startForegroundCompat(notification: Notification): Boolean {
+        return try {
             Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT})")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -368,10 +368,12 @@ class CallForegroundService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID_CALL, notification)
             }
+            true
         } catch (t: Throwable) {
 
             Log.e(TAG, "startForeground rejected our notification", t)
             stopSelfClean()
+            false
         }
     }
 
