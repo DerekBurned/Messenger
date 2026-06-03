@@ -97,6 +97,10 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 # WorkManager
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
 androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "workManagerHilt" }
+# AndroidX Hilt annotation processor — generates the @HiltWorker assisted-factory binding
+# into HiltWorkerFactory. Without it, @HiltWorker workers aren't registered and WorkManager
+# falls back to the reflective (Context, WorkerParameters) constructor → NoSuchMethodException.
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "workManagerHilt" }
 
 # Lifecycle
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }

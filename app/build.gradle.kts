@@ -5,9 +5,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.serialization)
-    // Hilt/Room use KSP. ObjectBox has no KSP support yet (objectbox-java#1075), so it requires
-    // kapt — the two annotation processors coexist; see docs/room-vs-objectbox-and-migration-plan.md.
-    alias(libs.plugins.kotlin.kapt)
+     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.objectbox)
 }
 
@@ -106,6 +104,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.work)
+    // Required so @HiltWorker (e.g. SyncWorker) is registered in HiltWorkerFactory.
+    ksp(libs.androidx.hilt.compiler)
 
     // Navigation (Nav2 kept during transition; Nav3 primary per tech spec)
     implementation(libs.androidx.navigation.compose)
