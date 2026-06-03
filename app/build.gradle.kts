@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -13,9 +15,18 @@ android {
     namespace = "com.example.messenger"
     compileSdk = 36
 
-    val agoraAppId: String =
-        (project.findProperty("AGORA_APP_ID") as String?)
+    // AGORA_APP_ID resolves from local.properties (gitignored — preferred), then a Gradle
+    // project property (gradle.properties / -P / ORG_GRADLE_PROJECT_*), then a non-blank
+    // placeholder so the build never fails. The placeholder is NOT a working key: calls will
+    // have no audio (RtcEngine.create returns null) until a real Agora App ID is set.
+    val agoraAppId: String = run {
+        val props = Properties()
+        rootProject.file("local.properties").takeIf { it.exists() }
+            ?.inputStream()?.use { props.load(it) }
+        props.getProperty("AGORA_APP_ID")
+            ?: (project.findProperty("AGORA_APP_ID") as String?)
             ?: "3d080c1db3ff4a80bef22c3b2cb6ea46"
+    }
 
     defaultConfig {
         applicationId = "com.example.messenger"
