@@ -43,11 +43,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
 
         val data = remoteMessage.data
+        Log.d(TAG, "onMessageReceived: from=${remoteMessage.from} type=${data["type"]} data=$data")
+
+        if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null) {
+            Log.d(TAG, "onMessageReceived: no authenticated user, ignoring")
+            return
+        }
+
         when (data["type"]) {
             TYPE_MESSAGE -> handleMessagePayload(data)
             TYPE_CALL -> handleCallPayload(data)
             else -> {
                 
+                Log.w(TAG, "onMessageReceived: unknown type, notification=${remoteMessage.notification != null}")
                 remoteMessage.notification?.let { sendChatNotification(it.title, it.body, conversationId = null, partnerId = "", partnerName = "") }
             }
         }
@@ -60,8 +68,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val preview = data["preview"].orEmpty()
 
         if (conversationId.isNotBlank() && CurrentConversationHolder.isOpen(conversationId)) {
+            Log.d(TAG, "handleMessagePayload: conversation $conversationId already open, suppressing notification")
             return
         }
+        Log.d(TAG, "handleMessagePayload: posting notification for conv=$conversationId sender=$senderName")
 
         sendChatNotification(
             title = senderName,

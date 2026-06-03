@@ -22,25 +22,31 @@ class FirestoreService @Inject constructor(
     private val conversationsCollection = firestore.collection("conversations")
 
     suspend fun createUserProfile(user: User): Result<Unit> {
+        Log.d("AUTHFLOW_FS", "createUserProfile: id=${user.id} username=${user.username}")
         return try {
             
             usersCollection.document(user.id).set(user).await()
+            Log.d("AUTHFLOW_FS", "createUserProfile: OK")
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("AUTHFLOW_FS", "createUserProfile: FAILED", e)
             Result.failure(e)
         }
     }
 
     suspend fun getUserProfile(uid: String): Result<User> {
+        Log.d("AUTHFLOW_FS", "getUserProfile: uid=$uid")
         return try {
             val snapshot = usersCollection.document(uid).get().await()
             val user = snapshot.toObject(User::class.java)
+            Log.d("AUTHFLOW_FS", "getUserProfile: exists=${snapshot.exists()} parsed=${user != null}")
             if (user != null) {
                 Result.success(user)
             } else {
                 Result.failure(Exception("User profile not found"))
             }
         } catch (e: Exception) {
+            Log.e("AUTHFLOW_FS", "getUserProfile: FAILED", e)
             Result.failure(e)
         }
     }
@@ -61,6 +67,18 @@ class FirestoreService @Inject constructor(
             usersCollection.document(uid).update(updates).await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteFcmToken(uid: String): Result<Unit> {
+        return try {
+            usersCollection.document(uid)
+                .update("fcmToken", com.google.firebase.firestore.FieldValue.delete())
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w("AUTHFLOW_FS", "deleteFcmToken failed", e)
             Result.failure(e)
         }
     }
