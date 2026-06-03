@@ -42,14 +42,18 @@ class AuthViewModel @Inject constructor(
     
     private var pendingUsername: String? = null
 
+    private var pendingIsRegister: Boolean = false
+
     init {
+        Log.d(TAG, "init: isAuthenticated=${firebaseAuthService.isAuthenticated()}")
         observeAuthStatus()
     }
 
     override fun handleIntent(intent: AuthIntent) {
+        Log.d(TAG, "handleIntent: ${intent::class.simpleName}")
         when (intent) {
             is AuthIntent.SendVerificationCode ->
-                sendVerificationCode(intent.activity, intent.phoneNumber, intent.username)
+                sendVerificationCode(intent.activity, intent.phoneNumber, intent.username, intent.isRegister)
             is AuthIntent.VerifyOtpAndLogin -> verifyOtpAndLogin(intent.otpCode)
             is AuthIntent.VerifyOtpAndLink -> verifyOtpAndLink(intent.otpCode)
             AuthIntent.Logout -> logout()
@@ -74,23 +78,34 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun sendVerificationCode(activity: Activity, phoneNumber: String, username: String?) {
+    private fun sendVerificationCode(
+        activity: Activity,
+        phoneNumber: String,
+        username: String?,
+        isRegister: Boolean,
+    ) {
+        Log.d(TAG, "sendVerificationCode: phone='$phoneNumber' username='$username' isRegister=$isRegister")
         pendingUsername = username
+        pendingIsRegister = isRegister
         setState { copy(isLoading = true, error = null, codeSent = false) }
 
         viewModelScope.launch {
             val result = firebaseAuthService.sendVerificationCode(phoneNumber, activity)
+            Log.d(TAG, "sendVerificationCode: result isSuccess=${result.isSuccess}")
 
             if (result.isSuccess) {
                 when (val verifyResult = result.getOrThrow()) {
                     is VerificationResult.CodeSent -> {
+                        Log.d(TAG, "sendVerificationCode: CodeSent verId=${verifyResult.verificationId}")
                         setState { copy(isLoading = false, codeSent = true) }
                     }
                     is VerificationResult.AutoVerified -> {
+                        Log.d(TAG, "sendVerificationCode: AutoVerified -> signInWithPhone")
                         signInWithPhone(verifyResult.credential)
                     }
                 }
             } else {
+                Log.e(TAG, "sendVerificationCode: FAILED", result.exceptionOrNull())
                 val errorMsg: UiText = result.exceptionOrNull()?.message?.toUiText()
                     ?: UiText.StringResource(R.string.auth_error_verification_failed)
                 setState { copy(isLoading = false, error = errorMsg) }
@@ -99,11 +114,14 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun verifyOtpAndLogin(otpCode: String) {
+        Log.d(TAG, "verifyOtpAndLogin: otp='$otpCode'")
         viewModelScope.launch {
             val credentialResult = firebaseAuthService.verifyCode(otpCode)
+            Log.d(TAG, "verifyOtpAndLogin: verifyCode isSuccess=${credentialResult.isSuccess}")
             if (credentialResult.isSuccess) {
                 signInWithPhone(credentialResult.getOrThrow())
             } else {
+                Log.e(TAG, "verifyOtpAndLogin: invalid code", credentialResult.exceptionOrNull())
                 setState { copy(error = UiText.StringResource(R.string.auth_error_invalid_code)) }
             }
         }
@@ -121,12 +139,17 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun signInWithPhone(credential: PhoneAuthCredential) {
+        Log.d(TAG, "signInWithPhone: start, pendingUsername='$pendingUsername' isRegister=$pendingIsRegister")
         viewModelScope.launch {
             setState { copy(isLoading = true) }
-            val result = loginWithPhoneNumberUseCase(credential, pendingUsername)
+            val result = loginWithPhoneNumberUseCase(credential, pendingUsername, pendingIsRegister)
+            Log.d(TAG, "signInWithPhone: loginWithPhoneNumberUseCase -> ${result::class.simpleName}")
             pendingUsername = null
             when (result) {
                 is Resource.Success -> {
+                    Log.d(TAG, "signInWithPhone: SUCCESS user=${result.data}")
+
+                    presenceManager.goOnline(viewModelScope)
                     syncFcmTokenForCurrentUser()
                     setState {
                         copy(
@@ -135,13 +158,16 @@ class AuthViewModel @Inject constructor(
                             error = null,
                         )
                     }
+                    Log.d(TAG, "signInWithPhone: emitting AuthSucceeded")
                     emitEffect(AuthEffect.AuthSucceeded)
                 }
-                is Resource.Error -> setState {
-                    copy(isLoading = false, error = result.message.toUiText())
+                is Resource.Error -> {
+                    Log.e(TAG, "signInWithPhone: ERROR ${result.message}")
+                    setState { copy(isLoading = false, error = result.message.toUiText()) }
                 }
-                is Resource.Failure -> setState {
-                    copy(isLoading = false, error = result.exception.message?.toUiText())
+                is Resource.Failure -> {
+                    Log.e(TAG, "signInWithPhone: FAILURE", result.exception)
+                    setState { copy(isLoading = false, error = result.exception.message?.toUiText()) }
                 }
                 is Resource.Loading -> {}
             }
@@ -149,14 +175,21 @@ class AuthViewModel @Inject constructor(
     }
 
     private suspend fun syncFcmTokenForCurrentUser() {
-        val uid = firebaseAuthService.getCurrentUserId() ?: return
+        val uid = firebaseAuthService.getCurrentUserId()
+        Log.d(TAG, "syncFcmTokenForCurrentUser: uid=$uid")
+        if (uid == null) return
         firebaseMessagingManager.getFcmToken()
             .onSuccess { token ->
+                Log.d(TAG, "syncFcmTokenForCurrentUser: got token, updating Firestore")
                 firestoreService.updateFcmToken(uid, token)
             }
             .onFailure { e ->
-                Log.w("AuthViewModel", "FCM token sync skipped: ${e.message}")
+                Log.w(TAG, "FCM token sync skipped: ${e.message}", e)
             }
+    }
+
+    private companion object {
+        const val TAG = "AUTHFLOW_VM"
     }
 
     private fun linkPhone(credential: PhoneAuthCredential) {

@@ -8,6 +8,7 @@ sealed interface AuthIntent : UiIntent {
         val activity: Activity,
         val phoneNumber: String,
         val username: String?,
+        val isRegister: Boolean,
     ) : AuthIntent
 
     data class VerifyOtpAndLogin(val otpCode: String) : AuthIntent

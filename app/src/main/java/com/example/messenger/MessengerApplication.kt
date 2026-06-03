@@ -1,6 +1,7 @@
 package com.example.messenger
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
@@ -32,6 +33,12 @@ class MessengerApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("APP_CRASH", "Uncaught exception on thread '${thread.name}'", throwable)
+            previous?.uncaughtException(thread, throwable)
+        }
 
         runCatching { deleteDatabase("messenger_database.db") }
         NotificationChannels.ensureCreated(this)
