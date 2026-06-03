@@ -308,7 +308,8 @@ class CallForegroundService : Service() {
         }
 
         override fun onRemoteUserLeft(uid: Int) {
-            handleEnd()
+
+            stopSelfClean()
         }
 
         override fun onError(code: Int) {
