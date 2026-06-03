@@ -19,14 +19,30 @@ import androidx.compose.runtime.remember
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
+import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.navigation.Screens
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var presenceManager: PresenceManager
+
+    private val idleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var idleJob: Job? = null
+    private var isIdle = false
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -59,6 +75,42 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingIntent.value = intent
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (isIdle) {
+            isIdle = false
+            presenceManager.goOnline(idleScope)
+        }
+        scheduleIdleTimer()
+    }
+
+    private fun scheduleIdleTimer() {
+        idleJob?.cancel()
+        idleJob = idleScope.launch {
+            delay(IDLE_TIMEOUT_MS)
+            isIdle = true
+            presenceManager.goIdleAway(idleScope)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        
+        isIdle = false
+        scheduleIdleTimer()
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        idleJob?.cancel()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        idleScope.cancel()
     }
 
     private fun handleDeepLink(intent: Intent, navigate: (String) -> Unit) {
@@ -125,5 +177,6 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_OPEN_CONVERSATION_ID = "extra_open_conversation_id"
         const val EXTRA_PARTNER_ID = "extra_partner_id"
         const val EXTRA_PARTNER_NAME = "extra_partner_name"
+        private const val IDLE_TIMEOUT_MS = 45_000L
     }
 }

@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.Flow
 interface IPresenceService {
     fun observePresence(userId: String): Flow<UserPresence>
     fun observeMultiplePresence(userIds: List<String>): Flow<Map<String, UserPresence>>
-    suspend fun setMyPresence(state: PresenceState)
+
+    suspend fun setMyPresence(state: PresenceState): Boolean
     suspend fun setupOnDisconnect()
     suspend fun removePresence()
 }
