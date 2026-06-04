@@ -21,6 +21,8 @@ data class ObxMessage(
     var status: String = MessageStatus.SENT.name,
     var isRead: Boolean = false,
     var deleted: Boolean = false,
+
+    var type: String = com.example.messenger.domain.model.Message.TYPE_TEXT,
 )
 
 @Entity

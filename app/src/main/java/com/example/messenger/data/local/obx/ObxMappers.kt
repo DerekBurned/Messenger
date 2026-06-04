@@ -15,6 +15,7 @@ fun ObxMessage.toDomain(): Message = Message(
     status = parseStatus(status),
     isRead = isRead,
     deleted = deleted,
+    type = type.ifBlank { Message.TYPE_TEXT },
 )
 
 fun Message.toObx(): ObxMessage = ObxMessage(
@@ -26,6 +27,7 @@ fun Message.toObx(): ObxMessage = ObxMessage(
     status = status.name,
     isRead = isRead,
     deleted = deleted,
+    type = type,
 )
 
 private fun parseStatus(value: String): MessageStatus {

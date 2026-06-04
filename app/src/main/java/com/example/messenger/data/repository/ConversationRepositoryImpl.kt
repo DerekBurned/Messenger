@@ -73,8 +73,17 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override suspend fun createConversation(participantIds: List<String>): Result<Conversation> {
         return try {
-            val existingResult = firestoreService.findExistingConversation(participantIds)
-            existingResult.getOrNull()?.let { existing ->
+            val currentUserId = authService.getCurrentUserId()
+            if (currentUserId.isNullOrBlank()) {
+                return Result.failure(
+                    IllegalStateException("Cannot create conversation: no signed-in user"),
+                )
+            }
+
+            val existing = firestoreService
+                .findExistingConversation(participantIds, currentUserId)
+                .getOrElse { return Result.failure(it) }
+            if (existing != null) {
                 upsert(existing)
                 return Result.success(existing)
             }
