@@ -39,12 +39,14 @@ import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.state.CallUiState
+import com.example.messenger.presentation.viewmodel.CallExit
 import com.example.messenger.presentation.viewmodel.CallViewModel
 
 @Composable
 fun CallScreen(
     viewModel: CallViewModel = hiltViewModel(),
     onCallEnded: () -> Unit = {},
+    onOpenChat: (conversationId: String, partnerId: String, partnerName: String) -> Unit = { _, _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -83,7 +85,12 @@ fun CallScreen(
     }
 
     LaunchedEffect(viewModel) {
-        viewModel.callEnded.collect { onCallEnded() }
+        viewModel.callExit.collect { exit ->
+            when (exit) {
+                CallExit.Pop -> onCallEnded()
+                is CallExit.OpenChat -> onOpenChat(exit.conversationId, exit.partnerId, exit.partnerName)
+            }
+        }
     }
 
     CallScreenContent(

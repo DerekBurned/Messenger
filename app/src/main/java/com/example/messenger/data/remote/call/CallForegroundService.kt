@@ -23,6 +23,9 @@ import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.domain.service.CallEventListener
 import com.example.messenger.domain.service.ICallService
 import com.example.messenger.domain.service.ICallSignalingService
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.example.messenger.presentation.IncomingCallActivity
 import com.example.messenger.presentation.MainActivity
 import com.example.messenger.presentation.notification.NotificationChannels
 import dagger.hilt.android.AndroidEntryPoint
@@ -145,7 +148,11 @@ class CallForegroundService : Service() {
             isIncoming = true,
         )
         ActiveCallHolder.set(call)
-        if (!startForegroundCompat(buildRingingNotification(call))) return
+
+        val notification =
+            if (isAppInForeground()) buildSilentIncomingNotification(call)
+            else buildRingingNotification(call)
+        if (!startForegroundCompat(notification)) return
 
         scope.launch {
             runCatching {
@@ -477,9 +484,10 @@ class CallForegroundService : Service() {
     }
 
     private fun buildRingingNotification(call: ActiveCallHolder.ActiveCall): Notification {
-        val acceptPi = actionPendingIntent(ACTION_ACCEPT, REQ_ACCEPT)
+
+        val acceptPi = incomingCallActivityPendingIntent(accept = true)
         val declinePi = actionPendingIntent(ACTION_DECLINE, REQ_DECLINE)
-        val fullScreenPi = openAppPendingIntent()
+        val openPi = incomingCallActivityPendingIntent(accept = false)
         val builder = NotificationCompat.Builder(this, NotificationChannels.INCOMING_CALL)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
@@ -487,8 +495,8 @@ class CallForegroundService : Service() {
             .setContentText("Incoming voice call")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setFullScreenIntent(fullScreenPi, true)
-            .setContentIntent(fullScreenPi)
+            .setFullScreenIntent(openPi, true)
+            .setContentIntent(openPi)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val person = Person.Builder().setName(call.partnerName.ifBlank { "Caller" }).build()
             builder.setStyle(
@@ -500,6 +508,22 @@ class CallForegroundService : Service() {
         }
         return builder.build()
     }
+
+    private fun buildSilentIncomingNotification(call: ActiveCallHolder.ActiveCall): Notification {
+        return NotificationCompat.Builder(this, NotificationChannels.ONGOING_CALL)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentTitle(call.partnerName.ifBlank { "Incoming call" })
+            .setContentText("Incoming voice call")
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(incomingCallActivityPendingIntent(accept = false))
+            .build()
+    }
+
+    private fun isAppInForeground(): Boolean =
+        ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
     private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent {
         val intent = Intent(this, CallForegroundService::class.java).setAction(action)
@@ -518,6 +542,19 @@ class CallForegroundService : Service() {
         return PendingIntent.getActivity(
             this,
             REQ_OPEN_APP,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun incomingCallActivityPendingIntent(accept: Boolean): PendingIntent {
+        val intent = Intent(this, IncomingCallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            if (accept) putExtra(MainActivity.EXTRA_ACCEPT_CALL, true)
+        }
+        return PendingIntent.getActivity(
+            this,
+            if (accept) REQ_ACCEPT else REQ_OPEN_APP,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
