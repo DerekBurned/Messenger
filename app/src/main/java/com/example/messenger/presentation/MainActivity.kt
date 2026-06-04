@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.call.ActiveCallHolder
+import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.navigation.Screens
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
@@ -117,7 +118,18 @@ class MainActivity : ComponentActivity() {
         when {
             intent.getBooleanExtra(EXTRA_OPEN_INCOMING_CALL, false) -> {
                 val call = ActiveCallHolder.snapshot() ?: return
+                val accept = intent.getBooleanExtra(EXTRA_ACCEPT_CALL, false)
                 intent.removeExtra(EXTRA_OPEN_INCOMING_CALL)
+                intent.removeExtra(EXTRA_ACCEPT_CALL)
+
+                if (accept) {
+                    runCatching {
+                        startService(
+                            Intent(this, CallForegroundService::class.java)
+                                .setAction(CallForegroundService.ACTION_ACCEPT),
+                        )
+                    }
+                }
                 navigate(
                     Screens.CallScreen.createRoute(
                         partnerId = call.callerId,
@@ -174,6 +186,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_INCOMING_CALL = "extra_open_incoming_call"
+        const val EXTRA_ACCEPT_CALL = "extra_accept_call"
         const val EXTRA_OPEN_CONVERSATION_ID = "extra_open_conversation_id"
         const val EXTRA_PARTNER_ID = "extra_partner_id"
         const val EXTRA_PARTNER_NAME = "extra_partner_name"

@@ -1,12 +1,20 @@
  package com.example.messenger.presentation.navigation
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -17,7 +25,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.messenger.data.remote.call.ActiveCallHolder
+import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.components.ActiveCallBar
+import com.example.messenger.presentation.components.IncomingCallBar
 import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
@@ -69,21 +79,26 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val currentRoute = currentBackStackEntry?.destination?.route.orEmpty()
     val showCallBar = !currentRoute.startsWith("call_screen") &&
         currentRoute != Screens.AuthScreen.route
+    val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    fun openActiveCall(accept: Boolean) {
+        val active = ActiveCallHolder.snapshot() ?: return
+        if (accept) sendCallAction(context, CallForegroundService.ACTION_ACCEPT)
+        navController.navigate(
+            Screens.CallScreen.createRoute(
+                partnerId = active.callerId.ifBlank { "active" },
+                partnerName = active.partnerName.ifBlank { "Call" },
+                partnerPhone = active.partnerPhone.ifBlank { "_" },
+            ),
+        ) {
+            launchSingleTop = true
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         if (showCallBar) {
-            ActiveCallBar(onClick = {
-                val active = ActiveCallHolder.snapshot() ?: return@ActiveCallBar
-                navController.navigate(
-                    Screens.CallScreen.createRoute(
-                        partnerId = "active",
-                        partnerName = active.partnerName.ifBlank { "Call" },
-                        partnerPhone = active.partnerPhone.ifBlank { "_" },
-                    ),
-                ) {
-                    launchSingleTop = true
-                }
-            })
+            ActiveCallBar(onClick = { openActiveCall(accept = false) })
         }
         NavHost(
         navController = navController,
@@ -237,7 +252,16 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 navArgument("partnerPhone") { type = NavType.StringType },
             )
         ) {
-            CallScreen(onCallEnded = { navController.popBackStack() })
+            CallScreen(
+                onCallEnded = { navController.popBackStack() },
+                onOpenChat = { conversationId, partnerId, partnerName ->
+                    navController.navigate(
+                        Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName),
+                    ) {
+                        popUpTo(Screens.CallScreen.route) { inclusive = true }
+                    }
+                },
+            )
         }
 
         composable(
@@ -292,5 +316,22 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
 
         }
+        }
+        if (showCallBar) {
+            IncomingCallBar(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 56.dp),
+                onAccept = { openActiveCall(accept = true) },
+                onDecline = { sendCallAction(context, CallForegroundService.ACTION_DECLINE) },
+                onOpen = { openActiveCall(accept = false) },
+            )
+        }
     }
+}
+
+private fun sendCallAction(context: Context, action: String) {
+    val intent = Intent(context, CallForegroundService::class.java).setAction(action)
+    runCatching { context.startService(intent) }
 }

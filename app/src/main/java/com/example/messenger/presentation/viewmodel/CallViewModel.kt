@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -24,21 +25,34 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+sealed interface CallExit {
+    data object Pop : CallExit
+    data class OpenChat(
+        val conversationId: String,
+        val partnerId: String,
+        val partnerName: String,
+    ) : CallExit
+}
+
 @HiltViewModel
 class CallViewModel @Inject constructor(
     application: Application,
     private val auth: FirebaseAuth,
+    private val conversationRepository: IConversationRepository,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
-    private val _callEnded = Channel<Unit>(Channel.BUFFERED)
-    val callEnded = _callEnded.receiveAsFlow()
+    private val _callExit = Channel<CallExit>(Channel.BUFFERED)
+    val callExit = _callExit.receiveAsFlow()
 
     private val context: Context get() = getApplication()
     private var hadActiveCall = false
+
+    private var lastCall: ActiveCallHolder.ActiveCall? = null
+    private var wasAnswered = false
 
     private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
     private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
@@ -65,11 +79,15 @@ class CallViewModel @Inject constructor(
                     _uiState.value = CallUiState()
                     if (hadActiveCall) {
                         hadActiveCall = false
-                        _callEnded.trySend(Unit)
+                        routeExit(lastCall, wasAnswered)
+                        lastCall = null
+                        wasAnswered = false
                     }
                     return@collectLatest
                 }
                 hadActiveCall = true
+                lastCall = active
+                if (active.isActive) wasAnswered = true
                 _uiState.value = CallUiState(
                     partnerName = active.partnerName,
                     partnerPhone = active.partnerPhone,
@@ -83,6 +101,25 @@ class CallViewModel @Inject constructor(
                     connectionState = active.connectionState,
                     error = active.error?.toUiText(),
                 )
+            }
+        }
+    }
+
+    private fun routeExit(call: ActiveCallHolder.ActiveCall?, answered: Boolean) {
+        val myUid = auth.currentUser?.uid.orEmpty()
+        val partnerId = call?.callerId.orEmpty()
+        if (call == null || !call.wasIncoming || !answered || myUid.isBlank() || partnerId.isBlank()) {
+            _callExit.trySend(CallExit.Pop)
+            return
+        }
+        viewModelScope.launch {
+            val conversationId = runCatching {
+                conversationRepository.createConversation(listOf(myUid, partnerId)).getOrNull()?.id
+            }.getOrNull()
+            if (conversationId.isNullOrBlank()) {
+                _callExit.trySend(CallExit.Pop)
+            } else {
+                _callExit.trySend(CallExit.OpenChat(conversationId, partnerId, call.partnerName))
             }
         }
     }
