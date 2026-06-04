@@ -26,4 +26,6 @@ data class ChatUiState(
     
     val firstUnreadMessageId: String? = null,
     val unreadAnchorResolved: Boolean = false,
+    
+    val highlightedMessageId: String? = null,
 ) : UiState

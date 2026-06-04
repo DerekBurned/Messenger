@@ -1,5 +1,6 @@
 package com.example.messenger.presentation.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -11,10 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,27 +40,36 @@ data class MessageAction(
 @Composable
 fun MessageWithContextMenu(
     message: ChatMessage,
+    highlighted: Boolean = false,
     onCopy: () -> Unit = {},
     onReply: () -> Unit = {},
+    onReplyClick: () -> Unit = {},
     onEdit: () -> Unit = {},
     onPin: () -> Unit = {},
     onForward: () -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    
+    val highlightColor by animateColorAsState(
+        targetValue = if (highlighted) Color(0x33FFC107) else Color.Transparent,
+        label = "messageHighlight",
+    )
 
     Box {
         
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(highlightColor)
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onLongPress = {
                             showMenu = true
                         }
                     )
-                },
+                }
+                .padding(vertical = 2.dp),
             horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
         ) {
             Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
@@ -76,11 +89,44 @@ fun MessageWithContextMenu(
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
-                    Text(
-                        text = message.text,
-                        color = if (message.isMe) Color.White else BubbleReceivedText,
-                        fontSize = 15.sp
-                    )
+                    Column {
+                        
+                        if (message.replyToMessageId != null) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(bottom = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (message.isMe) Color.White.copy(alpha = 0.18f)
+                                        else Color.Black.copy(alpha = 0.06f),
+                                    )
+                                    .clickable(onClick = onReplyClick)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = message.replyToSenderLabel ?: "Reply",
+                                    color = if (message.isMe) Color.White else Color(0xFF1976D2),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = message.replyToText.orEmpty(),
+                                    color = if (message.isMe) Color.White.copy(alpha = 0.85f)
+                                    else BubbleReceivedText.copy(alpha = 0.8f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Text(
+                            text = message.text,
+                            color = if (message.isMe) Color.White else BubbleReceivedText,
+                            fontSize = 15.sp
+                        )
+                    }
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

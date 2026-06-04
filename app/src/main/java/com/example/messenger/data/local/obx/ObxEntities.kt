@@ -23,6 +23,10 @@ data class ObxMessage(
     var deleted: Boolean = false,
 
     var type: String = com.example.messenger.domain.model.Message.TYPE_TEXT,
+    
+    var replyToMessageId: String? = null,
+    var replyToText: String? = null,
+    var replyToSenderId: String? = null,
 )
 
 @Entity

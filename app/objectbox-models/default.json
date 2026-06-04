@@ -66,7 +66,7 @@
     },
     {
       "id": "3:4341758104649949526",
-      "lastPropertyId": "10:4953861061628884905",
+      "lastPropertyId": "13:8780404970186983134",
       "name": "ObxMessage",
       "properties": [
         {
@@ -122,6 +122,21 @@
         {
           "id": "10:4953861061628884905",
           "name": "type",
+          "type": 9
+        },
+        {
+          "id": "11:8716276272383200805",
+          "name": "replyToMessageId",
+          "type": 9
+        },
+        {
+          "id": "12:2502606579759390104",
+          "name": "replyToText",
+          "type": 9
+        },
+        {
+          "id": "13:8780404970186983134",
+          "name": "replyToSenderId",
           "type": 9
         }
       ],

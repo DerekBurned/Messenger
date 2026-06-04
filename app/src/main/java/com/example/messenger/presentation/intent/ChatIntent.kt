@@ -10,6 +10,8 @@ sealed interface ChatIntent : UiIntent {
     data object LoadOlderMessages : ChatIntent
     data class DeleteMessage(val message: Message) : ChatIntent
     data class SetReplyTo(val message: Message) : ChatIntent
+    
+    data class JumpToMessage(val messageId: String) : ChatIntent
     data class Forward(val message: Message) : ChatIntent
     data object ClearReply : ChatIntent
     data object ClearForward : ChatIntent

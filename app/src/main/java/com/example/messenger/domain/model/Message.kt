@@ -11,6 +11,12 @@ data class Message(
     val deleted: Boolean = false,
     
     val type: String = TYPE_TEXT,
+    
+    val replyToMessageId: String? = null,
+    
+    val replyToText: String? = null,
+    
+    val replyToSenderId: String? = null,
 ) {
     companion object {
         const val TYPE_TEXT = "TEXT"

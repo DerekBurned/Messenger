@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
@@ -113,13 +114,8 @@ fun ChatScreenWithNav(
         },
         onSendClick = {
             if (messageText.isNotBlank()) {
-                val textToSend = if (uiState.replyingTo != null) {
-                    "> ${uiState.replyingTo!!.text}\n\n$messageText"
-                } else {
-                    messageText
-                }
-                viewModel.dispatch(ChatIntent.SendMessage(textToSend))
-                viewModel.dispatch(ChatIntent.ClearReply)
+                
+                viewModel.dispatch(ChatIntent.SendMessage(messageText))
                 messageText = ""
             }
         },
@@ -130,6 +126,7 @@ fun ChatScreenWithNav(
             Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
         },
         onReply = { message -> viewModel.dispatch(ChatIntent.SetReplyTo(message)) },
+        onReplyClick = { messageId -> viewModel.dispatch(ChatIntent.JumpToMessage(messageId)) },
         onDelete = { message ->
             if (message.senderId == uiState.currentUserId) {
                 viewModel.dispatch(ChatIntent.DeleteMessage(message))
@@ -156,6 +153,7 @@ private fun ChatScreenContent(
     onIntercultorProfileClick: () -> Unit,
     onCopy: (String) -> Unit,
     onReply: (com.example.messenger.domain.model.Message) -> Unit,
+    onReplyClick: (messageId: String) -> Unit,
     onDelete: (com.example.messenger.domain.model.Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
@@ -283,6 +281,12 @@ private fun ChatScreenContent(
                 listState.scrollToItem(rows.size - 1)
             }
             didInitialScroll = true
+        }
+
+        LaunchedEffect(uiState.highlightedMessageId, rows) {
+            val id = uiState.highlightedMessageId ?: return@LaunchedEffect
+            val index = rows.indexOfFirst { it is ChatRow.MessageRow && it.message.id == id }
+            if (index >= 0) listState.animateScrollToItem(index)
         }
 
         LaunchedEffect(uiState.messages, didInitialScroll) {
@@ -424,18 +428,28 @@ private fun ChatScreenContent(
                                         val originalMessage = row.message
                                         if (originalMessage.type == Message.TYPE_MISSED_CALL) {
 
-                                            CallEventLine(text = originalMessage.text)
+                                            MissedCallCard(onCall = onCallClick)
                                         } else {
                                             val chatMessage = ChatMessage(
                                                 text = originalMessage.text,
                                                 isMe = originalMessage.senderId == uiState.currentUserId,
                                                 status = originalMessage.status,
                                                 timestamp = originalMessage.timestamp,
+                                                replyToMessageId = originalMessage.replyToMessageId,
+                                                replyToText = originalMessage.replyToText,
+                                                replyToSenderLabel = originalMessage.replyToMessageId?.let {
+                                                    if (originalMessage.replyToSenderId == uiState.currentUserId) "You"
+                                                    else uiState.partnerUsername.ifBlank { "User" }
+                                                },
                                             )
                                             MessageWithContextMenu(
                                                 message = chatMessage,
+                                                highlighted = originalMessage.id == uiState.highlightedMessageId,
                                                 onCopy = { onCopy(originalMessage.text) },
                                                 onReply = { onReply(originalMessage) },
+                                                onReplyClick = {
+                                                    originalMessage.replyToMessageId?.let(onReplyClick)
+                                                },
                                                 onEdit = {  },
                                                 onPin = {  },
                                                 onForward = {  },
@@ -624,7 +638,10 @@ data class ChatMessage(
     val text: String,
     val isMe: Boolean,
     val status: MessageStatus = MessageStatus.SENT,
-    val timestamp: Long = 0L
+    val timestamp: Long = 0L,
+    val replyToMessageId: String? = null,
+    val replyToText: String? = null,
+    val replyToSenderLabel: String? = null,
 )
 
 private sealed interface ChatRow {
@@ -653,21 +670,44 @@ private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CallEventLine(text: String, modifier: Modifier = Modifier) {
+private fun MissedCallCard(onCall: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = text,
-            color = Color.Gray,
-            fontSize = 12.sp,
-            modifier = Modifier
-                .background(Color(0x14000000), RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-        )
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0x14000000),
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CallMissed,
+                    contentDescription = null,
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(text = "Missed call", color = Color.DarkGray, fontSize = 13.sp)
+                Spacer(Modifier.width(12.dp))
+                FilledTonalButton(
+                    onClick = onCall,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Call,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(text = "Call")
+                }
+            }
+        }
     }
 }
 
@@ -736,6 +776,7 @@ private fun ChatScreenPreview() {
             onCallClick = {},
             onCopy = {},
             onReply = {},
+            onReplyClick = {},
             onDelete = {},
             onClearReply = {},
             onAttachmentClick = {},

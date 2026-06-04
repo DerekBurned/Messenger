@@ -29,8 +29,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -54,6 +56,7 @@ class ChatViewModel @Inject constructor(
 
     private var typingJob: Job? = null
     private var typingClearJob: Job? = null
+    private var highlightClearJob: Job? = null
 
     private val markedAsReadIds = mutableSetOf<String>()
 
@@ -63,6 +66,10 @@ class ChatViewModel @Inject constructor(
         const val TYPING_DEBOUNCE_MS = 500L
         const val TYPING_TTL_MS = 5000L
         const val LAST_SEEN_TICK_MS = 60_000L
+        const val HIGHLIGHT_MS = 2500L
+
+        const val MAX_JUMP_PAGES = 50
+        const val JUMP_PAGE_TIMEOUT_MS = 2000L
     }
 
     init {
@@ -93,6 +100,7 @@ class ChatViewModel @Inject constructor(
             is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
             is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
             ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
+            is ChatIntent.JumpToMessage -> jumpToMessage(intent.messageId)
             is ChatIntent.Forward -> setState { copy(forwardingMessage = intent.message) }
             ChatIntent.ClearForward -> setState { copy(forwardingMessage = null) }
             ChatIntent.ClearError -> setState { copy(error = null) }
@@ -103,17 +111,51 @@ class ChatViewModel @Inject constructor(
         if (currentState.isLoadingOlder || !currentState.hasMoreOlder) return
         viewModelScope.launch {
             setState { copy(isLoadingOlder = true) }
-            val result = loadOlderMessagesUseCase(conversationId)
-            val fetched = result.getOrDefault(0)
-            if (result.isFailure) {
-                Log.w(TAG, "Loading older messages failed", result.exceptionOrNull())
+            loadOlderPage()
+            setState { copy(isLoadingOlder = false) }
+        }
+    }
+
+    private suspend fun loadOlderPage(): Int {
+        val result = loadOlderMessagesUseCase(conversationId)
+        val fetched = result.getOrDefault(0)
+        if (result.isFailure) {
+            Log.w(TAG, "Loading older messages failed", result.exceptionOrNull())
+        }
+        setState {
+            copy(hasMoreOlder = if (result.isSuccess) fetched >= PAGE_SIZE else hasMoreOlder)
+        }
+        return fetched
+    }
+
+    private fun jumpToMessage(messageId: String) {
+        viewModelScope.launch {
+            var guard = 0
+            while (currentState.messages.none { it.id == messageId } &&
+                currentState.hasMoreOlder &&
+                guard < MAX_JUMP_PAGES
+            ) {
+                guard++
+                val sizeBefore = currentState.messages.size
+                loadOlderPage()
+                
+                withTimeoutOrNull(JUMP_PAGE_TIMEOUT_MS) {
+                    state.first { s ->
+                        s.messages.size > sizeBefore || s.messages.any { it.id == messageId }
+                    }
+                }
+                if (currentState.messages.size == sizeBefore) break 
             }
 
-            setState {
-                copy(
-                    isLoadingOlder = false,
-                    hasMoreOlder = if (result.isSuccess) fetched >= PAGE_SIZE else hasMoreOlder,
-                )
+            if (currentState.messages.any { it.id == messageId }) {
+                setState { copy(highlightedMessageId = messageId) }
+                highlightClearJob?.cancel()
+                highlightClearJob = viewModelScope.launch {
+                    delay(HIGHLIGHT_MS)
+                    setState { copy(highlightedMessageId = null) }
+                }
+            } else {
+                emitEffect(ChatEffect.ShowError("Original message not found".toUiText()))
             }
         }
     }
@@ -239,12 +281,14 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun sendMessage(text: String) {
+
+        val replyTo = currentState.replyingTo
         viewModelScope.launch {
             typingService.clearTyping(conversationId)
         }
         viewModelScope.launch {
-            setState { copy(isSending = true) }
-            sendMessageUseCase(conversationId, text).collect { resource ->
+            setState { copy(isSending = true, replyingTo = null) }
+            sendMessageUseCase(conversationId, text, replyTo).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {}
                     is Resource.Success -> setState { copy(isSending = false, error = null) }
