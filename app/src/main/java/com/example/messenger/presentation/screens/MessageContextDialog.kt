@@ -28,6 +28,7 @@ import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
 import com.example.messenger.presentation.screens.ui.theme.BubbleSent
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.util.DateUtils
 
 data class MessageAction(
@@ -90,35 +91,46 @@ fun MessageWithContextMenu(
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Column {
-                        
+
                         if (message.replyToMessageId != null) {
-                            Column(
+                            val accent = if (message.isMe) Color.White else PrimaryBlue
+                            Row(
                                 modifier = Modifier
                                     .padding(bottom = 6.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(
-                                        if (message.isMe) Color.White.copy(alpha = 0.18f)
-                                        else Color.Black.copy(alpha = 0.06f),
+                                        if (message.isMe) Color.White.copy(alpha = 0.15f)
+                                        else Color.Black.copy(alpha = 0.05f),
                                     )
                                     .clickable(onClick = onReplyClick)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .height(IntrinsicSize.Min)
+                                    .padding(end = 8.dp),
                             ) {
-                                Text(
-                                    text = message.replyToSenderLabel ?: "Reply",
-                                    color = if (message.isMe) Color.White else Color(0xFF1976D2),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .fillMaxHeight()
+                                        .background(accent),
                                 )
-                                Text(
-                                    text = message.replyToText.orEmpty(),
-                                    color = if (message.isMe) Color.White.copy(alpha = 0.85f)
-                                    else BubbleReceivedText.copy(alpha = 0.8f),
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Spacer(Modifier.width(8.dp))
+                                Column(modifier = Modifier.padding(vertical = 3.dp)) {
+                                    Text(
+                                        text = message.replyToSenderLabel ?: "Reply",
+                                        color = accent,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = message.replyToText.orEmpty(),
+                                        color = if (message.isMe) Color.White.copy(alpha = 0.85f)
+                                        else BubbleReceivedText.copy(alpha = 0.7f),
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                         Text(

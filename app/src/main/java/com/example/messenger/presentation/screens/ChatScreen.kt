@@ -428,7 +428,10 @@ private fun ChatScreenContent(
                                         val originalMessage = row.message
                                         if (originalMessage.type == Message.TYPE_MISSED_CALL) {
 
-                                            MissedCallCard(onCall = onCallClick)
+                                            MissedCallCard(
+                                                onCall = onCallClick,
+                                                timestamp = originalMessage.timestamp,
+                                            )
                                         } else {
                                             val chatMessage = ChatMessage(
                                                 text = originalMessage.text,
@@ -670,41 +673,57 @@ private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MissedCallCard(onCall: () -> Unit, modifier: Modifier = Modifier) {
+private fun MissedCallCard(onCall: () -> Unit, timestamp: Long, modifier: Modifier = Modifier) {
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center,
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.Start,
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0x14000000),
+            onClick = onCall,
+            shape = RoundedCornerShape(18.dp),
+            color = BubbleReceived,
+            shadowElevation = 1.dp,
         ) {
             Row(
-                modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Default.CallMissed,
                     contentDescription = null,
                     tint = Color(0xFFE53935),
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(22.dp),
                 )
-                Spacer(Modifier.width(8.dp))
-                Text(text = "Missed call", color = Color.DarkGray, fontSize = 13.sp)
-                Spacer(Modifier.width(12.dp))
-                FilledTonalButton(
-                    onClick = onCall,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Missed Call",
+                        color = BubbleReceivedText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                    )
+                    Text(
+                        text = "Tap to call back · ${DateUtils.formatMessageTime(timestamp)}",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color(0xFF34C759), CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Call,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        contentDescription = "Call back",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(6.dp))
-                    Text(text = "Call")
                 }
             }
         }
