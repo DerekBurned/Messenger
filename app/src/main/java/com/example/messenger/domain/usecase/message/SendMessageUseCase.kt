@@ -14,7 +14,11 @@ class SendMessageUseCase @Inject constructor(
     private val messageRepository: IMessageRepository,
     private val getCurrentUserUseCase: GetCurrentUserUseCase
 ) {
-    suspend operator fun invoke(conversationId: String, text: String): Flow<Resource<Unit>> = flow {
+    suspend operator fun invoke(
+        conversationId: String,
+        text: String,
+        replyTo: Message? = null,
+    ): Flow<Resource<Unit>> = flow {
         
        try {
             if (text.isBlank()) {
@@ -38,7 +42,10 @@ class SendMessageUseCase @Inject constructor(
                 senderId = currentUser.id,
                 text = text.trim(),
                 timestamp = System.currentTimeMillis(),
-                status = MessageStatus.SENDING
+                status = MessageStatus.SENDING,
+                replyToMessageId = replyTo?.id,
+                replyToText = replyTo?.text?.take(REPLY_SNIPPET_MAX),
+                replyToSenderId = replyTo?.senderId,
             )
            val result = messageRepository.sendMessage(message)
            result.fold(
@@ -52,5 +59,10 @@ class SendMessageUseCase @Inject constructor(
         }catch (e : Exception){
             emit(Resource.Error(e.message?: "Internal error occurred"))
         }
+    }
+
+    private companion object {
+        
+        const val REPLY_SNIPPET_MAX = 200
     }
 }
