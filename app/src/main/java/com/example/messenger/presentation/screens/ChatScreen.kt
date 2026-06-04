@@ -422,21 +422,26 @@ private fun ChatScreenContent(
                                     ChatRow.UnreadDivider -> UnreadMessagesDivider()
                                     is ChatRow.MessageRow -> {
                                         val originalMessage = row.message
-                                        val chatMessage = ChatMessage(
-                                            text = originalMessage.text,
-                                            isMe = originalMessage.senderId == uiState.currentUserId,
-                                            status = originalMessage.status,
-                                            timestamp = originalMessage.timestamp,
-                                        )
-                                        MessageWithContextMenu(
-                                            message = chatMessage,
-                                            onCopy = { onCopy(originalMessage.text) },
-                                            onReply = { onReply(originalMessage) },
-                                            onEdit = {  },
-                                            onPin = {  },
-                                            onForward = {  },
-                                            onDelete = { onDelete(originalMessage) }
-                                        )
+                                        if (originalMessage.type == Message.TYPE_MISSED_CALL) {
+
+                                            CallEventLine(text = originalMessage.text)
+                                        } else {
+                                            val chatMessage = ChatMessage(
+                                                text = originalMessage.text,
+                                                isMe = originalMessage.senderId == uiState.currentUserId,
+                                                status = originalMessage.status,
+                                                timestamp = originalMessage.timestamp,
+                                            )
+                                            MessageWithContextMenu(
+                                                message = chatMessage,
+                                                onCopy = { onCopy(originalMessage.text) },
+                                                onReply = { onReply(originalMessage) },
+                                                onEdit = {  },
+                                                onPin = {  },
+                                                onForward = {  },
+                                                onDelete = { onDelete(originalMessage) }
+                                            )
+                                        }
                                         Spacer(modifier = Modifier.height(8.dp))
                                     }
                                 }
@@ -644,6 +649,25 @@ private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
+    }
+}
+
+@Composable
+private fun CallEventLine(text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = text,
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .background(Color(0x14000000), RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+        )
     }
 }
 

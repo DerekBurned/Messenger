@@ -49,9 +49,11 @@ class MissedCallRecorder @Inject constructor(
         val message = Message(
             id = UUID.randomUUID().toString(),
             conversationId = conversation.id,
-            senderId = callerId,
+
+            senderId = calleeId,
             text = MISSED_CALL_TEXT,
             timestamp = now,
+            type = Message.TYPE_MISSED_CALL,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "record: failed to write missed-call message", it) }

@@ -210,10 +210,14 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    suspend fun findExistingConversation(participantIds: List<String>): Result<Conversation?> {
+    suspend fun findExistingConversation(
+        participantIds: List<String>,
+        currentUserId: String,
+    ): Result<Conversation?> {
         return try {
+
             val snapshot = conversationsCollection
-                .whereArrayContains("participantIds", participantIds[0])
+                .whereArrayContains("participantIds", currentUserId)
                 .get()
                 .await()
             val conversations = snapshot.toObjects(Conversation::class.java).mapIndexed { index, conversation ->
