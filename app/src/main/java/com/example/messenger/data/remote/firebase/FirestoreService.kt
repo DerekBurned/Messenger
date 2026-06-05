@@ -5,8 +5,10 @@ import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.User 
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -248,7 +250,7 @@ class FirestoreService @Inject constructor(
             val snapshot = conversationsCollection
                 .whereArrayContains("participantIds", userId)
                 .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
-                .get()
+                .get(Source.SERVER)
                 .await()
             val conversations = snapshot.toObjects(Conversation::class.java)
                 .mapIndexed { index, conversation ->
@@ -261,7 +263,7 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    fun getAllConversations(userId: String): Flow<List<Conversation>> = callbackFlow {
+    fun getAllConversations(userId: String): Flow<ConversationSync> = callbackFlow {
         val conversationsRef = conversationsCollection
             .whereArrayContains("participantIds", userId)
             .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
@@ -269,18 +271,18 @@ class FirestoreService @Inject constructor(
         val listener = conversationsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.w("FirestoreService", "Listen failed.", error)
-                close(error) 
+                close(error)
                 return@addSnapshotListener
             }
+            if (snapshot == null) return@addSnapshotListener
 
-            if (snapshot != null) {
-                val  conversations =
-                    snapshot.toObjects(Conversation::class.java).mapIndexed { index, conversation ->
-                        
-                        conversation.copy(id = snapshot.documents[index].id)
-                    }
-                trySend(conversations) 
+            val conversations = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Conversation::class.java)?.copy(id = doc.id)
             }
+            val removedIds = snapshot.documentChanges
+                .filter { it.type == DocumentChange.Type.REMOVED }
+                .map { it.document.id }
+            trySend(ConversationSync(conversations, removedIds, snapshot.metadata.isFromCache))
         }
         awaitClose { listener.remove() }
     }
