@@ -431,6 +431,7 @@ private fun ChatScreenContent(
                                             MissedCallCard(
                                                 onCall = onCallClick,
                                                 timestamp = originalMessage.timestamp,
+                                                isMe = originalMessage.senderId == uiState.currentUserId,
                                             )
                                         } else {
                                             val chatMessage = ChatMessage(
@@ -673,18 +674,25 @@ private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MissedCallCard(onCall: () -> Unit, timestamp: Long, modifier: Modifier = Modifier) {
+private fun MissedCallCard(
+    onCall: () -> Unit,
+    timestamp: Long,
+    isMe: Boolean,
+    modifier: Modifier = Modifier,
+) {
 
+    val titleColor = if (isMe) Color.White else BubbleReceivedText
+    val subtitleColor = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.Start,
+        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
     ) {
         Surface(
             onClick = onCall,
             shape = RoundedCornerShape(18.dp),
-            color = BubbleReceived,
+            color = if (isMe) BubbleSent else BubbleReceived,
             shadowElevation = 1.dp,
         ) {
             Row(
@@ -701,13 +709,13 @@ private fun MissedCallCard(onCall: () -> Unit, timestamp: Long, modifier: Modifi
                 Column {
                     Text(
                         text = "Missed Call",
-                        color = BubbleReceivedText,
+                        color = titleColor,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
                     )
                     Text(
                         text = "Tap to call back · ${DateUtils.formatMessageTime(timestamp)}",
-                        color = Color.Gray,
+                        color = subtitleColor,
                         fontSize = 12.sp,
                     )
                 }
