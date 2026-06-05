@@ -59,6 +59,10 @@ class CallForegroundService : Service() {
     private var ringbackTone: ToneGenerator? = null
     
     private var ringingStarted: Boolean = false
+    
+    private var declinedByMe: Boolean = false
+    
+    private var missRecorded: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -159,6 +163,8 @@ class CallForegroundService : Service() {
                 signalingService.ackRinging(call.callerId, call.callId, call.calleeId)
             }.onFailure { Log.w(TAG, "Failed to write ringing ack", it) }
         }
+        declinedByMe = false
+        missRecorded = false
         observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
         startRingTimeout(call)
     }
@@ -180,6 +186,7 @@ class CallForegroundService : Service() {
     }
 
     private fun handleDecline() {
+        declinedByMe = true
         terminate(CallStatus.DECLINED)
     }
 
@@ -247,10 +254,31 @@ class CallForegroundService : Service() {
                             refreshOngoingNotification()
                         }
                     }
-                    CallStatus.DECLINED, CallStatus.ENDED -> stopSelfClean()
+
+                    CallStatus.ENDED -> recordMissedCallThenStop()
+                    CallStatus.DECLINED -> stopSelfClean()
                     CallStatus.RINGING, null -> Unit
                 }
             }
+        }
+    }
+
+    private fun recordMissedCallThenStop() {
+        val call = ActiveCallHolder.snapshot()
+        if (call == null || !call.wasIncoming || call.isActive || declinedByMe || missRecorded) {
+            stopSelfClean()
+            return
+        }
+        missRecorded = true
+        scope.launch {
+            runCatching {
+                missedCallRecorder.record(
+                    callerId = call.callerId,
+                    calleeId = call.calleeId,
+                    callerName = call.partnerName,
+                )
+            }.onFailure { Log.w(TAG, "missed-call record failed", it) }
+            stopSelfClean()
         }
     }
 
@@ -260,6 +288,8 @@ class CallForegroundService : Service() {
             delay(RING_TIMEOUT_MS)
             if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
             Log.d(TAG, "ring timeout fired — recording missed call")
+
+            missRecorded = true
             runCatching {
                 missedCallRecorder.record(
                     callerId = call.callerId,
