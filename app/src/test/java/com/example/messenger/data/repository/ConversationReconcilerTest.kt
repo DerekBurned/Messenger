@@ -42,6 +42,15 @@ class ConversationReconcilerTest {
     }
 
     @Test
+    fun `exact match prunes nothing`() {
+        val stale = ConversationReconciler.staleIds(
+            local = setOf("a", "b"),
+            remote = RemoteConversations.Server(setOf("a", "b")),
+        )
+        assertEquals(emptySet<String>(), stale)
+    }
+
+    @Test
     fun `empty local is always empty`() {
         val stale = ConversationReconciler.staleIds(
             local = emptySet(),
