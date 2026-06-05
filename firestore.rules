@@ -72,11 +72,22 @@ service cloud.firestore {
                        );
 
         allow create: if isAuthenticated()
-                      && request.resource.data.senderId == request.auth.uid
                       && isValidString(request.resource.data.text, 5000)
                       && request.resource.data.conversationId == conversationId
                       && isParticipant(
                            get(/databases/$(database)/documents/conversations/$(conversationId)).data
+                         )
+                      && (
+                           // Normal message: author is the writer.
+                           request.resource.data.senderId == request.auth.uid
+                           // Call-event message (e.g. a missed call) may be attributed to the
+                           // caller even though the callee's device writes it — as long as the
+                           // named sender is a participant of the conversation.
+                           || (
+                                request.resource.data.get('type', '') == 'MISSED_CALL'
+                                && request.resource.data.senderId in
+                                     get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+                              )
                          );
 
         allow update: if isAuthenticated()
