@@ -3,6 +3,8 @@ package com.example.messenger.data.repository
 import android.util.Log
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxConversation_
+import com.example.messenger.data.local.obx.ObxMessage
+import com.example.messenger.data.local.obx.ObxMessage_
 import com.example.messenger.data.local.obx.asFlow
 import com.example.messenger.data.local.obx.toDomain
 import com.example.messenger.data.local.obx.toObx
@@ -23,6 +25,7 @@ import javax.inject.Inject
 class ConversationRepositoryImpl @Inject constructor(
     private val firestoreService: FirestoreService,
     private val conversationBox: Box<ObxConversation>,
+    private val messageBox: Box<ObxMessage>,
     private val authService: FirebaseAuthService,
 ) : IConversationRepository {
 
@@ -34,8 +37,11 @@ class ConversationRepositoryImpl @Inject constructor(
                 return@launch
             }
             try {
-                firestoreService.getAllConversations(userId).collect { conversations ->
-                    conversations.forEach { upsert(it) }
+                firestoreService.getAllConversations(userId).collect { sync ->
+                    sync.conversations.forEach { upsert(it) }
+                    if (!sync.fromCache && sync.removedIds.isNotEmpty()) {
+                        prune(sync.removedIds)
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Remote conversation listener errored", e)
@@ -138,7 +144,11 @@ class ConversationRepositoryImpl @Inject constructor(
     override suspend fun observeRemoteConversations(): Flow<List<Conversation>> {
         val userId = authService.getCurrentUserId() ?: ""
         return firestoreService.getAllConversations(userId)
-            .onEach { conversations -> conversations.forEach { upsert(it) } }
+            .onEach { sync ->
+                sync.conversations.forEach { upsert(it) }
+                if (!sync.fromCache && sync.removedIds.isNotEmpty()) prune(sync.removedIds)
+            }
+            .map { it.conversations }
     }
 
     override suspend fun syncConversations() {
@@ -148,12 +158,18 @@ class ConversationRepositoryImpl @Inject constructor(
                 Log.w(TAG, "syncConversations: no signed-in user")
                 return
             }
-            val remote = firestoreService.fetchAllConversationsOnce(userId).getOrNull()
+            val result = firestoreService.fetchAllConversationsOnce(userId)
+            val remote = result.getOrNull()
             if (remote == null) {
-                Log.w(TAG, "syncConversations: remote fetch returned null")
+                Log.w(TAG, "syncConversations: server fetch failed; skipping prune", result.exceptionOrNull())
                 return
             }
             remote.forEach { upsert(it) }
+            val staleIds = ConversationReconciler.staleIds(
+                local = conversationBox.all.map { it.uid }.toSet(),
+                remote = RemoteConversations.Server(remote.map { it.id }.toSet()),
+            )
+            prune(staleIds)
         } catch (e: Exception) {
             Log.w(TAG, "Conversation sync failed (SyncWorker will retry)", e)
         }
@@ -161,6 +177,15 @@ class ConversationRepositoryImpl @Inject constructor(
 
     private fun findByUid(uid: String): ObxConversation? =
         conversationBox.query(ObxConversation_.uid.equal(uid)).build().use { it.findFirst() }
+
+    private fun prune(conversationIds: Collection<String>) {
+        if (conversationIds.isEmpty()) return
+        for (id in conversationIds) {
+            conversationBox.query(ObxConversation_.uid.equal(id)).build().use { it.remove() }
+            messageBox.query(ObxMessage_.conversationId.equal(id)).build().use { it.remove() }
+        }
+        Log.d(TAG, "Pruned ${conversationIds.size} remote-deleted conversation(s)")
+    }
 
     private fun upsert(conversation: Conversation) {
         val incoming = conversation.toObx()
