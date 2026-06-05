@@ -50,7 +50,7 @@ class MissedCallRecorder @Inject constructor(
             id = UUID.randomUUID().toString(),
             conversationId = conversation.id,
 
-            senderId = calleeId,
+            senderId = callerId,
             text = MISSED_CALL_TEXT,
             timestamp = now,
             type = Message.TYPE_MISSED_CALL,
