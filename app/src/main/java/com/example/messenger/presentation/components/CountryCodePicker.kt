@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -14,8 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,6 +86,20 @@ private fun CountryPickerDialog(
     onDismiss: () -> Unit,
     onSelect: (Country) -> Unit,
 ) {
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query) {
+        val q = query.trim()
+        if (q.isBlank()) {
+            Countries.all
+        } else {
+            Countries.all.filter { country ->
+                country.name.contains(q, ignoreCase = true) ||
+                    country.dialCode.contains(q) ||
+                    country.isoCode.contains(q, ignoreCase = true)
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -91,9 +109,20 @@ private fun CountryPickerDialog(
         },
         title = { Text("Select country") },
         text = {
-            LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                items(Countries.all, key = { it.isoCode }) { country ->
-                    CountryRow(country = country, onClick = { onSelect(country) })
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Search country or code") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                    items(filtered, key = { it.isoCode }) { country ->
+                        CountryRow(country = country, onClick = { onSelect(country) })
+                    }
                 }
             }
         },

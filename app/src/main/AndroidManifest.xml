@@ -39,6 +39,7 @@
             android:exported="true"
             android:label="@string/title_activity_main"
             android:theme="@style/Theme.Messenger"
+            android:screenOrientation="reversePortrait"
             android:windowSoftInputMode="adjustResize" >
 
             <intent-filter>

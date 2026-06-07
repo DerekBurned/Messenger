@@ -1,20 +1,23 @@
 package com.example.messenger.presentation.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,32 +28,50 @@ import androidx.compose.ui.unit.sp
 
 enum class AuthMode { LOGIN, REGISTER }
 
+private val ToggleWidth = 260.dp
+private val TogglePadding = 4.dp
+private val HalfWidth = (ToggleWidth - TogglePadding * 2) / 2
+
 @Composable
 fun AuthModeToggle(
     mode: AuthMode,
     onModeChange: (AuthMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    val pillOffset by animateDpAsState(
+        targetValue = if (mode == AuthMode.LOGIN) 0.dp else HalfWidth,
+        animationSpec = tween(durationMillis = 220),
+        label = "auth-toggle-pill",
+    )
+
+    Box(
         modifier = modifier
-            .width(260.dp)
+            .width(ToggleWidth)
             .height(44.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(Color.White.copy(alpha = 0.2f))
-            .padding(4.dp),
+            .padding(TogglePadding),
     ) {
-        ToggleHalf(
-            label = "Log in",
-            selected = mode == AuthMode.LOGIN,
-            onClick = { onModeChange(AuthMode.LOGIN) },
-            modifier = Modifier.weight(1f),
+        Box(
+            modifier = Modifier
+                .offset(x = pillOffset)
+                .width(HalfWidth)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White),
         )
-        ToggleHalf(
-            label = "Register",
-            selected = mode == AuthMode.REGISTER,
-            onClick = { onModeChange(AuthMode.REGISTER) },
-            modifier = Modifier.weight(1f),
-        )
+        Row {
+            ToggleHalf(
+                label = "Log in",
+                selected = mode == AuthMode.LOGIN,
+                onClick = { onModeChange(AuthMode.LOGIN) },
+            )
+            ToggleHalf(
+                label = "Register",
+                selected = mode == AuthMode.REGISTER,
+                onClick = { onModeChange(AuthMode.REGISTER) },
+            )
+        }
     }
 }
 
@@ -59,25 +80,22 @@ private fun ToggleHalf(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    val background by animateColorAsState(
-        targetValue = if (selected) Color.White else Color.Transparent,
-        animationSpec = tween(durationMillis = 200),
-        label = "auth-toggle-bg",
-    )
     val textColor by animateColorAsState(
         targetValue = if (selected) Color(0xFF5B8DEE) else Color.White,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = 220),
         label = "auth-toggle-text",
     )
 
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .width(HalfWidth)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(20.dp))
-            .background(background)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(
