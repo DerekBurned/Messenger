@@ -144,10 +144,15 @@ class FirestoreService @Inject constructor(
         }
     }
 
-    fun getRecentMessagesStream(conversationId: String, limit: Long = 100): Flow<List<Message>> = callbackFlow {
+    fun getRecentMessagesStream(
+        conversationId: String,
+        limit: Long = 100,
+        cutoff: Long = 0,
+    ): Flow<List<Message>> = callbackFlow {
         val messagesRef = conversationsCollection
             .document(conversationId)
             .collection("messages")
+            .whereGreaterThan("timestamp", cutoff)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(limit)
 
@@ -173,6 +178,7 @@ class FirestoreService @Inject constructor(
         conversationId: String,
         oldestLoadedMessageId: String,
         limit: Long = 100,
+        cutoff: Long = 0,
     ): Result<List<Message>> {
         return try {
             val messagesCollection = conversationsCollection
@@ -183,6 +189,7 @@ class FirestoreService @Inject constructor(
                 return Result.success(emptyList())
             }
             val snapshot = messagesCollection
+                .whereGreaterThan("timestamp", cutoff)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .startAfter(anchor)
                 .limit(limit)
@@ -237,7 +244,8 @@ class FirestoreService @Inject constructor(
 
     suspend fun createConversation(conversation: Conversation): Result<String> {
         return try {
-            val docRef = conversationsCollection.add(conversation).await()
+            val seeded = conversation.copy(visibleTo = conversation.participantIds)
+            val docRef = conversationsCollection.add(seeded).await()
             Result.success(docRef.id)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error creating conversation", e)
@@ -245,10 +253,51 @@ class FirestoreService @Inject constructor(
         }
     }
 
+    suspend fun deleteConversation(conversationId: String): Result<Unit> {
+        return try {
+            conversationsCollection.document(conversationId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error deleting conversation", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun clearConversationForMe(
+        conversationId: String,
+        userId: String,
+        clearedAt: Long,
+    ): Result<Unit> {
+        return try {
+            conversationsCollection.document(conversationId)
+                .update(
+                    "clearedAt.$userId", clearedAt,
+                    "visibleTo", com.google.firebase.firestore.FieldValue.arrayRemove(userId),
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error clearing conversation for user", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetUnreadCount(conversationId: String, userId: String): Result<Unit> {
+        return try {
+            conversationsCollection.document(conversationId)
+                .update("unreadCounts.$userId", 0)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error resetting unread count", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchAllConversationsOnce(userId: String): Result<List<Conversation>> {
         return try {
             val snapshot = conversationsCollection
-                .whereArrayContains("participantIds", userId)
+                .whereArrayContains("visibleTo", userId)
                 .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
                 .get(Source.SERVER)
                 .await()
@@ -265,7 +314,7 @@ class FirestoreService @Inject constructor(
 
     fun getAllConversations(userId: String): Flow<ConversationSync> = callbackFlow {
         val conversationsRef = conversationsCollection
-            .whereArrayContains("participantIds", userId)
+            .whereArrayContains("visibleTo", userId)
             .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
 
         val listener = conversationsRef.addSnapshotListener { snapshot, error ->

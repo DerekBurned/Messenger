@@ -129,11 +129,55 @@ class ConversationRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun deleteConversationForEveryone(conversationId: String): Result<Unit> {
+        return try {
+            firestoreService.deleteConversation(conversationId).getOrThrow()
+            prune(listOf(conversationId))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteConversationForEveryone failed", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun clearConversationForMe(conversationId: String): Result<Unit> {
+        return try {
+            val userId = authService.getCurrentUserId()
+            if (userId.isNullOrBlank()) {
+                return Result.failure(IllegalStateException("Cannot clear conversation: no signed-in user"))
+            }
+            val local = findByUid(conversationId)
+                ?: return Result.failure(IllegalStateException("Conversation not found: $conversationId"))
+            val cutoff = maxOf(local.lastMessageTimestamp, local.latestMessageTimestamp)
+            firestoreService.clearConversationForMe(conversationId, userId, cutoff).getOrThrow()
+            prune(listOf(conversationId))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w(TAG, "clearConversationForMe failed", e)
+            Result.failure(e)
+        }
+    }
+
     override suspend fun markConversationAsRead(conversationId: String): Result<Unit> {
         return try {
+            val userId = authService.getCurrentUserId()
             findByUid(conversationId)?.let { conv ->
                 conv.unreadCount = 0
                 conversationBox.put(conv)
+            }
+            if (!userId.isNullOrBlank()) {
+                messageBox.query(
+                    ObxMessage_.conversationId.equal(conversationId)
+                        .and(ObxMessage_.senderId.notEqual(userId))
+                        .and(ObxMessage_.isRead.equal(false)),
+                ).build().use { query ->
+                    val unread = query.find()
+                    if (unread.isNotEmpty()) {
+                        unread.forEach { it.isRead = true }
+                        messageBox.put(unread)
+                    }
+                }
+                firestoreService.resetUnreadCount(conversationId, userId)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -178,6 +222,16 @@ class ConversationRepositoryImpl @Inject constructor(
     private fun findByUid(uid: String): ObxConversation? =
         conversationBox.query(ObxConversation_.uid.equal(uid)).build().use { it.findFirst() }
 
+    private fun localUnread(conversationId: String, me: String): Int {
+        if (me.isBlank()) return 0
+        return messageBox.query(
+            ObxMessage_.conversationId.equal(conversationId)
+                .and(ObxMessage_.senderId.notEqual(me))
+                .and(ObxMessage_.isRead.equal(false))
+                .and(ObxMessage_.deleted.equal(false)),
+        ).build().use { it.count().toInt() }
+    }
+
     private fun prune(conversationIds: Collection<String>) {
         if (conversationIds.isEmpty()) return
         for (id in conversationIds) {
@@ -189,11 +243,17 @@ class ConversationRepositoryImpl @Inject constructor(
 
     private fun upsert(conversation: Conversation) {
         val incoming = conversation.toObx()
+        val currentUserId = authService.getCurrentUserId()
+        val serverClearedAt = currentUserId?.let { conversation.clearedAt[it] } ?: 0L
+        val me = currentUserId ?: ""
+        val serverUnread = conversation.unreadCounts[me] ?: 0
+        incoming.unreadCount = maxOf(serverUnread, localUnread(conversation.id, me))
         findByUid(conversation.id)?.let { existing ->
             incoming.boxId = existing.boxId
             incoming.latestMessageText = existing.latestMessageText
             incoming.latestMessageTimestamp = existing.latestMessageTimestamp
         }
+        incoming.clearedAtForMe = serverClearedAt
         conversationBox.put(incoming)
     }
 

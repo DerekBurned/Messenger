@@ -13,9 +13,12 @@ import com.example.messenger.domain.usecase.auth.LinkPhoneUseCase
 import com.example.messenger.domain.usecase.auth.LoginWithPhoneNumberUseCase
 import com.example.messenger.domain.usecase.auth.LogoutUseCase
 import com.example.messenger.domain.usecase.auth.ObserveAuthStateUseCase
+import com.example.messenger.domain.usecase.conversation.ClearConversationForMeUseCase
 import com.example.messenger.domain.usecase.conversation.CreateConversationUseCase
+import com.example.messenger.domain.usecase.conversation.DeleteConversationForEveryoneUseCase
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
+import com.example.messenger.domain.usecase.conversation.MarkConversationAsReadUseCase
 import com.example.messenger.domain.usecase.conversation.SyncConversationsUseCase
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
@@ -87,10 +90,31 @@ object UseCaseModule {
     }
 
     @Provides
+    fun provideDeleteConversationForEveryoneUseCase(
+        conversationRepository: IConversationRepository
+    ): DeleteConversationForEveryoneUseCase {
+        return DeleteConversationForEveryoneUseCase(conversationRepository)
+    }
+
+    @Provides
+    fun provideClearConversationForMeUseCase(
+        conversationRepository: IConversationRepository
+    ): ClearConversationForMeUseCase {
+        return ClearConversationForMeUseCase(conversationRepository)
+    }
+
+    @Provides
     fun provideSyncConversationsUseCase(
         conversationRepository: IConversationRepository
     ): SyncConversationsUseCase {
         return SyncConversationsUseCase(conversationRepository)
+    }
+
+    @Provides
+    fun provideMarkConversationAsReadUseCase(
+        conversationRepository: IConversationRepository
+    ): MarkConversationAsReadUseCase {
+        return MarkConversationAsReadUseCase(conversationRepository)
     }
 
     @Provides
