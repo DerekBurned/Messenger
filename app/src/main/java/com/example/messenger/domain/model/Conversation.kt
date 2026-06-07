@@ -7,5 +7,8 @@ data class Conversation(
     val participantAvatars: List<String?> = emptyList(),
     val lastMessage: String? = null,
     val lastMessageTimestamp: Long = 0L,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val unreadCounts: Map<String, Int> = emptyMap(),
+    val clearedAt: Map<String, Long> = emptyMap(),
+    val visibleTo: List<String> = emptyList(),
 )

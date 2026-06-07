@@ -10,6 +10,8 @@ interface IConversationRepository {
     suspend fun getConversationsForProfile(profile: Profile): Result<List<Conversation>>
     suspend fun createConversation(participantIds: List<String>): Result<Conversation>
     suspend fun deleteConversation(conversationId: String): Result<Unit>
+    suspend fun deleteConversationForEveryone(conversationId: String): Result<Unit>
+    suspend fun clearConversationForMe(conversationId: String): Result<Unit>
     suspend fun markConversationAsRead(conversationId: String): Result<Unit>
     suspend fun observeRemoteConversations(): Flow<List<Conversation>>
     suspend fun syncConversations()

@@ -37,6 +37,12 @@ class MessageRepositoryImpl @Inject constructor(
             .map { rows -> rows.map { it.toDomain() } }
     }
 
+    private fun cutoffFor(conversationId: String): Long =
+        conversationBox.query(ObxConversation_.uid.equal(conversationId))
+            .build()
+            .use { it.findFirst() }
+            ?.clearedAtForMe ?: 0L
+
     override suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
             
@@ -99,7 +105,7 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun observeRecentMessages(conversationId: String, limit: Long): Flow<Result<Unit>> = flow {
         try {
-            firestoreService.getRecentMessagesStream(conversationId, limit).collect { messages ->
+            firestoreService.getRecentMessagesStream(conversationId, limit, cutoffFor(conversationId)).collect { messages ->
                 messageBox.put(messages.map { it.toObx() })
                 emit(Result.success(Unit))
             }
@@ -114,7 +120,7 @@ class MessageRepositoryImpl @Inject constructor(
             .build()
             .use { it.findFirst()?.uid }
             ?: return Result.success(0)
-        return firestoreService.fetchOlderMessages(conversationId, oldestId, limit).map { older ->
+        return firestoreService.fetchOlderMessages(conversationId, oldestId, limit, cutoffFor(conversationId)).map { older ->
             if (older.isNotEmpty()) {
                 messageBox.put(older.map { it.toObx() })
             }

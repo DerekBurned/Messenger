@@ -9,6 +9,7 @@ import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
 import com.example.messenger.domain.usecase.message.LoadOlderMessagesUseCase
+import com.example.messenger.domain.usecase.conversation.MarkConversationAsReadUseCase
 import com.example.messenger.domain.usecase.message.MarkMessageAsReadUseCase
 import com.example.messenger.domain.usecase.message.SendMessageUseCase
 import com.example.messenger.domain.usecase.message.SyncMessagesUseCase
@@ -42,6 +43,7 @@ class ChatViewModel @Inject constructor(
     private val syncMessagesUseCase: SyncMessagesUseCase,
     private val loadOlderMessagesUseCase: LoadOlderMessagesUseCase,
     private val markMessageAsReadUseCase: MarkMessageAsReadUseCase,
+    private val markConversationAsReadUseCase: MarkConversationAsReadUseCase,
     private val deleteMessageUseCase: DeleteMessageUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val observeTypingUseCase: ObserveTypingUseCase,
@@ -84,10 +86,17 @@ class ChatViewModel @Inject constructor(
         if (conversationId.isNotBlank()) {
             loadMessages()
             syncMessages()
+            markConversationRead()
             if (partnerId.isNotBlank()) {
                 observePartnerPresence()
             }
             observeTyping()
+        }
+    }
+
+    private fun markConversationRead() {
+        viewModelScope.launch {
+            markConversationAsReadUseCase(conversationId)
         }
     }
 
@@ -206,10 +215,15 @@ class ChatViewModel @Inject constructor(
             Log.w(TAG, "Skip read receipt: currentUserId is blank (auth race?)")
             return
         }
+        var newlyRead = false
         messages.forEach { message ->
             if (markedAsReadIds.add(message.id)) {
                 markAsRead(message)
+                newlyRead = true
             }
+        }
+        if (newlyRead) {
+            markConversationRead()
         }
     }
 
@@ -281,7 +295,6 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun sendMessage(text: String) {
-
         val replyTo = currentState.replyingTo
         viewModelScope.launch {
             typingService.clearTyping(conversationId)

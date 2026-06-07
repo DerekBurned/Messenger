@@ -2,7 +2,9 @@ package com.example.messenger.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.domain.usecase.conversation.ClearConversationForMeUseCase
 import com.example.messenger.domain.usecase.conversation.CreateConversationUseCase
+import com.example.messenger.domain.usecase.conversation.DeleteConversationForEveryoneUseCase
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
 import com.example.messenger.domain.usecase.conversation.SyncConversationsUseCase
@@ -25,6 +27,8 @@ import javax.inject.Inject
 class ConversationsViewModel @Inject constructor(
     private val getConversationsUseCase: GetConversationsUseCase,
     private val deleteConversationUseCase: DeleteConversationUseCase,
+    private val deleteConversationForEveryoneUseCase: DeleteConversationForEveryoneUseCase,
+    private val clearConversationForMeUseCase: ClearConversationForMeUseCase,
     private val createConversationUseCase: CreateConversationUseCase,
     private val syncConversationsUseCase: SyncConversationsUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
@@ -83,6 +87,20 @@ class ConversationsViewModel @Inject constructor(
                 onSuccess = { _uiState.update { it.copy(isLoading = false) } },
                 onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
             )
+        }
+    }
+
+    fun deleteForMe(conversationId: String) {
+        viewModelScope.launch {
+            val result = clearConversationForMeUseCase(conversationId)
+            result.onFailure { e -> _uiState.update { it.copy(error = e.message?.toUiText()) } }
+        }
+    }
+
+    fun deleteForEveryone(conversationId: String) {
+        viewModelScope.launch {
+            val result = deleteConversationForEveryoneUseCase(conversationId)
+            result.onFailure { e -> _uiState.update { it.copy(error = e.message?.toUiText()) } }
         }
     }
 

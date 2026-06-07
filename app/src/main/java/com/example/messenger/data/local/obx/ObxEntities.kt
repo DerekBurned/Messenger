@@ -58,6 +58,7 @@ data class ObxConversation(
 
     var latestMessageText: String? = null,
     var latestMessageTimestamp: Long = 0,
+   var clearedAtForMe: Long = 0,
 )
 
 @Entity

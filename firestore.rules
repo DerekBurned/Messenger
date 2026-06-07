@@ -33,6 +33,39 @@ service cloud.firestore {
              == deletedForOf(resource.data).removeAll([request.auth.uid]);
     }
 
+    // "clearedAt" maps uid -> millis at which that user cleared ("delete for me")
+    // a conversation. A caller may only change their OWN entry.
+    function clearedAtOf(data) {
+      return data.get('clearedAt', {});
+    }
+
+    function onlyTogglesOwnClearedAt() {
+      return clearedAtOf(request.resource.data)
+               .diff(clearedAtOf(resource.data))
+               .affectedKeys()
+               .hasOnly([request.auth.uid]);
+    }
+
+    function unreadCountsOf(data) {
+      return data.get('unreadCounts', {});
+    }
+
+    function onlyTouchesOwnUnreadCount() {
+      return unreadCountsOf(request.resource.data)
+               .diff(unreadCountsOf(resource.data))
+               .affectedKeys()
+               .hasOnly([request.auth.uid]);
+    }
+
+    function visibleToOf(data) {
+      return data.get('visibleTo', []);
+    }
+
+    function onlyTogglesOwnVisibility() {
+      return visibleToOf(request.resource.data).removeAll([request.auth.uid])
+             == visibleToOf(resource.data).removeAll([request.auth.uid]);
+    }
+
     // ── /users/{userId} ───────────────────────────────────────────
 
     match /users/{userId} {
@@ -59,7 +92,10 @@ service cloud.firestore {
                     && request.resource.data.participantIds.size() <= 50;
 
       allow update: if isParticipant(resource.data)
-                    && request.resource.data.participantIds == resource.data.participantIds;
+                    && request.resource.data.participantIds == resource.data.participantIds
+                    && onlyTogglesOwnClearedAt()
+                    && onlyTouchesOwnUnreadCount()
+                    && onlyTogglesOwnVisibility();
 
       allow delete: if isParticipant(resource.data);
 

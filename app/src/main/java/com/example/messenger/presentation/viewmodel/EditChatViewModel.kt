@@ -2,6 +2,7 @@ package com.example.messenger.presentation.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCase
+import com.example.messenger.domain.usecase.conversation.MarkConversationAsReadUseCase
 import com.example.messenger.domain.usecase.conversation.ObserveConversationsUseCase
 import com.example.messenger.presentation.base.StateViewModel
 import com.example.messenger.presentation.base.toUiText
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class EditChatViewModel @Inject constructor(
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val deleteConversationUseCase: DeleteConversationUseCase,
+    private val markConversationAsReadUseCase: MarkConversationAsReadUseCase,
 ) : StateViewModel<EditChatUiState, EditChatEffect>(initialState = EditChatUiState()) {
 
     init {
@@ -55,7 +57,10 @@ class EditChatViewModel @Inject constructor(
     }
 
     fun markAllRead() {
-        
-        emitEffect(EditChatEffect.Done)
+        val ids = currentState.selectedIds.toList()
+        viewModelScope.launch {
+            ids.forEach { markConversationAsReadUseCase(it) }
+            emitEffect(EditChatEffect.Done)
+        }
     }
 }

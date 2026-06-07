@@ -49,6 +49,16 @@ export const onMessageCreated = onDocumentCreated(
     const recipients = (conversation.participantIds ?? []).filter((id) => id !== senderId);
     if (recipients.length === 0) return;
 
+    const updates: {[key: string]: admin.firestore.FieldValue} = {};
+    recipients.forEach((uid) => {
+      updates[`unreadCounts.${uid}`] = admin.firestore.FieldValue.increment(1);
+    });
+    const allParticipants = conversation.participantIds ?? [];
+    if (allParticipants.length > 0) {
+      updates["visibleTo"] = admin.firestore.FieldValue.arrayUnion(...allParticipants);
+    }
+    await convRef.update(updates);
+
     const [senderSnap, ...recipientSnaps] = await Promise.all([
       db.collection("users").doc(senderId).get(),
       ...recipients.map((uid) => db.collection("users").doc(uid).get()),
