@@ -152,9 +152,9 @@ private fun ChatScreenContent(
     onCallClick: () -> Unit,
     onIntercultorProfileClick: () -> Unit,
     onCopy: (String) -> Unit,
-    onReply: (com.example.messenger.domain.model.Message) -> Unit,
+    onReply: (Message) -> Unit,
     onReplyClick: (messageId: String) -> Unit,
-    onDelete: (com.example.messenger.domain.model.Message) -> Unit,
+    onDelete: (Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
     onMessagesSeen: (List<Message>) -> Unit,
@@ -251,7 +251,7 @@ private fun ChatScreenContent(
             }
         }
 
-        var unreadCount by remember { mutableStateOf(0) }
+        var unreadCount by rememberSaveable { mutableStateOf(0) }
         var didInitialScroll by remember { mutableStateOf(false) }
         var lastKnownNewestId by remember { mutableStateOf<String?>(null) }
 
@@ -263,7 +263,7 @@ private fun ChatScreenContent(
             seededReopenAnchor = true
         }
 
-        val rows = remember(uiState.messages, dividerAnchorId) {
+        val rows = rememberSaveable(uiState.messages, dividerAnchorId) {
             buildList<ChatRow> {
                 uiState.messages.forEach { message ->
                     if (message.id == dividerAnchorId) add(ChatRow.UnreadDivider)

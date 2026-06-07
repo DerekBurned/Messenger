@@ -31,6 +31,11 @@ class AuthRepositoryImpl @Inject constructor(
             Log.d(TAG, "loginWithPhone: existing profile=${existing != null}")
 
             if (existing != null) {
+                if (isRegistration) {
+                    Log.w(TAG, "loginWithPhone: REGISTER for an already-registered number — rejecting")
+                    auth.logout()
+                    return Resource.Error("An account with this number already exists. Please log in instead.")
+                }
                 Log.d(TAG, "loginWithPhone: LOGIN existing user ${existing.id}")
                 return Resource.Success(existing)
             }
