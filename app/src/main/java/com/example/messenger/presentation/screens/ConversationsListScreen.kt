@@ -1,17 +1,23 @@
 package com.example.messenger.presentation.screens
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,24 +27,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemColors
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,23 +46,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.UserPresence
 import com.example.messenger.presentation.components.PresenceIndicator
+import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
@@ -71,75 +75,27 @@ import com.example.messenger.presentation.state.ConversationsUiState
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import com.example.messenger.util.DateUtils
 
-enum class MainTab { CHATS, CALLS, CONTACTS, SETTINGS }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenWithNav(
+fun ChatsScreen(
     viewModel: ConversationsViewModel = hiltViewModel(),
     onChatClick: (String, String, String) -> Unit = { _, _, _ -> },
     onLogoutClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-    onContactClick: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    MainScreenContent(
-        uiState = uiState,
-        onChatClick = onChatClick,
-        onRefresh = viewModel::refresh,
-        onSearchClick = onSearchClick,
-        onLogoutClick = onLogoutClick,
-        onProfileClick = onProfileClick,
-        onSettingsClick = onSettingsClick,
-        onContactClick = onContactClick,
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MainScreenContent(
-    uiState: ConversationsUiState,
-    onChatClick: (String, String, String) -> Unit,
-    onRefresh: () -> Unit,
-    onSearchClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onProfileClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onContactClick: (String) -> Unit,
-) {
-    var selectedTab by remember { mutableStateOf(MainTab.CHATS) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             MainTopBar(
-                title = selectedTab.title(),
+                title = "Chats",
                 onLogoutClick = onLogoutClick,
                 onSearchClick = onSearchClick,
-                showSearch = selectedTab != MainTab.SETTINGS,
+                showSearch = true,
             )
         },
-        bottomBar = {
-            MainBottomBar(
-                selected = selectedTab,
-                onTabSelected = { tab ->
-                    if (tab == MainTab.SETTINGS) onSettingsClick() else selectedTab = tab
-                },
-            )
-        },
-        floatingActionButton = {
-            if (selectedTab == MainTab.CHATS) {
-                FloatingActionButton(
-                    onClick = onSearchClick,
-                    containerColor = PrimaryBlue,
-                    contentColor = Color.White,
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Chat")
-                }
-            }
-        },
+
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -147,25 +103,59 @@ private fun MainScreenContent(
                 .padding(innerPadding)
                 .background(Color.White),
         ) {
-            when (selectedTab) {
-                MainTab.CHATS -> ChatsTabContent(
-                    uiState = uiState,
-                    onRefresh = onRefresh,
-                    onChatClick = onChatClick,
-                )
-                MainTab.CALLS -> CallsScreenContent()
-                MainTab.CONTACTS -> ContactsScreenContent(onContactClick = { user -> onContactClick(user.id) })
-                MainTab.SETTINGS -> Unit 
-            }
+            ChatsTabContent(
+                uiState = uiState,
+                onRefresh = viewModel::refresh,
+                onChatClick = onChatClick,
+                onDeleteForMe = viewModel::deleteForMe,
+                onDeleteForEveryone = viewModel::deleteForEveryone,
+            )
         }
     }
 }
 
-private fun MainTab.title(): String = when (this) {
-    MainTab.CHATS -> "Chats"
-    MainTab.CALLS -> "Calls"
-    MainTab.CONTACTS -> "Contacts"
-    MainTab.SETTINGS -> "Settings"
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CallsScreen(
+    onLogoutClick: () -> Unit = {},
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            MainTopBar(
+                title = "Calls",
+                onLogoutClick = onLogoutClick,
+                onSearchClick = {},
+                showSearch = false,
+            )
+        },
+    ) { innerPadding ->
+        CallsScreenContent(modifier = Modifier.padding(innerPadding))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ContactsScreen(
+    onLogoutClick: () -> Unit = {},
+    onContactClick: (String) -> Unit = {},
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            MainTopBar(
+                title = "Contacts",
+                onLogoutClick = onLogoutClick,
+                onSearchClick = {},
+                showSearch = false,
+            )
+        },
+    ) { innerPadding ->
+        ContactsScreenContent(
+            modifier = Modifier.padding(innerPadding),
+            onContactClick = { user -> onContactClick(user.id) },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -174,12 +164,20 @@ private fun ChatsTabContent(
     uiState: ConversationsUiState,
     onRefresh: () -> Unit,
     onChatClick: (String, String, String) -> Unit,
+    onDeleteForMe: (String) -> Unit,
+    onDeleteForEveryone: (String) -> Unit,
 ) {
     when {
         uiState.isLoading -> ChatsLoading()
         uiState.error != null -> ChatsError(message = uiState.error.asString(), onRetry = onRefresh)
         uiState.conversations.isEmpty() -> ChatsEmpty()
-        else -> ChatsList(uiState = uiState, onRefresh = onRefresh, onChatClick = onChatClick)
+        else -> ChatsList(
+            uiState = uiState,
+            onRefresh = onRefresh,
+            onChatClick = onChatClick,
+            onDeleteForMe = onDeleteForMe,
+            onDeleteForEveryone = onDeleteForEveryone,
+        )
     }
 }
 
@@ -218,6 +216,8 @@ private fun ChatsList(
     uiState: ConversationsUiState,
     onRefresh: () -> Unit,
     onChatClick: (String, String, String) -> Unit,
+    onDeleteForMe: (String) -> Unit,
+    onDeleteForEveryone: (String) -> Unit,
 ) {
     val currentUserId = uiState.currentUserId
     PullToRefreshBox(
@@ -225,20 +225,132 @@ private fun ChatsList(
         onRefresh = onRefresh,
         modifier = Modifier.fillMaxSize(),
     ) {
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(uiState.conversations) { conversation ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 96.dp),
+        ) {
+            items(uiState.conversations, key = { it.id }) { conversation ->
                 val otherIdx = conversation.participantIds.indexOfFirst { it != currentUserId }
                 val otherUserId = conversation.participantIds.getOrNull(otherIdx) ?: ""
                 val otherUserName = conversation.participantNames.getOrNull(otherIdx)
                     ?.takeIf { it.isNotBlank() }
                     ?: "Unknown"
-                ConversationListItem(
-                    conversation = conversation,
+                SwipeableConversationRow(
                     displayName = otherUserName,
-                    presence = uiState.presenceMap[otherUserId],
+                    isOneOnOne = conversation.participantIds.size == 2,
                     onClick = { onChatClick(conversation.id, otherUserId, otherUserName) },
-                )
+                    onDeleteForMe = { onDeleteForMe(conversation.id) },
+                    onDeleteForEveryone = { onDeleteForEveryone(conversation.id) },
+                ) { rowOnClick ->
+                    ConversationListItem(
+                        conversation = conversation,
+                        displayName = otherUserName,
+                        presence = uiState.presenceMap[otherUserId],
+                        onClick = rowOnClick,
+                    )
+                }
             }
+        }
+    }
+}
+
+private val SwipeActionWidth = 84.dp
+
+@Composable
+private fun SwipeableConversationRow(
+    displayName: String,
+    isOneOnOne: Boolean,
+    onClick: () -> Unit,
+    onDeleteForMe: () -> Unit,
+    onDeleteForEveryone: () -> Unit,
+    content: @Composable (rowOnClick: () -> Unit) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val revealPx = with(LocalDensity.current) { (SwipeActionWidth * 2).toPx() }
+    val offsetX = remember { Animatable(0f) }
+
+    val close: () -> Unit = { scope.launch { offsetX.animateTo(0f) } }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.matchParentSize(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            ConversationActionButton(
+                label = "Edit",
+                background = LightGray,
+                contentColor = Color(0xFF374151),
+            ) { menuDismiss ->
+                DropdownMenu(expanded = true, onDismissRequest = menuDismiss) {
+                    listOf("Rename", "Mute", "Mark as unread", "Archive").forEach { item ->
+                        DropdownMenuItem(text = { Text(item) }, onClick = menuDismiss)
+                    }
+                }
+            }
+            ConversationActionButton(
+                label = "Delete",
+                background = DangerRed,
+                contentColor = Color.White,
+            ) { menuDismiss ->
+                DropdownMenu(expanded = true, onDismissRequest = menuDismiss) {
+                    DropdownMenuItem(
+                        text = { Text("Delete for me") },
+                        onClick = { menuDismiss(); close(); onDeleteForMe() },
+                    )
+                    if (isOneOnOne) {
+                        DropdownMenuItem(
+                            text = { Text("Delete for $displayName too") },
+                            onClick = { menuDismiss(); close(); onDeleteForEveryone() },
+                        )
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .fillMaxWidth()
+                .background(Color.White)
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            offsetX.snapTo((offsetX.value + delta).coerceIn(-revealPx, 0f))
+                        }
+                    },
+                    onDragStopped = {
+                        val target = if (offsetX.value < -revealPx / 2f) -revealPx else 0f
+                        offsetX.animateTo(target)
+                    },
+                ),
+        ) {
+            content {
+                if (offsetX.value != 0f) close() else onClick()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConversationActionButton(
+    label: String,
+    background: Color,
+    contentColor: Color,
+    menu: @Composable (dismiss: () -> Unit) -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .width(SwipeActionWidth)
+            .fillMaxHeight()
+            .background(background)
+            .clickable { menuOpen = true },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = label, color = contentColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        if (menuOpen) {
+            menu { menuOpen = false }
         }
     }
 }
@@ -277,75 +389,6 @@ private fun MainTopBar(
             titleContentColor = Color.White,
             actionIconContentColor = Color.White,
         ),
-    )
-}
-
-@Composable
-private fun MainBottomBar(
-    selected: MainTab,
-    onTabSelected: (MainTab) -> Unit,
-) {
-    NavigationBar(
-        containerColor = PrimaryBlue,
-        contentColor = Color.White,
-    ) {
-        val itemColors = NavigationBarItemDefaults.colors(
-            selectedIconColor = Color.White,
-            selectedTextColor = Color.White,
-            unselectedIconColor = Color.White.copy(alpha = 0.6f),
-            unselectedTextColor = Color.White.copy(alpha = 0.6f),
-            indicatorColor = PrimaryBlue,
-        )
-        MainBottomBarItem(
-            tab = MainTab.CHATS,
-            icon = Icons.Filled.Email,
-            label = "Chats",
-            selected = selected == MainTab.CHATS,
-            onClick = onTabSelected,
-            colors = itemColors,
-        )
-        MainBottomBarItem(
-            tab = MainTab.CALLS,
-            icon = Icons.Filled.Call,
-            label = "Calls",
-            selected = selected == MainTab.CALLS,
-            onClick = onTabSelected,
-            colors = itemColors,
-        )
-        MainBottomBarItem(
-            tab = MainTab.CONTACTS,
-            icon = Icons.Filled.Person,
-            label = "Contacts",
-            selected = selected == MainTab.CONTACTS,
-            onClick = onTabSelected,
-            colors = itemColors,
-        )
-        MainBottomBarItem(
-            tab = MainTab.SETTINGS,
-            icon = Icons.Filled.Settings,
-            label = "Settings",
-            selected = selected == MainTab.SETTINGS,
-            onClick = onTabSelected,
-            colors = itemColors,
-        )
-    }
-}
-
-@Composable
-private fun RowScope.MainBottomBarItem(
-    tab: MainTab,
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: (MainTab) -> Unit,
-    colors: NavigationBarItemColors,
-) {
-    NavigationBarItem(
-        icon = { Icon(icon, contentDescription = label) },
-        label = { Text(label, fontWeight = FontWeight.Medium) },
-        selected = selected,
-        onClick = { onClick(tab) },
-        colors = colors,
     )
 }
 
@@ -480,9 +523,9 @@ private fun UnreadCountBadge(count: Int) {
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-private fun MainScreenPreview() {
+private fun ConversationsListPreview() {
     MessengerTheme {
-        MainScreenContent(
+        ChatsTabContent(
             uiState = ConversationsUiState(
                 conversations = listOf(
                     Conversation(
@@ -504,13 +547,10 @@ private fun MainScreenPreview() {
                 ),
                 isLoading = false,
             ),
-            onChatClick = { _, _, _ -> },
             onRefresh = {},
-            onSearchClick = {},
-            onLogoutClick = {},
-            onProfileClick = {},
-            onSettingsClick = {},
-            onContactClick = {},
+            onChatClick = { _, _, _ -> },
+            onDeleteForMe = {},
+            onDeleteForEveryone = {},
         )
     }
 }

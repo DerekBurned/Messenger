@@ -105,7 +105,10 @@ private fun ContactsScreenContentInner(
                 }
             }
             else -> {
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 96.dp),
+                ) {
                     items(users) { user ->
                         ContactRow(user = user, onClick = { onContactClick(user) })
                     }

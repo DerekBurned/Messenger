@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -27,14 +28,18 @@ import androidx.navigation.navArgument
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.components.ActiveCallBar
+import com.example.messenger.presentation.components.FloatingTabBar
 import com.example.messenger.presentation.components.IncomingCallBar
+import com.example.messenger.presentation.components.MainTab
 import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
 sealed class Screens(val route: String) {
     object AuthScreen : Screens("auth_screen")
-    object MainScreen : Screens("main_screen")
+    object ChatsScreen : Screens("chats_screen")
+    object CallsScreen : Screens("calls_screen")
+    object ContactsScreen : Screens("contacts_screen")
     object SearchUsersScreen : Screens("search_users_screen")
     object ChatScreen : Screens("chat_screen/{conversationId}/{partnerId}/{partnerName}") {
         fun createRoute(conversationId: String, partnerId: String, partnerName: String): String {
@@ -70,7 +75,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val authState by authViewModel.state.collectAsStateWithLifecycle()
 
     val startDestination = if (authState.isAuthenticated) {
-        Screens.MainScreen.route
+        Screens.ChatsScreen.route
     } else {
         Screens.AuthScreen.route
     }
@@ -79,7 +84,27 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val currentRoute = currentBackStackEntry?.destination?.route.orEmpty()
     val showCallBar = !currentRoute.startsWith("call_screen") &&
         currentRoute != Screens.AuthScreen.route
+    val tabRoutes = setOf(
+        Screens.ChatsScreen.route,
+        Screens.CallsScreen.route,
+        Screens.ContactsScreen.route,
+        Screens.SettingsScreen.route
+    )
+    val showTabBar = currentRoute in tabRoutes
+    val selectedTab = when (currentRoute) {
+        Screens.CallsScreen.route -> MainTab.CALLS
+        Screens.ContactsScreen.route -> MainTab.CONTACTS
+        Screens.SettingsScreen.route -> MainTab.SETTINGS
+        else -> MainTab.CHATS
+    }
     val context = LocalContext.current
+
+    fun logout() {
+        authViewModel.dispatch(AuthIntent.Logout)
+        navController.navigate(Screens.AuthScreen.route) {
+            popUpTo(navController.graph.id) { inclusive = true }
+        }
+    }
 
     fun openActiveCall(accept: Boolean) {
         val active = ActiveCallHolder.snapshot() ?: return
@@ -132,39 +157,32 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             AuthScreen(
                 viewModel = authViewModel,
                 onAuthSuccess = {
-                    navController.navigate(Screens.MainScreen.route) {
+                    navController.navigate(Screens.ChatsScreen.route) {
                         popUpTo(Screens.AuthScreen.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(route = Screens.MainScreen.route) {
-            MainScreenWithNav(
+        composable(route = Screens.ChatsScreen.route) {
+            ChatsScreen(
                 onChatClick = { conversationId, partnerId, partnerName ->
                     navController.navigate(
-                        Screens.ChatScreen.createRoute(
-                            conversationId,
-                            partnerId,
-                            partnerName
-                        )
+                        Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
                     )
                 },
-                onLogoutClick = {
-                    authViewModel.dispatch(AuthIntent.Logout)
-                    navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                },
-                onProfileClick = {
-                    navController.navigate(Screens.ProfileScreen.route)
-                },
-                onSearchClick = {
-                    navController.navigate(Screens.SearchScreen.route)
-                },
-                onSettingsClick = {
-                    navController.navigate(Screens.SettingsScreen.route)
-                },
+                onLogoutClick = { logout() },
+                onSearchClick = { navController.navigate(Screens.SearchScreen.route) },
+            )
+        }
+
+        composable(route = Screens.CallsScreen.route) {
+            CallsScreen(onLogoutClick = { logout() })
+        }
+
+        composable(route = Screens.ContactsScreen.route) {
+            ContactsScreen(
+                onLogoutClick = { logout() },
                 onContactClick = { userId ->
                     navController.navigate(Screens.ChatUserProfileScreen.createRoute(userId))
                 },
@@ -173,7 +191,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
         composable(route = Screens.SettingsScreen.route) {
             SettingsScreen(
-                onBackClick = { navController.popBackStack() },
                 onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
                 onLogoutClick = {
                     authViewModel.dispatch(AuthIntent.Logout)
@@ -317,6 +334,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
         }
         }
+        if (showTabBar) {
+            FloatingTabBar(
+                selected = selectedTab,
+                onSelect = { tab -> navController.navigateToTab(tab.route()) },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
         if (showCallBar) {
             IncomingCallBar(
                 modifier = Modifier
@@ -334,4 +358,19 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 private fun sendCallAction(context: Context, action: String) {
     val intent = Intent(context, CallForegroundService::class.java).setAction(action)
     runCatching { context.startService(intent) }
+}
+
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+private fun MainTab.route(): String = when (this) {
+    MainTab.CHATS -> Screens.ChatsScreen.route
+    MainTab.CALLS -> Screens.CallsScreen.route
+    MainTab.CONTACTS -> Screens.ContactsScreen.route
+    MainTab.SETTINGS -> Screens.SettingsScreen.route
 }

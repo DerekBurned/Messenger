@@ -1,11 +1,11 @@
 package com.example.messenger.presentation.screens
 
+import android.text.Layout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
@@ -14,29 +14,52 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.domain.model.PresenceState
+import com.example.messenger.domain.model.User
+import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.OnSurface
 import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
-
+import com.example.messenger.presentation.state.ProfileUiState
+import com.example.messenger.presentation.viewmodel.ProfileViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onBackClick: () -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>(),
     onProfileClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-) {
+){
+val uiState = viewModel.uiState.collectAsStateWithLifecycle()
+    SettingsScreenContent(
+        uiState = uiState,
+        onProfileClick = onProfileClick,
+        onLogoutClick = onLogoutClick
+    )
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreenContent(
+    uiState: State<ProfileUiState>,
+    onProfileClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {},
+
+    ) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -49,15 +72,6 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = PrimaryBlue,
                 ),
@@ -69,14 +83,16 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color.White),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(8.dp))
+            ProfileBaseInfo(uiState.value.user)
             SettingsRow(Icons.Filled.Person, "Profile", onClick = onProfileClick)
             SettingsRow(Icons.Filled.Notifications, "Notifications", onClick = {})
             SettingsRow(Icons.Filled.Lock, "Privacy", onClick = {})
             SettingsRow(Icons.Filled.Info, "About", onClick = {})
 
-            Spacer(Modifier.weight(1f))
+
 
             Row(
                 modifier = Modifier
@@ -153,10 +169,83 @@ private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
     )
 }
 
+@Composable
+fun ProfileBaseInfo(user: User?){
+    Box(contentAlignment = Alignment.BottomEnd) {
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(LightGray, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            val initial = user?.username?.take(1)?.uppercase().orEmpty()
+            if (initial.isNotBlank()) {
+                Text(
+                    text = initial,
+                    color = PrimaryBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 48.sp,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Avatar",
+                    modifier = Modifier.size(64.dp),
+                    tint = PrimaryBlue,
+                )
+            }
+        }
+        PresenceIndicator(
+            state = PresenceState.ONLINE,
+            size = 20.dp,
+            borderWidth = 3.dp,
+            modifier = Modifier.padding(end = 6.dp, bottom = 6.dp),
+        )
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Row(){Text(
+        text = user?.username ?: "User Name",
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Bold,
+        color = OnSurface,
+    )
+    }
+
+    val subtitle = user?.email
+        ?:user?.phoneNumber?.getFullNumber()
+        ?: ""
+
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.CenterVertically){
+            Text(
+                text = subtitle,
+                fontSize = 14.sp,
+                color = OnSurfaceMuted,
+            )
+            if(subtitle.isNotBlank()){Text(text = " ⋅ ")}
+            Text(
+                text = "@${user?.username ?: "User Name"}",
+                fontSize = 14.sp,
+                color = OnSurfaceMuted,
+            )
+        }
+
+}
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SettingsScreenPreview() {
     MessengerTheme {
-        SettingsScreen()
+        SettingsScreenContent(
+            uiState = androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(ProfileUiState(
+                user = com.example.messenger.domain.model.User(
+                    id = "preview-uid",
+                    username = "Jane Doe",
+                    email = "jane@example.com",
+                ),
+            )) }
+        )
     }
 }
