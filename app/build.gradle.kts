@@ -41,6 +41,10 @@ android {
         }
 
         buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildTypes {
@@ -71,6 +75,9 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
@@ -150,7 +157,7 @@ dependencies {
     implementation(libs.google.gson)
 
     //AgoraRTC
-    implementation("io.agora.rtc:voice-sdk:4.5.0")
+    implementation("io.agora.rtc:voice-sdk:4.6.3")
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
