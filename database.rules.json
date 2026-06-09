@@ -43,6 +43,7 @@
       "$calleeId": {
         ".read": "auth != null && auth.uid === $calleeId",
         "$callId": {
+          ".read": "auth != null && (auth.uid === $calleeId || data.child('callerId').val() === auth.uid)",
           ".write": "auth != null && (newData.child('callerId').val() === auth.uid || data.child('callerId').val() === auth.uid || auth.uid === $calleeId)",
           "callerId":    { ".validate": "newData.isString()" },
           "calleeId":    { ".validate": "newData.isString() && newData.val() === $calleeId" },
