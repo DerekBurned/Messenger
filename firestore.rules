@@ -84,7 +84,8 @@ service cloud.firestore {
     // ── /conversations/{conversationId} ───────────────────────────
 
     match /conversations/{conversationId} {
-      allow read: if isParticipant(resource.data);
+      allow read: if isParticipant(resource.data)
+                  || (isAuthenticated() && request.auth.uid in visibleToOf(resource.data));
 
       allow create: if isAuthenticated()
                     && request.auth.uid in request.resource.data.participantIds
