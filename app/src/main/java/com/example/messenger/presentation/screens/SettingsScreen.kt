@@ -220,20 +220,20 @@ fun ProfileBaseInfo(user: User?){
         ?:user?.phoneNumber?.getFullNumber()
         ?: ""
 
-        Spacer(modifier = Modifier.height(2.dp))
-        Row(verticalAlignment = Alignment.CenterVertically){
-            Text(
-                text = subtitle,
-                fontSize = 14.sp,
-                color = OnSurfaceMuted,
-            )
-            if(subtitle.isNotBlank()){Text(text = " ⋅ ")}
-            Text(
-                text = "@${user?.username ?: "User Name"}",
-                fontSize = 14.sp,
-                color = OnSurfaceMuted,
-            )
-        }
+    Spacer(modifier = Modifier.height(2.dp))
+    Row(verticalAlignment = Alignment.CenterVertically){
+        Text(
+            text = subtitle,
+            fontSize = 14.sp,
+            color = OnSurfaceMuted,
+        )
+        if(subtitle.isNotBlank()){Text(text = " ⋅ ")}
+        Text(
+            text = "@${user?.username ?: "User Name"}",
+            fontSize = 14.sp,
+            color = OnSurfaceMuted,
+        )
+    }
 
 }
 @Preview(showBackground = true, showSystemUi = true)
