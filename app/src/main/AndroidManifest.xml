@@ -7,6 +7,7 @@
     <!-- Foreground service for active voice calls (Android 9+ / 14+ typed variant). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <!-- Required on Android 14+ alongside FOREGROUND_SERVICE_PHONE_CALL to start a
          self-managed (non-default-dialer) phoneCall foreground service. -->
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
@@ -58,7 +59,7 @@
         <service
             android:name=".data.remote.call.CallForegroundService"
             android:exported="false"
-            android:foregroundServiceType="phoneCall" />
+            android:foregroundServiceType="phoneCall|microphone" />
         <activity
             android:name=".presentation.IncomingCallActivity"
             android:exported="false"

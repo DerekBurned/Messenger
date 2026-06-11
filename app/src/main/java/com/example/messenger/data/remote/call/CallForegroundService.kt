@@ -61,8 +61,10 @@ class CallForegroundService : Service() {
     private var ringingStarted: Boolean = false
     
     private var declinedByMe: Boolean = false
-    
+
     private var missRecorded: Boolean = false
+
+    private var micTypeStarted: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -101,7 +103,7 @@ class CallForegroundService : Service() {
             isIncoming = false,
         )
         ActiveCallHolder.set(call)
-        if (!startForegroundCompat(buildOngoingNotification(call))) return
+        if (!startForegroundCompat(buildOngoingNotification(call), withMicrophone = true)) return
 
         scope.launch {
             runCatching {
@@ -156,7 +158,7 @@ class CallForegroundService : Service() {
         val notification =
             if (isAppInForeground()) buildSilentIncomingNotification(call)
             else buildRingingNotification(call)
-        if (!startForegroundCompat(notification)) return
+        if (!startForegroundCompat(notification, withMicrophone = false)) return
 
         scope.launch {
             runCatching {
@@ -174,6 +176,7 @@ class CallForegroundService : Service() {
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
         ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0) }
+        if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call), withMicrophone = true)) return
         scope.launch {
             runCatching {
                 signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.ACTIVE)
@@ -181,7 +184,6 @@ class CallForegroundService : Service() {
         }
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.calleeId))
-        if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call))) return
         startTicker()
     }
 
@@ -379,6 +381,7 @@ class CallForegroundService : Service() {
         ringingAckJob?.cancel()
         ringingAckJob = null
         ringingStarted = false
+        micTypeStarted = false
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -469,15 +472,19 @@ class CallForegroundService : Service() {
         hasAudioFocus = false
     }
 
-    private fun startForegroundCompat(notification: Notification): Boolean {
+    private fun startForegroundCompat(
+        notification: Notification,
+        withMicrophone: Boolean = micTypeStarted,
+    ): Boolean {
         return try {
-            Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT})")
+            Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT}, mic=$withMicrophone)")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID_CALL,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
-                )
+                var serviceType = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+                if (withMicrophone) {
+                    serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                }
+                startForeground(NOTIFICATION_ID_CALL, notification, serviceType)
+                micTypeStarted = withMicrophone
             } else {
                 startForeground(NOTIFICATION_ID_CALL, notification)
             }
