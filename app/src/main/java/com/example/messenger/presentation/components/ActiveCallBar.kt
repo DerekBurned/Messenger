@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +30,16 @@ import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.domain.service.CallConnectionState
 
 private val ActiveBarGreen = Color(0xFF2E7D32)
+
+val LocalOpenActiveCall = staticCompositionLocalOf<() -> Unit> { {} }
+
+@Composable
+fun CallAwareTopBar(topBar: @Composable () -> Unit) {
+    Column {
+        topBar()
+        ActiveCallBar(onClick = LocalOpenActiveCall.current)
+    }
+}
 
 @Composable
 fun ActiveCallBar(onClick: () -> Unit) {

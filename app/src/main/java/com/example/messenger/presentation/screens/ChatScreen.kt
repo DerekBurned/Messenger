@@ -46,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
@@ -178,63 +179,65 @@ private fun ChatScreenContent(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = uiState.partnerUsername.ifBlank { "Chat" },
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = presenceStatusText,
-                            color = statusColor,
-                            fontSize = 12.sp
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onCallClick) {
-                        Icon(
-                            Icons.Default.Call,
-                            contentDescription = "Voice call",
-                            tint = Color.White
-                        )
-                    }
-                    Box(
-                        contentAlignment = Alignment.BottomEnd,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { onIntercultorProfileClick() }
-                    ) {
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = uiState.partnerUsername.ifBlank { "Chat" },
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = presenceStatusText,
+                                color = statusColor,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onCallClick) {
+                            Icon(
+                                Icons.Default.Call,
+                                contentDescription = "Voice call",
+                                tint = Color.White
+                            )
+                        }
                         Box(
+                            contentAlignment = Alignment.BottomEnd,
                             modifier = Modifier
-                                .matchParentSize()
-                                .padding(8.dp)
-                                .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                        )
-                        PresenceIndicator(
-                            state = uiState.partnerPresence.state,
-                            size = 12.dp,
-                            modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryBlue
+                                .size(48.dp)
+                                .clickable { onIntercultorProfileClick() }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .padding(8.dp)
+                                    .background(Color.White.copy(alpha = 0.3f), CircleShape)
+                            )
+                            PresenceIndicator(
+                                state = uiState.partnerPresence.state,
+                                size = 12.dp,
+                                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = PrimaryBlue
+                    )
                 )
-            )
+            }
         },
         containerColor = ChatBackground
     ) { padding ->
