@@ -64,6 +64,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.UserPresence
 import com.example.messenger.presentation.components.PresenceIndicator
@@ -88,12 +89,14 @@ fun ChatsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            MainTopBar(
-                title = "Chats",
-                onLogoutClick = onLogoutClick,
-                onSearchClick = onSearchClick,
-                showSearch = true,
-            )
+            CallAwareTopBar {
+                MainTopBar(
+                    title = "Chats",
+                    onLogoutClick = onLogoutClick,
+                    onSearchClick = onSearchClick,
+                    showSearch = true,
+                )
+            }
         },
 
     ) { innerPadding ->
@@ -122,12 +125,14 @@ fun CallsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            MainTopBar(
-                title = "Calls",
-                onLogoutClick = onLogoutClick,
-                onSearchClick = {},
-                showSearch = false,
-            )
+            CallAwareTopBar {
+                MainTopBar(
+                    title = "Calls",
+                    onLogoutClick = onLogoutClick,
+                    onSearchClick = {},
+                    showSearch = false,
+                )
+            }
         },
     ) { innerPadding ->
         CallsScreenContent(modifier = Modifier.padding(innerPadding))
@@ -143,12 +148,14 @@ fun ContactsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            MainTopBar(
-                title = "Contacts",
-                onLogoutClick = onLogoutClick,
-                onSearchClick = {},
-                showSearch = false,
-            )
+            CallAwareTopBar {
+                MainTopBar(
+                    title = "Contacts",
+                    onLogoutClick = onLogoutClick,
+                    onSearchClick = {},
+                    showSearch = false,
+                )
+            }
         },
     ) { innerPadding ->
         ContactsScreenContent(

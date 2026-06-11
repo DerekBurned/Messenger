@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.components.AuthInputTextField
 import com.example.messenger.presentation.components.CountryCodePicker
@@ -50,36 +51,38 @@ fun ChangePhoneScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = {
-                    Text(
-                        text = when (state.step) {
-                            ChangePhoneStep.CONFIRM_CURRENT,
-                            ChangePhoneStep.VERIFY_CURRENT,
-                            -> "Verify current number"
-                            ChangePhoneStep.ENTER_NEW,
-                            ChangePhoneStep.VERIFY_NEW,
-                            -> "Set new number"
-                        },
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (state.step == ChangePhoneStep.CONFIRM_CURRENT) onBackClick()
-                        else viewModel.dispatch(ChangePhoneIntent.GoBack)
-                    }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = {
+                        Text(
+                            text = when (state.step) {
+                                ChangePhoneStep.CONFIRM_CURRENT,
+                                ChangePhoneStep.VERIFY_CURRENT,
+                                -> "Verify current number"
+                                ChangePhoneStep.ENTER_NEW,
+                                ChangePhoneStep.VERIFY_NEW,
+                                -> "Set new number"
+                            },
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (state.step == ChangePhoneStep.CONFIRM_CURRENT) onBackClick()
+                            else viewModel.dispatch(ChangePhoneIntent.GoBack)
+                        }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
+                )
+            }
         },
     ) { padding ->
         Column(
