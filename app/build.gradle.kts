@@ -6,8 +6,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
-    alias(libs.plugins.kotlin.serialization)
-     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.objectbox)
 }
 
@@ -90,7 +89,6 @@ configurations.all {
 }
 
 dependencies {
-    implementation(libs.androidx.compose.runtime.saveable)
     // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -99,11 +97,12 @@ dependencies {
     // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.text.android)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.runtime.saveable)
 
 
     // Firebase - BOM manages all versions
@@ -113,9 +112,6 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.database)
-    implementation(libs.google.gms.auth.phone)
-
-    implementation(libs.androidx.compose.foundation)
 
     // Hilt - using KSP
     implementation(libs.hilt.android)
@@ -125,12 +121,8 @@ dependencies {
     // Required so @HiltWorker (e.g. SyncWorker) is registered in HiltWorkerFactory.
     ksp(libs.androidx.hilt.compiler)
 
-    // Navigation (Nav2 kept during transition; Nav3 primary per tech spec)
+    // Navigation
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.navigation3.runtime)
-    implementation(libs.androidx.navigation3.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.kotlinx.serialization.json)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
@@ -149,9 +141,6 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
-
-    // DataStore
-    implementation(libs.androidx.datastore.preferences)
 
     // Gson
     implementation(libs.google.gson)

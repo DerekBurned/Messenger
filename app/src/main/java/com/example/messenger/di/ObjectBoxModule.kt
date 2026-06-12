@@ -1,6 +1,7 @@
 package com.example.messenger.di
 
 import android.content.Context
+import com.example.messenger.BuildConfig
 import com.example.messenger.data.local.obx.MyObjectBox
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxMessage
@@ -14,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.objectbox.Box
 import io.objectbox.BoxStore
+import io.objectbox.exception.DbSchemaException
 import javax.inject.Singleton
 
 @Module
@@ -23,9 +25,17 @@ object ObjectBoxModule {
     @Provides
     @Singleton
     fun provideBoxStore(@ApplicationContext context: Context): BoxStore =
-        MyObjectBox.builder()
-            .androidContext(context.applicationContext)
-            .build()
+        try {
+            MyObjectBox.builder()
+                .androidContext(context.applicationContext)
+                .build()
+        } catch (e: DbSchemaException) {
+            if (!BuildConfig.DEBUG) throw e
+            BoxStore.deleteAllFiles(context.applicationContext, null)
+            MyObjectBox.builder()
+                .androidContext(context.applicationContext)
+                .build()
+        }
 
     @Provides @Singleton
     fun provideMessageBox(store: BoxStore): Box<ObxMessage> = store.boxFor(ObxMessage::class.java)
