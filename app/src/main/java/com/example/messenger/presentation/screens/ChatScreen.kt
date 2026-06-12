@@ -266,7 +266,7 @@ private fun ChatScreenContent(
             seededReopenAnchor = true
         }
 
-        val rows = rememberSaveable(uiState.messages, dividerAnchorId) {
+        val rows = remember(uiState.messages, dividerAnchorId) {
             buildList<ChatRow> {
                 uiState.messages.forEach { message ->
                     if (message.id == dividerAnchorId) add(ChatRow.UnreadDivider)
