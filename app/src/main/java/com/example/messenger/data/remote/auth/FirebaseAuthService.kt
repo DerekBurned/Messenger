@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import okhttp3.Dispatcher
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
