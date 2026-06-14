@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "com.example.messenger"
-    compileSdk = 36
+    compileSdk = 37
 
     // AGORA_APP_ID resolves from local.properties (gitignored — preferred), then a Gradle
     // project property (gradle.properties / -P / ORG_GRADLE_PROJECT_*), then a non-blank
@@ -30,7 +30,7 @@ android {
     defaultConfig {
         applicationId = "com.example.messenger"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -41,15 +41,14 @@ android {
 
         buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
 
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-        }
+
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -137,10 +136,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.process)
-
-    // Coil for image loading
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
 
     // Gson
     implementation(libs.google.gson)
