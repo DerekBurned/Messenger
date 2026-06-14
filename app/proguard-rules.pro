@@ -1,41 +1,42 @@
 # Add project specific ProGuard rules here.
 
-# Keep domain models used by Firestore toObject() deserialization
--keep class com.example.messenger.domain.model.** { *; }
-
-# Keep ObjectBox entities and generated model classes
--keep class com.example.messenger.data.local.obx.** { *; }
-
-# Keep DTOs used for Firebase serialization
--keep class com.example.messenger.data.remote.dto.** { *; }
-
-# Gson
--keepattributes Signature
--keepattributes *Annotation*
--keep class com.google.gson.** { *; }
--keep class * implements com.google.gson.TypeAdapterFactory
--keep class * implements com.google.gson.JsonSerializer
--keep class * implements com.google.gson.JsonDeserializer
-
-# Firebase
--keep class com.google.firebase.** { *; }
--dontwarn com.google.firebase.**
-
-# Coroutines
--keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
--keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
--keepclassmembers class kotlinx.coroutines.** {
-    volatile <fields>;
-}
-
-# Kotlin serialization (for type-safe navigation)
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt
-
-# Keep line numbers for better crash reports
+# Readable crash stack traces.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Prevent agora from abfuscation
+# Generic signatures + annotations: required by Gson TypeToken and the Firebase POJO mappers.
+-keepattributes Signature,*Annotation*,InnerClasses
+
+# Firestore / Realtime Database map documents onto these classes by reflection
+# (no-arg constructor + property names), so their members must keep their names.
+-keepclassmembers class com.example.messenger.domain.model.** {
+    <init>();
+    <fields>;
+    <methods>;
+}
+-keepclassmembers class com.example.messenger.data.remote.dto.** {
+    <init>();
+    <fields>;
+    <methods>;
+}
+
+# enum.name is persisted (ObjectBox / Firestore / Realtime DB) and read back with valueOf(),
+# so constant names must stay stable across builds.
+-keepclassmembers enum com.example.messenger.domain.model.** {
+    <fields>;
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ObjectBox entities + generated cursors: kept broadly. The package is tiny and this is the
+# persistence layer with prior schema-migration crash history, so the marginal shrink is not
+# worth the data-loss risk.
+-keep class com.example.messenger.data.local.obx.** { *; }
+
+# Gson: keep generic type info on the TypeToken subclasses used by the ObjectBox converters.
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+
+# Agora voice SDK is native; its C++ layer calls into these classes by name over JNI.
 -keep class io.agora.** { *; }
 -dontwarn io.agora.**
