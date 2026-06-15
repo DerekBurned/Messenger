@@ -22,6 +22,7 @@ class FirebaseCallSignalingService @Inject constructor(
 
     private val callsRef get() = db.reference.child("calls")
     private val callAcksRef get() = db.reference.child("callAcks")
+    private val callMembersRef get() = db.reference.child("callMembers")
 
     override suspend fun sendCallSignal(signal: CallSignal) {
         callsRef
@@ -123,6 +124,33 @@ class FirebaseCallSignalingService @Inject constructor(
             .child(callId)
             .removeValue()
             .await()
+    }
+
+    override suspend fun joinCallPresence(callId: String, uid: String) {
+        val ref = callMembersRef.child(callId).child(uid)
+        ref.onDisconnect().removeValue()
+        ref.setValue(true).await()
+    }
+
+    override fun leaveCallPresence(callId: String, uid: String) {
+        val ref = callMembersRef.child(callId).child(uid)
+        ref.onDisconnect().cancel()
+        ref.removeValue()
+    }
+
+    override fun observeCallMembers(callId: String): Flow<Set<String>> = callbackFlow {
+        val ref = callMembersRef.child(callId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(snapshot.children.mapNotNull { it.key }.toSet())
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                trySend(emptySet())
+            }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
     }
 
     private companion object {

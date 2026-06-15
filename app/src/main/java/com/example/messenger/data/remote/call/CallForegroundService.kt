@@ -54,6 +54,9 @@ class CallForegroundService : Service() {
     private var requestingTimeoutJob: Job? = null
     private var outgoingTimeoutJob: Job? = null
     private var ringingAckJob: Job? = null
+    private var reconnectTimeoutJob: Job? = null
+    private var presenceObserverJob: Job? = null
+    private var presenceTimeoutJob: Job? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus: Boolean = false
     private var ringbackTone: ToneGenerator? = null
@@ -67,6 +70,8 @@ class CallForegroundService : Service() {
     private var unreachedRecorded: Boolean = false
 
     private var endedRecorded: Boolean = false
+
+    private var peerWasPresent: Boolean = false
 
     private var micTypeStarted: Boolean = false
 
@@ -182,7 +187,7 @@ class CallForegroundService : Service() {
         val call = ActiveCallHolder.snapshot() ?: return
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
-        ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0) }
+        ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0, remotePresent = false) }
         if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call), withMicrophone = true)) return
         scope.launch {
             runCatching {
@@ -191,7 +196,8 @@ class CallForegroundService : Service() {
         }
         acquireAudioFocus()
         callService.joinChannel(call.channelName, uidFromUserId(call.calleeId))
-        startTicker()
+        enterActiveState()
+        reconcileConnection()
     }
 
     private fun handleDecline() {
@@ -206,6 +212,8 @@ class CallForegroundService : Service() {
     private fun terminate(status: CallStatus) {
         val call = ActiveCallHolder.snapshot() ?: run { stopSelfClean(); return }
 
+        statusObserverJob?.cancel()
+        statusObserverJob = null
         stopForegroundOnly()
         scope.launch {
             if (status == CallStatus.ENDED && call.isActive) {
@@ -262,8 +270,8 @@ class CallForegroundService : Service() {
                     CallStatus.ACTIVE -> {
                         if (isCaller && ActiveCallHolder.snapshot()?.isActive != true) {
                             ActiveCallHolder.update { it.copy(isActive = true) }
-                            startTicker()
-                            refreshOngoingNotification()
+                            enterActiveState()
+                            reconcileConnection()
                         }
                     }
 
@@ -403,6 +411,25 @@ class CallForegroundService : Service() {
         }
     }
 
+    private fun isFullyConnected(call: ActiveCallHolder.ActiveCall): Boolean =
+        call.isActive && call.remotePresent && call.connectionState == CallConnectionState.CONNECTED
+
+    private fun startReconnectTimeout() {
+        if (reconnectTimeoutJob?.isActive == true) return
+        reconnectTimeoutJob = scope.launch {
+            delay(RECONNECT_TIMEOUT_MS)
+            val snap = ActiveCallHolder.snapshot() ?: return@launch
+            if (isFullyConnected(snap)) return@launch
+            Log.d(TAG, "reconnect timeout (20s) — ending call")
+            terminate(CallStatus.ENDED)
+        }
+    }
+
+    private fun cancelReconnectTimeout() {
+        reconnectTimeoutJob?.cancel()
+        reconnectTimeoutJob = null
+    }
+
     private fun startRingback() {
         if (ringbackTone != null) return
         ringbackTone = runCatching {
@@ -434,8 +461,11 @@ class CallForegroundService : Service() {
         outgoingTimeoutJob = null
         ringingAckJob?.cancel()
         ringingAckJob = null
+        reconnectTimeoutJob?.cancel()
+        reconnectTimeoutJob = null
         ringingStarted = false
         micTypeStarted = false
+        stopPresence()
         callService.leaveChannel()
         releaseAudioFocus()
         ActiveCallHolder.clear()
@@ -448,20 +478,86 @@ class CallForegroundService : Service() {
         stopSelf()
     }
 
-    private fun startTicker() {
-
+    private fun enterActiveState() {
         stopRingback()
         requestingTimeoutJob?.cancel()
         requestingTimeoutJob = null
         outgoingTimeoutJob?.cancel()
         outgoingTimeoutJob = null
-        stopTicker()
+        startPresence()
+    }
+
+    private fun startPresence() {
+        if (presenceObserverJob?.isActive == true) return
+        val call = ActiveCallHolder.snapshot() ?: return
+        val mine = if (call.wasIncoming) call.calleeId else call.callerId
+        val peer = if (call.wasIncoming) call.callerId else call.calleeId
+        peerWasPresent = false
+        scope.launch { runCatching { signalingService.joinCallPresence(call.callId, mine) } }
+        presenceObserverJob = scope.launch {
+            signalingService.observeCallMembers(call.callId).collectLatest { members ->
+                handlePeerPresence(peer, members)
+            }
+        }
+    }
+
+    private fun handlePeerPresence(peerUid: String, members: Set<String>) {
+        if (ActiveCallHolder.snapshot()?.isActive != true) return
+        if (peerUid in members) {
+            peerWasPresent = true
+            presenceTimeoutJob?.cancel()
+            presenceTimeoutJob = null
+            return
+        }
+        if (!peerWasPresent || presenceTimeoutJob?.isActive == true) return
+        presenceTimeoutJob = scope.launch {
+            delay(RECONNECT_TIMEOUT_MS)
+            if (ActiveCallHolder.snapshot()?.isActive != true) return@launch
+            Log.d(TAG, "peer presence gone for ${RECONNECT_TIMEOUT_MS}ms — peer app closed/crashed/offline, ending call")
+            terminate(CallStatus.ENDED)
+        }
+    }
+
+    private fun stopPresence() {
+        presenceObserverJob?.cancel()
+        presenceObserverJob = null
+        presenceTimeoutJob?.cancel()
+        presenceTimeoutJob = null
+        val call = ActiveCallHolder.snapshot()
+        if (call != null) {
+            val mine = if (call.wasIncoming) call.calleeId else call.callerId
+            runCatching { signalingService.leaveCallPresence(call.callId, mine) }
+        }
+        peerWasPresent = false
+    }
+
+    private fun resumeTicker() {
+        if (tickerJob?.isActive == true) return
         tickerJob = scope.launch {
             while (true) {
                 delay(1000)
                 ActiveCallHolder.update { it.copy(seconds = it.seconds + 1) }
             }
         }
+    }
+
+    private fun reconcileConnection() {
+        val snap = ActiveCallHolder.snapshot() ?: return
+        if (!snap.isActive) return
+        if (isFullyConnected(snap)) {
+            Log.d(TAG, "reconcile: fully connected (local CONNECTED + remote present) — resuming timer at ${snap.seconds}s")
+            cancelReconnectTimeout()
+            resumeTicker()
+        } else {
+            Log.d(
+                TAG,
+                "reconcile: not fully connected (local=${snap.connectionState}, remotePresent=${snap.remotePresent}) " +
+                    "— pausing timer at ${snap.seconds}s, showing Connecting…, 20s reconnect window running",
+            )
+            stopTicker()
+            startReconnectTimeout()
+        }
+        refreshOngoingNotification()
     }
 
     private fun stopTicker() {
@@ -471,14 +567,27 @@ class CallForegroundService : Service() {
 
     private val eventListener = object : CallEventListener {
         override fun onRemoteUserJoined(uid: Int) {
-            ActiveCallHolder.update { it.copy(isActive = true, isIncoming = false) }
-            startTicker()
-            refreshOngoingNotification()
+            ActiveCallHolder.update { it.copy(isActive = true, isIncoming = false, remotePresent = true) }
+            enterActiveState()
+            reconcileConnection()
         }
 
         override fun onRemoteUserLeft(uid: Int) {
-
             recordEndedCallThenStop()
+        }
+
+        override fun onRemoteConnectionLost(uid: Int) {
+            val snap = ActiveCallHolder.snapshot() ?: return
+            if (!snap.isActive || !snap.remotePresent) return
+            ActiveCallHolder.update { it.copy(remotePresent = false) }
+            reconcileConnection()
+        }
+
+        override fun onRemoteConnectionRestored(uid: Int) {
+            val snap = ActiveCallHolder.snapshot() ?: return
+            if (!snap.isActive || snap.remotePresent) return
+            ActiveCallHolder.update { it.copy(remotePresent = true) }
+            reconcileConnection()
         }
 
         override fun onError(code: Int) {
@@ -487,6 +596,7 @@ class CallForegroundService : Service() {
 
         override fun onConnectionStateChanged(state: CallConnectionState) {
             ActiveCallHolder.update { it.copy(connectionState = state) }
+            reconcileConnection()
         }
     }
 
@@ -689,13 +799,15 @@ class CallForegroundService : Service() {
         private const val REQ_ACCEPT = 2
         private const val REQ_DECLINE = 3
         private const val REQ_END = 4
-        private const val STATUS_WRITE_TIMEOUT_MS = 4_000L
+        private const val STATUS_WRITE_TIMEOUT_MS = 2_000L
         private const val RING_TIMEOUT_MS = 60_000L
 
         private const val OUTGOING_TIMEOUT_MS = 65_000L
 
         private const val REQUESTING_TIMEOUT_MS = 30_000L
-        
+
+        private const val RECONNECT_TIMEOUT_MS = 20_000L
+
         private const val RINGBACK_VOLUME = 80
 
         fun outgoingIntent(
