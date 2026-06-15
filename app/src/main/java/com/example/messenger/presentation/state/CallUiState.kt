@@ -10,7 +10,9 @@ data class CallUiState(
     val channelName: String = "",
     val isIncoming: Boolean = false,
     val isActive: Boolean = false,
-    
+    val remotePresent: Boolean = false,
+    val callEnded: Boolean = false,
+
     val remoteRinging: Boolean = false,
     val seconds: Int = 0,
     val speakerOn: Boolean = false,
