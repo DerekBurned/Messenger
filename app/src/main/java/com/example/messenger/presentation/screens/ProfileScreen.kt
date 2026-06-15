@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.screens.ui.theme.DangerRed
@@ -66,36 +67,38 @@ private fun ProfileScreenContent(
 ) {
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = {
-                    Text(
-                        text = "Profile",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = {
+                        Text(
+                            text = "Profile",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue),
-                actions = {
-                    IconButton(onClick = onStartEditing) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit",
-                            tint = Color.White,
-                        )
-                    }
-                },
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue),
+                    actions = {
+                        IconButton(onClick = onStartEditing) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = Color.White,
+                            )
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         Column(
