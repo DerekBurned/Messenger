@@ -20,7 +20,6 @@ import javax.inject.Singleton
 class AgoraCallService @Inject constructor(
     @ApplicationContext private val contextMY: Context
 ) : ICallService {
-    private val myAppID = "3d080c1db3ff4a80bef22c3b2cb6ea46"
     private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
 
@@ -60,7 +59,7 @@ class AgoraCallService @Inject constructor(
         try {
             val config = RtcEngineConfig().apply {
                 mContext = contextMY
-                mAppId = myAppID
+                mAppId = BuildConfig.AGORA_APP_ID
                 mEventHandler = handler
             }
             val created = RtcEngine.create(config)

@@ -435,6 +435,23 @@ private fun ChatScreenContent(
                                                 onCall = onCallClick,
                                                 timestamp = originalMessage.timestamp,
                                                 isMe = originalMessage.senderId == uiState.currentUserId,
+                                                status = originalMessage.status,
+                                            )
+                                        } else if (originalMessage.type == Message.TYPE_UNREACHED_CALL) {
+
+                                            MissedCallCard(
+                                                onCall = onCallClick,
+                                                timestamp = originalMessage.timestamp,
+                                                isMe = originalMessage.senderId == uiState.currentUserId,
+                                                title = "Unreached call",
+                                                status = originalMessage.status,
+                                            )
+                                        } else if (originalMessage.type == Message.TYPE_ENDED_CALL) {
+
+                                            EndedCallCard(
+                                                durationSeconds = originalMessage.callDurationSeconds,
+                                                timestamp = originalMessage.timestamp,
+                                                isMe = originalMessage.senderId == uiState.currentUserId,
                                             )
                                         } else {
                                             val chatMessage = ChatMessage(
@@ -682,6 +699,8 @@ private fun MissedCallCard(
     timestamp: Long,
     isMe: Boolean,
     modifier: Modifier = Modifier,
+    title: String = "Missed Call",
+    status: MessageStatus? = null,
 ) {
 
     val titleColor = if (isMe) Color.White else BubbleReceivedText
@@ -711,16 +730,22 @@ private fun MissedCallCard(
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Missed Call",
+                        text = title,
                         color = titleColor,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
                     )
-                    Text(
-                        text = "Tap to call back · ${DateUtils.formatMessageTime(timestamp)}",
-                        color = subtitleColor,
-                        fontSize = 12.sp,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Tap to call back · ${DateUtils.formatMessageTime(timestamp)}",
+                            color = subtitleColor,
+                            fontSize = 12.sp,
+                        )
+                        if (isMe && status != null) {
+                            Spacer(Modifier.width(4.dp))
+                            MessageStatusIcon(status = status)
+                        }
+                    }
                 }
                 Spacer(Modifier.width(14.dp))
                 Box(
@@ -734,6 +759,55 @@ private fun MissedCallCard(
                         contentDescription = "Call back",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EndedCallCard(
+    durationSeconds: Int,
+    timestamp: Long,
+    isMe: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val titleColor = if (isMe) Color.White else BubbleReceivedText
+    val subtitleColor = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = if (isMe) BubbleSent else BubbleReceived,
+            shadowElevation = 1.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = null,
+                    tint = Color(0xFF34C759),
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Call",
+                        color = titleColor,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                    )
+                    Text(
+                        text = "${DateUtils.formatDuration(durationSeconds)} · ${DateUtils.formatMessageTime(timestamp)}",
+                        color = subtitleColor,
+                        fontSize = 12.sp,
                     )
                 }
             }

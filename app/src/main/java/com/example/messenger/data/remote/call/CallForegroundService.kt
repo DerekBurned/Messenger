@@ -64,6 +64,10 @@ class CallForegroundService : Service() {
 
     private var missRecorded: Boolean = false
 
+    private var unreachedRecorded: Boolean = false
+
+    private var endedRecorded: Boolean = false
+
     private var micTypeStarted: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -93,6 +97,8 @@ class CallForegroundService : Service() {
 
     private fun handleStartOutgoing(intent: Intent) {
         ringingStarted = false
+        unreachedRecorded = false
+        endedRecorded = false
         val call = ActiveCallHolder.ActiveCall(
             callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty(),
             callerId = intent.getStringExtra(EXTRA_CALLER_ID).orEmpty(),
@@ -167,6 +173,7 @@ class CallForegroundService : Service() {
         }
         declinedByMe = false
         missRecorded = false
+        endedRecorded = false
         observeRemoteStatus(call.calleeId, call.callId, isCaller = false)
         startRingTimeout(call)
     }
@@ -201,6 +208,9 @@ class CallForegroundService : Service() {
 
         stopForegroundOnly()
         scope.launch {
+            if (status == CallStatus.ENDED && call.isActive) {
+                recordEndedCall(call)
+            }
             withTimeoutOrNull(STATUS_WRITE_TIMEOUT_MS) {
                 runCatching {
                     signalingService.updateCallStatus(call.calleeId, call.callId, status)
@@ -257,7 +267,13 @@ class CallForegroundService : Service() {
                         }
                     }
 
-                    CallStatus.ENDED -> recordMissedCallThenStop()
+                    CallStatus.ENDED -> {
+                        if (ActiveCallHolder.snapshot()?.isActive == true) {
+                            recordEndedCallThenStop()
+                        } else {
+                            recordMissedCallThenStop()
+                        }
+                    }
                     CallStatus.DECLINED -> stopSelfClean()
                     CallStatus.RINGING, null -> Unit
                 }
@@ -282,6 +298,31 @@ class CallForegroundService : Service() {
             }.onFailure { Log.w(TAG, "missed-call record failed", it) }
             stopSelfClean()
         }
+    }
+
+    private fun recordEndedCallThenStop() {
+        val call = ActiveCallHolder.snapshot()
+        if (call == null || !call.isActive || endedRecorded) {
+            stopSelfClean()
+            return
+        }
+        scope.launch {
+            recordEndedCall(call)
+            stopSelfClean()
+        }
+    }
+
+    private suspend fun recordEndedCall(call: ActiveCallHolder.ActiveCall) {
+        if (endedRecorded) return
+        endedRecorded = true
+        runCatching {
+            missedCallRecorder.recordEnded(
+                callId = call.callId,
+                callerId = call.callerId,
+                calleeId = call.calleeId,
+                durationSeconds = call.seconds,
+            )
+        }.onFailure { Log.w(TAG, "ended-call record failed", it) }
     }
 
     private fun startRingTimeout(call: ActiveCallHolder.ActiveCall) {
@@ -335,8 +376,21 @@ class CallForegroundService : Service() {
             delay(REQUESTING_TIMEOUT_MS)
             if (ActiveCallHolder.snapshot()?.isActive == true) return@launch
             Log.d(TAG, "requesting timeout fired — callee never confirmed ringing, ending call")
+            recordUnreachedCall()
             terminate(CallStatus.ENDED)
         }
+    }
+
+    private suspend fun recordUnreachedCall() {
+        val call = ActiveCallHolder.snapshot() ?: return
+        if (call.wasIncoming || call.isActive || unreachedRecorded) return
+        unreachedRecorded = true
+        runCatching {
+            missedCallRecorder.recordUnreached(
+                callerId = call.callerId,
+                calleeId = call.calleeId,
+            )
+        }.onFailure { Log.w(TAG, "unreached-call record failed", it) }
     }
 
     private fun startRingingTimeout() {
@@ -424,7 +478,7 @@ class CallForegroundService : Service() {
 
         override fun onRemoteUserLeft(uid: Int) {
 
-            stopSelfClean()
+            recordEndedCallThenStop()
         }
 
         override fun onError(code: Int) {
@@ -513,7 +567,7 @@ class CallForegroundService : Service() {
             .setContentTitle(call.partnerName.ifBlank { "Voice call" })
             .setContentText(if (call.isActive) "On call" else "Calling…")
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openAppPi)
             .setShowWhen(true)
             .addAction(0, "End call", endPi)
@@ -521,7 +575,6 @@ class CallForegroundService : Service() {
     }
 
     private fun buildRingingNotification(call: ActiveCallHolder.ActiveCall): Notification {
-
         val acceptPi = incomingCallActivityPendingIntent(accept = true)
         val declinePi = actionPendingIntent(ACTION_DECLINE, REQ_DECLINE)
         val openPi = incomingCallActivityPendingIntent(accept = false)

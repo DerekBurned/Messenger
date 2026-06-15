@@ -1,11 +1,16 @@
 package com.example.messenger
 
 import android.app.Application
+import android.content.ComponentCallbacks2
+import android.os.Build
+import android.os.ProfilingManager
+import android.os.ProfilingTrigger
 import android.util.Log
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.example.messenger.data.presence.AppLifecycleObserver
+import com.example.messenger.data.remote.call.IncomingCallCoordinator
 import com.example.messenger.data.remote.firebase.FcmTokenSyncer
 import com.example.messenger.data.sync.SyncCoordinator
 import com.example.messenger.data.sync.SyncManager
@@ -31,6 +36,9 @@ class MessengerApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var fcmTokenSyncer: FcmTokenSyncer
 
+    @Inject
+    lateinit var incomingCallCoordinator: IncomingCallCoordinator
+
     override fun onCreate() {
         super.onCreate()
 
@@ -40,12 +48,42 @@ class MessengerApplication : Application(), Configuration.Provider {
             previous?.uncaughtException(thread, throwable)
         }
 
-        runCatching { deleteDatabase("messenger_database.db") }
         NotificationChannels.ensureCreated(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         syncCoordinator.start()
         syncManager.schedulePeriodicSync()
         fcmTokenSyncer.start()
+        incomingCallCoordinator.start()
+        registerMemoryProfiling()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        when {
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> Log.d("MEM_TRIM", "BACKGROUND ($level)")
+            level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> Log.d("MEM_TRIM", "UI_HIDDEN ($level)")
+        }
+    }
+
+    private fun registerMemoryProfiling() {
+        if (Build.VERSION.SDK_INT < 37) return
+        val profiling = getSystemService(ProfilingManager::class.java) ?: return
+        profiling.registerForAllProfilingResults(mainExecutor) { result ->
+            Log.i(
+                "MEM_PROFILING",
+                "trigger=${result.triggerType} error=${result.errorCode} file=${result.resultFilePath}",
+            )
+        }
+        profiling.addProfilingTriggers(
+            listOf(
+                ProfilingTrigger.Builder(ProfilingTrigger.TRIGGER_TYPE_OOM)
+                    .setRateLimitingPeriodHours(24)
+                    .build(),
+                ProfilingTrigger.Builder(ProfilingTrigger.TRIGGER_TYPE_ANOMALY)
+                    .setRateLimitingPeriodHours(24)
+                    .build(),
+            ),
+        )
     }
 
     override val workManagerConfiguration: Configuration
