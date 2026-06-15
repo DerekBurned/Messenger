@@ -2,26 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Required on Android 13+ to display any notification (incl. FCM). Requested at runtime. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Foreground service for active voice calls (Android 9+ / 14+ typed variant). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
-    <!-- Required on Android 14+ alongside FOREGROUND_SERVICE_PHONE_CALL to start a
-         self-managed (non-default-dialer) phoneCall foreground service. -->
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
-    <!-- Allows ringing incoming-call notifications to launch above the lockscreen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-    <!--Optional permissions for voice call-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
-    <!-- For devices running Android 12 (API level 32) or higher and integrating Agora Voice SDK version v4.1.0 or lower, you also need to add the following permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <!-- For Android 12 or higher, the following permissions are also required -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
     <application
@@ -40,7 +32,7 @@
             android:exported="true"
             android:label="@string/title_activity_main"
             android:theme="@style/Theme.Messenger"
-            android:screenOrientation="reversePortrait"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" >
 
             <intent-filter>
@@ -68,12 +60,7 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.Messenger" />
 
-        <!--
-          Remove WorkManager's default startup initializer so it does NOT auto-initialize with the
-          default WorkerFactory. MessengerApplication implements Configuration.Provider and supplies
-          a HiltWorkerFactory; on-demand initialization then uses it, which is required to construct
-          @HiltWorker / @AssistedInject workers like SyncWorker.
-        -->
+
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
