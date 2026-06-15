@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,7 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
-import com.example.messenger.presentation.components.ActiveCallBar
+import com.example.messenger.presentation.components.LocalOpenActiveCall
 import com.example.messenger.presentation.components.FloatingTabBar
 import com.example.messenger.presentation.components.IncomingCallBar
 import com.example.messenger.presentation.components.MainTab
@@ -122,9 +123,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-        if (showCallBar) {
-            ActiveCallBar(onClick = { openActiveCall(accept = false) })
-        }
+        CompositionLocalProvider(LocalOpenActiveCall provides { openActiveCall(accept = false) }) {
         NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -332,6 +331,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         }
 
+        }
         }
         }
         if (showTabBar) {

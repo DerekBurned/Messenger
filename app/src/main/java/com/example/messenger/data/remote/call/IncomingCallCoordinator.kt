@@ -3,6 +3,7 @@ package com.example.messenger.data.remote.call
 import android.content.Context
 import androidx.core.content.ContextCompat
 import com.example.messenger.data.remote.auth.FirebaseAuthService
+import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.service.ICallSignalingService
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +23,7 @@ class IncomingCallCoordinator @Inject constructor(
     private val signalingService: ICallSignalingService,
     private val firebaseAuthService: FirebaseAuthService,
     private val firebaseAuth: FirebaseAuth,
+    private val userRepository: IUserRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var observerJob: Job? = null
@@ -51,12 +54,22 @@ class IncomingCallCoordinator @Inject constructor(
                     callerId = signal.callerId,
                     calleeId = signal.calleeId,
                     channelName = signal.channelName,
-
-                    partnerName = signal.callerId,
+                    partnerName = resolveCallerName(signal.callerId),
                     partnerPhone = "",
                 )
                 ContextCompat.startForegroundService(context, intent)
             }
         }
+    }
+
+    private suspend fun resolveCallerName(callerId: String): String {
+        val username = withTimeoutOrNull(CALLER_NAME_TIMEOUT_MS) {
+            runCatching { userRepository.getUserById(callerId).getOrNull()?.username }.getOrNull()
+        }
+        return username?.takeIf { it.isNotBlank() } ?: "Unknown caller"
+    }
+
+    private companion object {
+        const val CALLER_NAME_TIMEOUT_MS = 1500L
     }
 }

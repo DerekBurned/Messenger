@@ -19,6 +19,7 @@ fun ObxMessage.toDomain(): Message = Message(
     replyToMessageId = replyToMessageId,
     replyToText = replyToText,
     replyToSenderId = replyToSenderId,
+    callDurationSeconds = callDurationSeconds,
 )
 
 fun Message.toObx(): ObxMessage = ObxMessage(
@@ -34,6 +35,7 @@ fun Message.toObx(): ObxMessage = ObxMessage(
     replyToMessageId = replyToMessageId,
     replyToText = replyToText,
     replyToSenderId = replyToSenderId,
+    callDurationSeconds = callDurationSeconds,
 )
 
 private fun parseStatus(value: String): MessageStatus {

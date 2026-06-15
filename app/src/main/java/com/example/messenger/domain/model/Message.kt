@@ -17,9 +17,13 @@ data class Message(
     val replyToText: String? = null,
     
     val replyToSenderId: String? = null,
+
+    val callDurationSeconds: Int = 0,
 ) {
     companion object {
         const val TYPE_TEXT = "TEXT"
         const val TYPE_MISSED_CALL = "MISSED_CALL"
+        const val TYPE_UNREACHED_CALL = "UNREACHED_CALL"
+        const val TYPE_ENDED_CALL = "ENDED_CALL"
     }
 }
