@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.effect.EditContactDataEffect
 import com.example.messenger.presentation.screens.ui.theme.DangerRed
@@ -69,16 +70,18 @@ private fun EditContactDataScreenContent(
 ) {
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = { Text("Edit Contact", color = Color.White, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-            )
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = { Text("Edit Contact", color = Color.White, fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
+                )
+            }
         },
     ) { padding ->
         Column(

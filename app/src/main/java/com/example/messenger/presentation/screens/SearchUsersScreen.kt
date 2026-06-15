@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
@@ -90,42 +91,44 @@ private fun SearchUsersScreenContent(
 ) {
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = onQueryChange,
-                        placeholder = { Text("Search users...", color = Color.White.copy(alpha = 0.7f)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = onQueryChange,
+                            placeholder = { Text("Search users...", color = Color.White.copy(alpha = 0.7f)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Color.White,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = PrimaryBlue
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = PrimaryBlue
+                    )
                 )
-            )
+            }
         }
     ) { padding ->
         Box(

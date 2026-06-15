@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.presentation.components.CallAwareTopBar
 import com.example.messenger.domain.model.PresenceState
 import com.example.messenger.domain.model.User
 import com.example.messenger.presentation.components.PresenceIndicator
@@ -62,20 +63,22 @@ fun SettingsScreenContent(
     ) {
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.shadow(elevation = 4.dp),
-                title = {
-                    Text(
-                        text = "Settings",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = PrimaryBlue,
-                ),
-            )
+            CallAwareTopBar {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.shadow(elevation = 4.dp),
+                    title = {
+                        Text(
+                            text = "Settings",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = PrimaryBlue,
+                    ),
+                )
+            }
         },
     ) { padding ->
         Column(
@@ -217,20 +220,20 @@ fun ProfileBaseInfo(user: User?){
         ?:user?.phoneNumber?.getFullNumber()
         ?: ""
 
-        Spacer(modifier = Modifier.height(2.dp))
-        Row(verticalAlignment = Alignment.CenterVertically){
-            Text(
-                text = subtitle,
-                fontSize = 14.sp,
-                color = OnSurfaceMuted,
-            )
-            if(subtitle.isNotBlank()){Text(text = " ⋅ ")}
-            Text(
-                text = "@${user?.username ?: "User Name"}",
-                fontSize = 14.sp,
-                color = OnSurfaceMuted,
-            )
-        }
+    Spacer(modifier = Modifier.height(2.dp))
+    Row(verticalAlignment = Alignment.CenterVertically){
+        Text(
+            text = subtitle,
+            fontSize = 14.sp,
+            color = OnSurfaceMuted,
+        )
+        if(subtitle.isNotBlank()){Text(text = " ⋅ ")}
+        Text(
+            text = "@${user?.username ?: "User Name"}",
+            fontSize = 14.sp,
+            color = OnSurfaceMuted,
+        )
+    }
 
 }
 @Preview(showBackground = true, showSystemUi = true)

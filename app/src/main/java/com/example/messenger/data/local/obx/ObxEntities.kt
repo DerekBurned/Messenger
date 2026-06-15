@@ -27,6 +27,7 @@ data class ObxMessage(
     var replyToMessageId: String? = null,
     var replyToText: String? = null,
     var replyToSenderId: String? = null,
+    var callDurationSeconds: Int = 0,
 )
 
 @Entity

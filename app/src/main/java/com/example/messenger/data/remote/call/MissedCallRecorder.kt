@@ -65,6 +65,74 @@ class MissedCallRecorder @Inject constructor(
         )
     }
 
+    suspend fun recordUnreached(callerId: String, calleeId: String) {
+        if (callerId.isBlank() || calleeId.isBlank()) {
+            Log.w(TAG, "recordUnreached skipped: blank ids caller=$callerId callee=$calleeId")
+            return
+        }
+
+        val conversationResult = conversationRepository.createConversation(
+            listOf(callerId, calleeId),
+        )
+        val conversation = conversationResult.getOrNull()
+        if (conversation == null) {
+            Log.w(
+                TAG,
+                "recordUnreached: failed to resolve conversation",
+                conversationResult.exceptionOrNull(),
+            )
+            return
+        }
+
+        val message = Message(
+            id = UUID.randomUUID().toString(),
+            conversationId = conversation.id,
+            senderId = callerId,
+            text = UNREACHED_CALL_TEXT,
+            timestamp = System.currentTimeMillis(),
+            type = Message.TYPE_UNREACHED_CALL,
+        )
+        runCatching { messageRepository.sendMessage(message) }
+            .onFailure { Log.w(TAG, "recordUnreached: failed to write unreached-call message", it) }
+    }
+
+    suspend fun recordEnded(
+        callId: String,
+        callerId: String,
+        calleeId: String,
+        durationSeconds: Int,
+    ) {
+        if (callerId.isBlank() || calleeId.isBlank()) {
+            Log.w(TAG, "recordEnded skipped: blank ids caller=$callerId callee=$calleeId")
+            return
+        }
+
+        val conversationResult = conversationRepository.createConversation(
+            listOf(callerId, calleeId),
+        )
+        val conversation = conversationResult.getOrNull()
+        if (conversation == null) {
+            Log.w(
+                TAG,
+                "recordEnded: failed to resolve conversation",
+                conversationResult.exceptionOrNull(),
+            )
+            return
+        }
+
+        val message = Message(
+            id = "ended-$callId",
+            conversationId = conversation.id,
+            senderId = callerId,
+            text = ENDED_CALL_TEXT,
+            timestamp = System.currentTimeMillis(),
+            type = Message.TYPE_ENDED_CALL,
+            callDurationSeconds = durationSeconds,
+        )
+        runCatching { messageRepository.sendMessage(message) }
+            .onFailure { Log.w(TAG, "recordEnded: failed to write ended-call message", it) }
+    }
+
     private fun postMissedCallNotification(
         conversationId: String,
         callerId: String,
@@ -98,7 +166,9 @@ class MissedCallRecorder @Inject constructor(
 
     private companion object {
         const val TAG = "MissedCallRecorder"
-        const val MISSED_CALL_TEXT = "📞 Missed call"
+        const val MISSED_CALL_TEXT = "Missed call"
+        const val UNREACHED_CALL_TEXT = "Unreached call"
+        const val ENDED_CALL_TEXT = "Call"
         const val MISSED_CALL_NOTIFICATION_ID_PREFIX = 0x6D15500
     }
 }
