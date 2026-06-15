@@ -1,6 +1,7 @@
 package com.example.messenger.data.remote.call
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.example.messenger.BuildConfig
 import com.example.messenger.domain.service.CallConnectionState
@@ -17,29 +18,35 @@ import javax.inject.Singleton
 
 @Singleton
 class AgoraCallService @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @ApplicationContext private val contextMY: Context
 ) : ICallService {
-
     private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
 
     private val handler = object : IRtcEngineEventHandler() {
+        override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            Log.e(TAG, "onJoinChannelSuccess channel=$channel uid=$uid")
+        }
+
         override fun onUserJoined(uid: Int, elapsed: Int) {
+            Log.e(TAG, "onUserJoined uid=$uid")
             listener?.onRemoteUserJoined(uid)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
-
+            Log.e(TAG, "onUserOffline uid=$uid reason=$reason")
             if (reason == io.agora.rtc2.Constants.USER_OFFLINE_QUIT) {
                 listener?.onRemoteUserLeft(uid)
             }
         }
 
         override fun onError(err: Int) {
+            Log.e(TAG, "onError code=$err")
             listener?.onError(err)
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
+            Log.e(TAG, "onConnectionStateChanged state=$state reason=$reason")
             listener?.onConnectionStateChanged(state.toCallConnectionState())
         }
     }
@@ -51,14 +58,13 @@ class AgoraCallService @Inject constructor(
 
         try {
             val config = RtcEngineConfig().apply {
+                mContext = contextMY
                 mAppId = BuildConfig.AGORA_APP_ID
-                mContext = context
                 mEventHandler = handler
             }
             val created = RtcEngine.create(config)
             if (created == null) {
-
-                Log.e(TAG, "RtcEngine.create returned null — calls will have no audio")
+                Log.e(TAG, "RtcEngine.create returned null — process ABIs: ${Build.SUPPORTED_ABIS.joinToString()}")
             } else {
                 created.enableAudio()
             }
@@ -80,7 +86,9 @@ class AgoraCallService @Inject constructor(
         val options = ChannelMediaOptions().apply {
             channelProfile = io.agora.rtc2.Constants.CHANNEL_PROFILE_COMMUNICATION
             clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
+            publishMicrophoneTrack = true
         }
+        Log.e(TAG, "joinChannel channel=$channelName uid=$uid")
         engine.joinChannel("", channelName, uid, options)
     }
 
