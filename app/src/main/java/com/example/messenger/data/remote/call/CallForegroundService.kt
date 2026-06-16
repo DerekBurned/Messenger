@@ -544,17 +544,16 @@ class CallForegroundService : Service() {
     private fun reconcileConnection() {
         val snap = ActiveCallHolder.snapshot() ?: return
         if (!snap.isActive) return
+        resumeTicker()
         if (isFullyConnected(snap)) {
-            Log.d(TAG, "reconcile: fully connected (local CONNECTED + remote present) — resuming timer at ${snap.seconds}s")
+            Log.d(TAG, "reconcile: fully connected (local CONNECTED + remote present) — timer running at ${snap.seconds}s")
             cancelReconnectTimeout()
-            resumeTicker()
         } else {
             Log.d(
                 TAG,
                 "reconcile: not fully connected (local=${snap.connectionState}, remotePresent=${snap.remotePresent}) " +
-                    "— pausing timer at ${snap.seconds}s, showing Connecting…, 20s reconnect window running",
+                    "— showing Connecting…, timer keeps ticking at ${snap.seconds}s, 20s reconnect window running",
             )
-            stopTicker()
             startReconnectTimeout()
         }
         refreshOngoingNotification()
