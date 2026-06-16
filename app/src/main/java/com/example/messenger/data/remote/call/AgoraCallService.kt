@@ -10,7 +10,6 @@ import com.example.messenger.domain.service.ICallService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
-import io.agora.rtc2.RtcConnection
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import javax.inject.Inject
@@ -18,7 +17,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AgoraCallService @Inject constructor(
-    @ApplicationContext private val contextMY: Context
+    @ApplicationContext private val ctx: Context
 ) : ICallService {
     private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
@@ -89,7 +88,7 @@ class AgoraCallService @Inject constructor(
 
         try {
             val config = RtcEngineConfig().apply {
-                mContext = contextMY
+                mContext = ctx
                 mAppId = BuildConfig.AGORA_APP_ID
                 mEventHandler = handler
             }
