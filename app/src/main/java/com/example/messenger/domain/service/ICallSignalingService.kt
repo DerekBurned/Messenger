@@ -21,4 +21,10 @@ interface ICallSignalingService {
     fun observeRingingAck(callerId: String, callId: String): Flow<Boolean>
 
     suspend fun clearRingingAck(callerId: String, callId: String)
+
+    suspend fun joinCallPresence(callId: String, uid: String)
+
+    fun leaveCallPresence(callId: String, uid: String)
+
+    fun observeCallMembers(callId: String): Flow<Set<String>>
 }

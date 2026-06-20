@@ -50,13 +50,36 @@ class  CallStatusTextTest {
     }
 
     @Test
-    fun `active and connected shows the elapsed timer`() {
+    fun `active and connected with remote present shows the elapsed timer`() {
         val state = CallUiState(
             isActive = true,
+            remotePresent = true,
             seconds = 73,
             connectionState = CallConnectionState.CONNECTED,
         )
         assertEquals("1:13", callStatusText(state))
+    }
+
+    @Test
+    fun `active and connected but remote not present is Connecting`() {
+        val state = CallUiState(
+            isActive = true,
+            remotePresent = false,
+            seconds = 73,
+            connectionState = CallConnectionState.CONNECTED,
+        )
+        assertEquals("Connecting…", callStatusText(state))
+    }
+
+    @Test
+    fun `ended call shows Call Ended regardless of other flags`() {
+        val state = CallUiState(
+            callEnded = true,
+            isActive = true,
+            remotePresent = true,
+            connectionState = CallConnectionState.CONNECTED,
+        )
+        assertEquals("Call Ended", callStatusText(state))
     }
 
     @Test
