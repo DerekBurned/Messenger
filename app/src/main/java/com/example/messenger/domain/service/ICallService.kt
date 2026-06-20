@@ -15,6 +15,8 @@ enum class CallConnectionState { CONNECTING, CONNECTED, RECONNECTING, FAILED, DI
 interface CallEventListener {
     fun onRemoteUserJoined(uid: Int)
     fun onRemoteUserLeft(uid: Int)
+    fun onRemoteConnectionLost(uid: Int) {}
+    fun onRemoteConnectionRestored(uid: Int) {}
     fun onError(code: Int)
 
     fun onConnectionStateChanged(state: CallConnectionState) {}

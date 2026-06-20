@@ -16,10 +16,12 @@ object ActiveCallHolder {
         val partnerName: String,
         val partnerPhone: String,
         val isIncoming: Boolean,
-        
+
         val wasIncoming: Boolean = isIncoming,
         val isActive: Boolean = false,
-        
+        val remotePresent: Boolean = false,
+        val callEnded: Boolean = false,
+
         val remoteRinging: Boolean = false,
         val muted: Boolean = false,
         val speakerOn: Boolean = false,

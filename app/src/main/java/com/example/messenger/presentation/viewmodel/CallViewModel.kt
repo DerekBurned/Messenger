@@ -15,6 +15,7 @@ import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -75,13 +76,22 @@ class CallViewModel @Inject constructor(
         viewModelScope.launch {
             ActiveCallHolder.state.collectLatest { active ->
                 if (active == null) {
-                    
-                    _uiState.value = CallUiState()
                     if (hadActiveCall) {
                         hadActiveCall = false
-                        routeExit(lastCall, wasAnswered)
+                        val ended = lastCall
+                        if (wasAnswered) {
+                            _uiState.value = CallUiState(
+                                partnerName = ended?.partnerName.orEmpty(),
+                                partnerPhone = ended?.partnerPhone.orEmpty(),
+                                callEnded = true,
+                            )
+                            delay(CALL_ENDED_DISPLAY_MS)
+                        }
+                        routeExit(ended, wasAnswered)
                         lastCall = null
                         wasAnswered = false
+                    } else {
+                        _uiState.value = CallUiState()
                     }
                     return@collectLatest
                 }
@@ -94,6 +104,7 @@ class CallViewModel @Inject constructor(
                     channelName = active.channelName,
                     isIncoming = active.isIncoming,
                     isActive = active.isActive,
+                    remotePresent = active.remotePresent,
                     remoteRinging = active.remoteRinging,
                     seconds = active.seconds,
                     muted = active.muted,
@@ -167,5 +178,7 @@ class CallViewModel @Inject constructor(
         const val TAG = "CallViewModel"
 
         const val RESUME_PARTNER_ID = "active"
+
+        const val CALL_ENDED_DISPLAY_MS = 750L
     }
 }

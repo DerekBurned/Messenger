@@ -97,14 +97,8 @@ fun CallScreen(
         state = state,
         micDenied = micDenied,
         onAccept = { withMic { viewModel.acceptCall() } },
-        onDecline = {
-            viewModel.declineCall()
-            onCallEnded()
-        },
-        onEnd = {
-            viewModel.endCall()
-            onCallEnded()
-        },
+        onDecline = { viewModel.declineCall() },
+        onEnd = { viewModel.endCall() },
         onToggleSpeaker = viewModel::toggleSpeaker,
         onToggleMute = viewModel::toggleMute,
     )
@@ -186,8 +180,10 @@ private fun CallScreenContent(
 }
 
 internal fun callStatusText(state: CallUiState): String = when {
+    state.callEnded -> "Call Ended"
     state.isIncoming -> "Incoming call…"
-    state.isActive && state.connectionState == CallConnectionState.CONNECTED -> formatSeconds(state.seconds)
+    state.isActive && state.connectionState == CallConnectionState.CONNECTED && state.remotePresent ->
+        formatSeconds(state.seconds)
     state.isActive -> "Connecting…"
     state.connectionState == CallConnectionState.FAILED -> "Call failed"
     state.connectionState == CallConnectionState.DISCONNECTED -> "Disconnected"

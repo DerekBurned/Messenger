@@ -10,7 +10,6 @@ import com.example.messenger.domain.service.ICallService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
-import io.agora.rtc2.RtcConnection
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import javax.inject.Inject
@@ -18,36 +17,67 @@ import javax.inject.Singleton
 
 @Singleton
 class AgoraCallService @Inject constructor(
-    @ApplicationContext private val contextMY: Context
+    @ApplicationContext private val ctx: Context
 ) : ICallService {
     private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
 
     private val handler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
-            Log.e(TAG, "onJoinChannelSuccess channel=$channel uid=$uid")
+            Log.e(TAG, "onJoinChannelSuccess: local user joined channel=$channel as uid=$uid")
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
-            Log.e(TAG, "onUserJoined uid=$uid")
+            Log.e(TAG, "onUserJoined: remote uid=$uid is now in the channel (peer present) -> onRemoteUserJoined")
             listener?.onRemoteUserJoined(uid)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
-            Log.e(TAG, "onUserOffline uid=$uid reason=$reason")
-            if (reason == io.agora.rtc2.Constants.USER_OFFLINE_QUIT) {
+            val quit = reason == io.agora.rtc2.Constants.USER_OFFLINE_QUIT
+            Log.e(
+                TAG,
+                "onUserOffline: remote uid=$uid reason=$reason (${userOfflineReasonName(reason)}) -> " +
+                    if (quit) "end call (intentional hangup)" else "reconnecting (network drop)",
+            )
+            if (quit) {
                 listener?.onRemoteUserLeft(uid)
+            } else {
+                listener?.onRemoteConnectionLost(uid)
             }
         }
 
         override fun onError(err: Int) {
-            Log.e(TAG, "onError code=$err")
+            Log.e(TAG, "onError code=$err (${RtcEngine.getErrorDescription(err)})")
             listener?.onError(err)
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
-            Log.e(TAG, "onConnectionStateChanged state=$state reason=$reason")
+            Log.e(
+                TAG,
+                "onConnectionStateChanged: local state=$state (${connectionStateName(state)}) " +
+                    "reason=$reason (${connectionChangedReasonName(reason)})",
+            )
             listener?.onConnectionStateChanged(state.toCallConnectionState())
+        }
+
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            Log.e(
+                TAG,
+                "onRemoteAudioStateChanged: remote uid=$uid state=$state (${remoteAudioStateName(state)}) " +
+                    "reason=$reason (${remoteAudioReasonName(reason)})",
+            )
+            when (state) {
+                io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_STARTING,
+                io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_DECODING ->
+                    listener?.onRemoteConnectionRestored(uid)
+                io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_FROZEN,
+                io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_FAILED ->
+                    listener?.onRemoteConnectionLost(uid)
+                io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_STOPPED ->
+                    if (reason != io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) {
+                        listener?.onRemoteConnectionLost(uid)
+                    }
+            }
         }
     }
 
@@ -58,7 +88,7 @@ class AgoraCallService @Inject constructor(
 
         try {
             val config = RtcEngineConfig().apply {
-                mContext = contextMY
+                mContext = ctx
                 mAppId = BuildConfig.AGORA_APP_ID
                 mEventHandler = handler
             }
@@ -119,6 +149,61 @@ class AgoraCallService @Inject constructor(
         io.agora.rtc2.Constants.CONNECTION_STATE_FAILED -> CallConnectionState.FAILED
         io.agora.rtc2.Constants.CONNECTION_STATE_DISCONNECTED -> CallConnectionState.DISCONNECTED
         else -> CallConnectionState.DISCONNECTED
+    }
+
+    private fun connectionStateName(state: Int): String = when (state) {
+        io.agora.rtc2.Constants.CONNECTION_STATE_DISCONNECTED -> "DISCONNECTED: not in the channel"
+        io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTING -> "CONNECTING: joining the channel"
+        io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTED -> "CONNECTED: media is flowing"
+        io.agora.rtc2.Constants.CONNECTION_STATE_RECONNECTING -> "RECONNECTING: lost connection, retrying"
+        io.agora.rtc2.Constants.CONNECTION_STATE_FAILED -> "FAILED: cannot connect"
+        else -> "unknown state $state"
+    }
+
+    private fun connectionChangedReasonName(reason: Int): String = when (reason) {
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_CONNECTING -> "CONNECTING"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_JOIN_SUCCESS -> "JOIN_SUCCESS"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_INTERRUPTED -> "INTERRUPTED: network interrupted"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_BANNED_BY_SERVER -> "BANNED_BY_SERVER"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_JOIN_FAILED -> "JOIN_FAILED"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_LEAVE_CHANNEL -> "LEAVE_CHANNEL"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_INVALID_TOKEN -> "INVALID_TOKEN"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_TOKEN_EXPIRED -> "TOKEN_EXPIRED"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_REJECTED_BY_SERVER -> "REJECTED_BY_SERVER"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_KEEP_ALIVE_TIMEOUT -> "KEEP_ALIVE_TIMEOUT: no heartbeat"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_REJOIN_SUCCESS -> "REJOIN_SUCCESS: reconnected"
+        io.agora.rtc2.Constants.CONNECTION_CHANGED_LOST -> "LOST: network gone"
+        else -> "reason $reason"
+    }
+
+    private fun userOfflineReasonName(reason: Int): String = when (reason) {
+        io.agora.rtc2.Constants.USER_OFFLINE_QUIT -> "QUIT: left the channel on purpose"
+        io.agora.rtc2.Constants.USER_OFFLINE_DROPPED -> "DROPPED: timed out, likely lost network"
+        io.agora.rtc2.Constants.USER_OFFLINE_BECOME_AUDIENCE -> "BECOME_AUDIENCE: stopped publishing"
+        else -> "reason $reason"
+    }
+
+    private fun remoteAudioStateName(state: Int): String = when (state) {
+        io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_STOPPED -> "STOPPED: no remote audio"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_STARTING -> "STARTING: first packet received"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_DECODING -> "DECODING: audio playing normally"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_FROZEN -> "FROZEN: playback stalled (network)"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_STATE_FAILED -> "FAILED: remote audio failed"
+        else -> "unknown state $state"
+    }
+
+    private fun remoteAudioReasonName(reason: Int): String = when (reason) {
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_INTERNAL -> "INTERNAL"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_NETWORK_CONGESTION -> "NETWORK_CONGESTION: peer's network is bad"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_NETWORK_RECOVERY -> "NETWORK_RECOVERY: peer's network recovered"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_LOCAL_MUTED -> "LOCAL_MUTED"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_LOCAL_UNMUTED -> "LOCAL_UNMUTED"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED -> "REMOTE_MUTED: peer muted their mic"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_REMOTE_UNMUTED -> "REMOTE_UNMUTED: peer unmuted"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_REMOTE_OFFLINE -> "REMOTE_OFFLINE: peer left"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_NO_PACKET_RECEIVE -> "NO_PACKET_RECEIVE: no audio packets arriving"
+        io.agora.rtc2.Constants.REMOTE_AUDIO_REASON_LOCAL_PLAY_FAILED -> "LOCAL_PLAY_FAILED"
+        else -> "reason $reason"
     }
 
     private companion object {
