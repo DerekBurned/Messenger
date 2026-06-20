@@ -21,6 +21,25 @@ service cloud.firestore {
       return field is string && field.size() > 0 && field.size() <= maxLen;
     }
 
+    // Call-event message types (attributed to the caller, written by either device).
+    function isCallType(t) {
+      return t in ['MISSED_CALL', 'UNREACHED_CALL', 'ENDED_CALL'];
+    }
+
+    // A message's body is valid when it is a text message with non-empty text,
+    // a media message carrying at least one item (caption may be empty), or a
+    // call event (which has no text body).
+    function hasValidMessageBody(data) {
+      return isValidString(data.text, 5000)
+             || (data.get('type', 'TEXT') == 'MEDIA' && data.get('mediaItems', []).size() > 0)
+             || isCallType(data.get('type', 'TEXT'));
+    }
+
+    // When text/caption is present it must stay within the length cap (empty allowed).
+    function textWithinLimit(data) {
+      return data.get('text', '') is string && data.get('text', '').size() <= 5000;
+    }
+
     // "deletedFor" holds the uids that have hidden this message for themselves.
     function deletedForOf(data) {
       return data.get('deletedFor', []);
@@ -109,7 +128,8 @@ service cloud.firestore {
                        );
 
         allow create: if isAuthenticated()
-                      && isValidString(request.resource.data.text, 5000)
+                      && hasValidMessageBody(request.resource.data)
+                      && textWithinLimit(request.resource.data)
                       && request.resource.data.conversationId == conversationId
                       && isParticipant(
                            get(/databases/$(database)/documents/conversations/$(conversationId)).data
@@ -117,11 +137,11 @@ service cloud.firestore {
                       && (
                            // Normal message: author is the writer.
                            request.resource.data.senderId == request.auth.uid
-                           // Call-event message (e.g. a missed call) may be attributed to the
-                           // caller even though the callee's device writes it — as long as the
-                           // named sender is a participant of the conversation.
+                           // Call-event message (missed/unreached/ended) may be attributed to
+                           // the caller even though the callee's device writes it — as long as
+                           // the named sender is a participant of the conversation.
                            || (
-                                request.resource.data.get('type', '') == 'MISSED_CALL'
+                                isCallType(request.resource.data.get('type', ''))
                                 && request.resource.data.senderId in
                                      get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
                               )

@@ -84,6 +84,12 @@ configurations.all {
     resolutionStrategy {
         force("androidx.concurrent:concurrent-futures:1.2.0")
         force("androidx.concurrent:concurrent-futures-ktx:1.2.0")
+        // Media libs (coil3/media3/camerax) transitively pull kotlin-stdlib 2.4.0, whose
+        // metadata version (2.4.0) the Kotlin 2.3.10 toolchain + Hilt processor can't read.
+        // Pin stdlib to the compiler version.
+        force("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${libs.versions.kotlin.get()}")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${libs.versions.kotlin.get()}")
     }
 }
 
@@ -142,6 +148,22 @@ dependencies {
 
     //AgoraRTC
     implementation("io.agora.rtc:voice-sdk:4.6.3")
+
+    // Coil 3 - image + video thumbnails
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
+
+    // Media3 - ExoPlayer
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.video)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

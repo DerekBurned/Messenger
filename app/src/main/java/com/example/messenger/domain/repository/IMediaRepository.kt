@@ -14,4 +14,6 @@ interface IMediaRepository {
     fun cancelUpload(messageId: String, itemId: String)
 
     fun cancelDownload(itemId: String)
+
+    fun retry(messageId: String)
 }

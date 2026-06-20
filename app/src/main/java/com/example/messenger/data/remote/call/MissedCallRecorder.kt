@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.example.messenger.R
+import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.IMessageRepository
@@ -46,14 +47,12 @@ class MissedCallRecorder @Inject constructor(
         }
 
         val now = System.currentTimeMillis()
-        val message = Message(
+        val message = Message.Call(
             id = UUID.randomUUID().toString(),
             conversationId = conversation.id,
-
             senderId = callerId,
-            text = MISSED_CALL_TEXT,
             timestamp = now,
-            type = Message.TYPE_MISSED_CALL,
+            callType = CallType.MISSED,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "record: failed to write missed-call message", it) }
@@ -84,13 +83,12 @@ class MissedCallRecorder @Inject constructor(
             return
         }
 
-        val message = Message(
+        val message = Message.Call(
             id = UUID.randomUUID().toString(),
             conversationId = conversation.id,
             senderId = callerId,
-            text = UNREACHED_CALL_TEXT,
             timestamp = System.currentTimeMillis(),
-            type = Message.TYPE_UNREACHED_CALL,
+            callType = CallType.UNREACHED,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "recordUnreached: failed to write unreached-call message", it) }
@@ -120,14 +118,13 @@ class MissedCallRecorder @Inject constructor(
             return
         }
 
-        val message = Message(
+        val message = Message.Call(
             id = "ended-$callId",
             conversationId = conversation.id,
             senderId = callerId,
-            text = ENDED_CALL_TEXT,
             timestamp = System.currentTimeMillis(),
-            type = Message.TYPE_ENDED_CALL,
-            callDurationSeconds = durationSeconds,
+            callType = CallType.ENDED,
+            durationSeconds = durationSeconds,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "recordEnded: failed to write ended-call message", it) }
@@ -166,9 +163,6 @@ class MissedCallRecorder @Inject constructor(
 
     private companion object {
         const val TAG = "MissedCallRecorder"
-        const val MISSED_CALL_TEXT = "Missed call"
-        const val UNREACHED_CALL_TEXT = "Unreached call"
-        const val ENDED_CALL_TEXT = "Call"
         const val MISSED_CALL_NOTIFICATION_ID_PREFIX = 0x6D15500
     }
 }

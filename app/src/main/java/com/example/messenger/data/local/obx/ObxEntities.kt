@@ -1,5 +1,6 @@
 package com.example.messenger.data.local.obx
 
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.PhoneVisibility
@@ -23,11 +24,14 @@ data class ObxMessage(
     var deleted: Boolean = false,
 
     var type: String = com.example.messenger.domain.model.Message.TYPE_TEXT,
-    
+
     var replyToMessageId: String? = null,
     var replyToText: String? = null,
     var replyToSenderId: String? = null,
     var callDurationSeconds: Int = 0,
+
+    @Convert(converter = MediaItemListConverter::class, dbType = String::class)
+    var mediaItemsJson: List<MediaItem> = emptyList(),
 )
 
 @Entity

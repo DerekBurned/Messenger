@@ -9,6 +9,8 @@ import com.example.messenger.data.local.obx.asFlow
 import com.example.messenger.data.local.obx.toDomain
 import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.CallType
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.sync.SyncAction
@@ -49,7 +51,7 @@ class MessageRepositoryImpl @Inject constructor(
             messageBox.put(message.toObx())
             updateConversationPreview(message)
 
-            val result = firestoreService.sendMessage(message.copy(status = MessageStatus.SENT))
+            val result = firestoreService.sendMessage(message.withStatus(MessageStatus.SENT))
             if (result.isSuccess) {
                 updateMessage(message.id) { it.status = MessageStatus.SENT.name }
             } else {
@@ -138,10 +140,36 @@ class MessageRepositoryImpl @Inject constructor(
     private fun updateConversationPreview(message: Message) {
         val conv = conversationBox.query(ObxConversation_.uid.equal(message.conversationId)).build()
             .use { it.findFirst() } ?: return
-        conv.lastMessage = message.text
+        val label = previewLabel(message)
+        conv.lastMessage = label
         conv.lastMessageTimestamp = message.timestamp
-        conv.latestMessageText = message.text
+        conv.latestMessageText = label
         conv.latestMessageTimestamp = message.timestamp
         conversationBox.put(conv)
+    }
+
+    private fun previewLabel(message: Message): String = when (message) {
+        is Message.Text  -> message.text
+        is Message.Media -> message.caption.ifBlank {
+            val count = message.items.size
+            when {
+                count == 1 && message.items.first().kind == MediaItem.VIDEO -> "Video"
+                count == 1 -> "Photo"
+                message.items.all { it.kind == MediaItem.IMAGE } -> "$count photos"
+                message.items.all { it.kind == MediaItem.VIDEO } -> "$count videos"
+                else -> "$count media"
+            }
+        }
+        is Message.Call  -> when (message.callType) {
+            CallType.MISSED    -> "Missed call"
+            CallType.UNREACHED -> "Unreached call"
+            CallType.ENDED     -> "Call"
+        }
+    }
+
+    private fun Message.withStatus(newStatus: MessageStatus): Message = when (this) {
+        is Message.Text  -> copy(status = newStatus)
+        is Message.Media -> copy(status = newStatus)
+        is Message.Call  -> copy(status = newStatus)
     }
 }
