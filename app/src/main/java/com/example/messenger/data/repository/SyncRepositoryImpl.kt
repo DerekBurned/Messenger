@@ -82,7 +82,12 @@ class SyncRepositoryImpl @Inject constructor(
             syncQueueBox.remove(item)
             return
         }
-        val message = entity.toDomain().copy(status = MessageStatus.SENT)
+        val msg = entity.toDomain()
+        val message = when (msg) {
+            is com.example.messenger.domain.model.Message.Text  -> msg.copy(status = MessageStatus.SENT)
+            is com.example.messenger.domain.model.Message.Media -> msg.copy(status = MessageStatus.SENT)
+            is com.example.messenger.domain.model.Message.Call  -> msg.copy(status = MessageStatus.SENT)
+        }
         val result = firestoreService.sendMessage(message)
         if (result.isSuccess) {
             entity.status = MessageStatus.SENT.name

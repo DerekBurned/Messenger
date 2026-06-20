@@ -1,9 +1,14 @@
 package com.example.messenger.presentation.screens
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.util.Log
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -46,10 +51,17 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import com.example.messenger.presentation.components.CallAwareTopBar
+import com.example.messenger.domain.model.CallType
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
+import com.example.messenger.presentation.components.AttachmentBar
+import com.example.messenger.presentation.components.CallAwareTopBar
+import com.example.messenger.presentation.components.FullscreenMediaPager
+import com.example.messenger.presentation.components.MediaAlbumGrid
+import com.example.messenger.presentation.components.MediaSource
+import com.example.messenger.presentation.components.mediaCacheFile
 import com.example.messenger.presentation.components.MessageStatusIcon
 import com.example.messenger.presentation.components.PresenceIndicator
 import com.example.messenger.presentation.components.TypingIndicator
@@ -65,8 +77,16 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.OnlineGreen
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.state.ChatUiState
+import com.example.messenger.presentation.state.GalleryItem
 import com.example.messenger.presentation.viewmodel.ChatViewModel
 import com.example.messenger.util.DateUtils
+
+private fun mediaReadPermissions(): Array<String> =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    } else {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,12 +106,23 @@ fun ChatScreenWithNav(
         }
     }
 
-    val attachmentPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            Toast.makeText(context, "Attachment selected: $uri (upload coming soon)", Toast.LENGTH_SHORT).show()
-        }
+    var showPicker by remember { mutableStateOf(false) }
+    var cameraGranted by remember { mutableStateOf(false) }
+    var devicePreview by remember { mutableStateOf<Pair<List<GalleryItem>, Int>?>(null) }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        cameraGranted = granted
+        Log.d("ChatScreen", "camera permission granted=$granted")
+    }
+
+    val mediaPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        val anyGranted = result.values.any { it }
+        Log.d("ChatScreen", "media permission result granted=$anyGranted")
+        if (anyGranted) showPicker = true
     }
 
     val conversationId = viewModel.conversationId
@@ -114,8 +145,7 @@ fun ChatScreenWithNav(
             viewModel.dispatch(ChatIntent.TextChanged(newText))
         },
         onSendClick = {
-            if (messageText.isNotBlank()) {
-                
+            if (messageText.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
                 viewModel.dispatch(ChatIntent.SendMessage(messageText))
                 messageText = ""
             }
@@ -134,12 +164,66 @@ fun ChatScreenWithNav(
             }
         },
         onClearReply = { viewModel.dispatch(ChatIntent.ClearReply) },
-        onAttachmentClick = { attachmentPicker.launch(arrayOf("*/*")) },
+        onAttachmentClick = {
+            val perms = mediaReadPermissions()
+            val granted = perms.any {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+            if (granted) {
+                showPicker = true
+            } else {
+                mediaPermissionLauncher.launch(perms)
+            }
+        },
+        onClearAttachments = { viewModel.dispatch(ChatIntent.ClearAttachments) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
         onMessagesSeen = { messages -> viewModel.dispatch(ChatIntent.MessagesSeen(messages)) },
         onLoadOlderMessages = { viewModel.dispatch(ChatIntent.LoadOlderMessages) },
+        onDownload = { item -> viewModel.dispatch(ChatIntent.DownloadMedia(item)) },
+        onCancelUpload = { messageId, itemId -> viewModel.dispatch(ChatIntent.CancelUpload(messageId, itemId)) },
+        onCancelDownload = { itemId -> viewModel.dispatch(ChatIntent.CancelDownload(itemId)) },
+        onRetryMedia = { messageId -> viewModel.dispatch(ChatIntent.RetryMedia(messageId)) },
     )
+
+    if (showPicker) {
+        LaunchedEffect(Unit) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED
+            ) {
+                cameraGranted = true
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+        MediaPickerBottomSheet(
+            selected = uiState.pendingAttachments.map { it.uri }.toSet(),
+            onToggle = { uri, kind -> viewModel.dispatch(ChatIntent.ToggleAttachment(uri, kind)) },
+            onPreview = { items, index -> devicePreview = items to index },
+            onCaptured = { uri, kind -> viewModel.dispatch(ChatIntent.AddAttachment(uri, kind)) },
+            onDone = { showPicker = false },
+            onDismiss = { showPicker = false },
+            cameraEnabled = cameraGranted,
+        )
+    }
+
+    devicePreview?.let { (items, index) ->
+        val sources = remember(items) {
+            items.map { gi ->
+                MediaSource(
+                    key = gi.id.toString(),
+                    isVideo = gi.kind == MediaItem.VIDEO,
+                    model = gi.uri,
+                    playUri = gi.uri,
+                )
+            }
+        }
+        FullscreenMediaPager(
+            sources = sources,
+            startIndex = index,
+            onDismiss = { devicePreview = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -158,9 +242,16 @@ private fun ChatScreenContent(
     onDelete: (Message) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
+    onClearAttachments: () -> Unit,
     onMessagesSeen: (List<Message>) -> Unit,
     onLoadOlderMessages: () -> Unit,
+    onDownload: (MediaItem) -> Unit,
+    onCancelUpload: (messageId: String, itemId: String) -> Unit,
+    onCancelDownload: (itemId: String) -> Unit,
+    onRetryMedia: (messageId: String) -> Unit,
 ) {
+    val context = LocalContext.current
+    var chatPreviewIndex by remember { mutableStateOf<Int?>(null) }
 
     val presenceStatusText = when {
         uiState.isPartnerTyping -> "typing..."
@@ -428,58 +519,72 @@ private fun ChatScreenContent(
                                 when (row) {
                                     ChatRow.UnreadDivider -> UnreadMessagesDivider()
                                     is ChatRow.MessageRow -> {
-                                        val originalMessage = row.message
-                                        if (originalMessage.type == Message.TYPE_MISSED_CALL) {
-
-                                            MissedCallCard(
+                                        when (val msg = row.message) {
+                                        is Message.Call -> when (msg.callType) {
+                                            CallType.MISSED -> MissedCallCard(
                                                 onCall = onCallClick,
-                                                timestamp = originalMessage.timestamp,
-                                                isMe = originalMessage.senderId == uiState.currentUserId,
-                                                status = originalMessage.status,
+                                                timestamp = msg.timestamp,
+                                                isMe = msg.senderId == uiState.currentUserId,
+                                                status = msg.status,
                                             )
-                                        } else if (originalMessage.type == Message.TYPE_UNREACHED_CALL) {
-
-                                            MissedCallCard(
+                                            CallType.UNREACHED -> MissedCallCard(
                                                 onCall = onCallClick,
-                                                timestamp = originalMessage.timestamp,
-                                                isMe = originalMessage.senderId == uiState.currentUserId,
+                                                timestamp = msg.timestamp,
+                                                isMe = msg.senderId == uiState.currentUserId,
                                                 title = "Unreached call",
-                                                status = originalMessage.status,
+                                                status = msg.status,
                                             )
-                                        } else if (originalMessage.type == Message.TYPE_ENDED_CALL) {
-
-                                            EndedCallCard(
-                                                durationSeconds = originalMessage.callDurationSeconds,
-                                                timestamp = originalMessage.timestamp,
-                                                isMe = originalMessage.senderId == uiState.currentUserId,
+                                            CallType.ENDED -> EndedCallCard(
+                                                durationSeconds = msg.durationSeconds,
+                                                timestamp = msg.timestamp,
+                                                isMe = msg.senderId == uiState.currentUserId,
                                             )
-                                        } else {
+                                        }
+                                        is Message.Media -> MediaAlbumGrid(
+                                            message = msg,
+                                            isMe = msg.senderId == uiState.currentUserId,
+                                            transfers = uiState.transfers,
+                                            onOpen = { item ->
+                                                if (msg.status == MessageStatus.FAILED) {
+                                                    onRetryMedia(msg.id)
+                                                } else {
+                                                    val idx = uiState.conversationMedia
+                                                        .indexOfFirst { it.id == item.id }
+                                                    if (idx >= 0) chatPreviewIndex = idx
+                                                }
+                                            },
+                                            onDownload = { onDownload(it) },
+                                            onCancelUpload = { messageId, itemId -> onCancelUpload(messageId, itemId) },
+                                            onCancelDownload = { onCancelDownload(it) },
+                                        )
+                                        is Message.Text -> {
                                             val chatMessage = ChatMessage(
-                                                text = originalMessage.text,
-                                                isMe = originalMessage.senderId == uiState.currentUserId,
-                                                status = originalMessage.status,
-                                                timestamp = originalMessage.timestamp,
-                                                replyToMessageId = originalMessage.replyToMessageId,
-                                                replyToText = originalMessage.replyToText,
-                                                replyToSenderLabel = originalMessage.replyToMessageId?.let {
-                                                    if (originalMessage.replyToSenderId == uiState.currentUserId) "You"
+                                                text = msg.text,
+                                                isMe = msg.senderId == uiState.currentUserId,
+                                                status = msg.status,
+                                                timestamp = msg.timestamp,
+                                                replyToMessageId = msg.replyToMessageId,
+                                                replyToText = msg.replyToText,
+                                                replyToSenderLabel = msg.replyToMessageId?.let {
+                                                    if (msg.replyToSenderId == uiState.currentUserId) "You"
                                                     else uiState.partnerUsername.ifBlank { "User" }
                                                 },
                                             )
                                             MessageWithContextMenu(
                                                 message = chatMessage,
-                                                highlighted = originalMessage.id == uiState.highlightedMessageId,
-                                                onCopy = { onCopy(originalMessage.text) },
-                                                onReply = { onReply(originalMessage) },
+                                                highlighted = msg.id == uiState.highlightedMessageId,
+                                                onCopy = { onCopy(msg.text) },
+                                                onReply = { onReply(msg) },
                                                 onReplyClick = {
-                                                    originalMessage.replyToMessageId?.let(onReplyClick)
+                                                    msg.replyToMessageId?.let(onReplyClick)
                                                 },
-                                                onEdit = {  },
-                                                onPin = {  },
-                                                onForward = {  },
-                                                onDelete = { onDelete(originalMessage) }
+                                                onEdit = { },
+                                                onPin = { },
+                                                onForward = { },
+                                                onDelete = { onDelete(msg) },
                                             )
                                         }
+                                    }
                                         Spacer(modifier = Modifier.height(8.dp))
                                     }
                                 }
@@ -525,6 +630,12 @@ private fun ChatScreenContent(
                 )
             }
 
+            AttachmentBar(
+                attachments = uiState.pendingAttachments,
+                onClear = onClearAttachments,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             val replyingTo = uiState.replyingTo
             if (replyingTo != null) {
                 Row(
@@ -542,7 +653,11 @@ private fun ChatScreenContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = replyingTo.text,
+                        text = when (replyingTo) {
+                            is Message.Text  -> replyingTo.text
+                            is Message.Media -> replyingTo.caption.ifBlank { "Media" }
+                            is Message.Call  -> "Call"
+                        },
                         color = Color.DarkGray,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -609,6 +724,35 @@ private fun ChatScreenContent(
                 }
             }
         }
+    }
+
+    chatPreviewIndex?.let { startIndex ->
+        val media = uiState.conversationMedia
+        val sources = remember(media) {
+            media.map { item ->
+                val file = mediaCacheFile(context, item)
+                MediaSource(
+                    key = item.id,
+                    isVideo = item.kind == MediaItem.VIDEO,
+                    model = file,
+                    playUri = android.net.Uri.fromFile(file),
+                    blurHash = item.blurHash,
+                )
+            }
+        }
+        FullscreenMediaPager(
+            sources = sources,
+            startIndex = startIndex,
+            onDismiss = { chatPreviewIndex = null },
+            onPageSettled = { idx ->
+                media.getOrNull(idx)?.let { item ->
+                    val file = mediaCacheFile(context, item)
+                    if ((!file.exists() || file.length() == 0L) && item.url.isNotBlank()) {
+                        onDownload(item)
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -852,18 +996,9 @@ private fun NewMessagesPill(
 @Composable
 private fun ChatScreenPreview() {
     val fakeMessages = listOf(
-        com.example.messenger.domain.model.Message(
-            id = "1", senderId = "me", text = "Hey there!", timestamp = 1_700_000_000_000L,
-            status = MessageStatus.READ
-        ),
-        com.example.messenger.domain.model.Message(
-            id = "2", senderId = "partner", text = "Hi! How are you?", timestamp = 1_700_000_060_000L,
-            status = MessageStatus.SENT
-        ),
-        com.example.messenger.domain.model.Message(
-            id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L,
-            status = MessageStatus.SENT
-        ),
+        Message.Text(id = "1", senderId = "me", text = "Hey there!", timestamp = 1_700_000_000_000L, status = MessageStatus.READ),
+        Message.Text(id = "2", senderId = "partner", text = "Hi! How are you?", timestamp = 1_700_000_060_000L, status = MessageStatus.SENT),
+        Message.Text(id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L, status = MessageStatus.SENT),
     )
     MessengerTheme {
         ChatScreenContent(
@@ -884,9 +1019,14 @@ private fun ChatScreenPreview() {
             onDelete = {},
             onClearReply = {},
             onAttachmentClick = {},
+            onClearAttachments = {},
             onIntercultorProfileClick = {},
             onMessagesSeen = {},
             onLoadOlderMessages = {},
+            onDownload = {},
+            onCancelUpload = { _, _ -> },
+            onCancelDownload = {},
+            onRetryMedia = {},
         )
     }
 }

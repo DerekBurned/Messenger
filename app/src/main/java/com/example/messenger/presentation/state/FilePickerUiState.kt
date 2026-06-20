@@ -1,17 +1,21 @@
 package com.example.messenger.presentation.state
 
-import androidx.compose.ui.graphics.Color
+import android.net.Uri
 import com.example.messenger.presentation.base.UiState
 
-enum class FileTab { PHOTO, VIDEO, FILE }
+enum class GalleryFilter { ALL, PHOTOS, VIDEOS }
 
-data class PhotoItem(val id: Int, val color: Color)
-data class VideoItem(val id: Int, val color: Color, val duration: String)
-data class FileItem(val id: Int, val name: String, val size: String)
+data class GalleryItem(
+    val id: Long,
+    val uri: Uri,
+    val kind: String,
+    val durationMs: Long,
+    val dateAdded: Long,
+)
 
-data class FilePickerUiState(
-    val activeTab: FileTab = FileTab.PHOTO,
-    val photos: List<PhotoItem> = emptyList(),
-    val videos: List<VideoItem> = emptyList(),
-    val files: List<FileItem> = emptyList(),
+data class MediaPickerUiState(
+    val activeFilter: GalleryFilter = GalleryFilter.ALL,
+    val items: List<GalleryItem> = emptyList(),
+    val captured: List<GalleryItem> = emptyList(),
+    val isLoading: Boolean = false,
 ) : UiState

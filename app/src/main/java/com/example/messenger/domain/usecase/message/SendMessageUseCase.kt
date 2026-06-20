@@ -36,7 +36,7 @@ class SendMessageUseCase @Inject constructor(
                return@flow
            }
 
-            val message = Message(
+            val message = Message.Text(
                 id = UUID.randomUUID().toString(),
                 conversationId = conversationId,
                 senderId = currentUser.id,
@@ -44,7 +44,11 @@ class SendMessageUseCase @Inject constructor(
                 timestamp = System.currentTimeMillis(),
                 status = MessageStatus.SENDING,
                 replyToMessageId = replyTo?.id,
-                replyToText = replyTo?.text?.take(REPLY_SNIPPET_MAX),
+                replyToText = when (replyTo) {
+                    is Message.Text  -> replyTo.text.take(REPLY_SNIPPET_MAX)
+                    is Message.Media -> replyTo.caption.take(REPLY_SNIPPET_MAX).ifBlank { "Media" }
+                    is Message.Call, null -> null
+                },
                 replyToSenderId = replyTo?.senderId,
             )
            val result = messageRepository.sendMessage(message)
