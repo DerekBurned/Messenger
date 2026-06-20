@@ -2,6 +2,7 @@ package com.example.messenger.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxConversation_
 import com.example.messenger.data.local.obx.ObxMessage
@@ -12,9 +13,9 @@ import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.media.MediaCache
 import com.example.messenger.data.media.MediaMetadata
 import com.example.messenger.data.media.MediaTransferManager
-import com.example.messenger.data.media.TransferCancelledException
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.MediaTransfer
 import com.example.messenger.domain.model.Message
@@ -27,8 +28,11 @@ import io.objectbox.Box
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -55,7 +59,7 @@ class MediaRepositoryImpl @Inject constructor(
     override fun sendMediaMessage(conversationId: String, uris: List<String>, caption: String) {
         scope.launch {
             val message = buildLocalMessage(conversationId, uris.take(MAX_GROUP), caption)
-            if (message.media.isEmpty()) return@launch
+            if (message.items.isEmpty()) return@launch
             messageBox.put(message.toObx())
             updateConversationPreview(message)
             uploadAndSend(message.id)
@@ -76,9 +80,10 @@ class MediaRepositoryImpl @Inject constructor(
         manager.clear(itemId)
         scope.launch {
             val message = loadMessage(messageId) ?: return@launch
-            val item = message.media.firstOrNull { it.id == itemId }
+            if (message !is Message.Media) return@launch
+            val item = message.items.firstOrNull { it.id == itemId }
             if (item != null) mediaCache.delete(itemId, item.kind)
-            val remaining = message.media.filterNot { it.id == itemId }
+            val remaining = message.items.filterNot { it.id == itemId }
             if (remaining.isEmpty()) {
                 deleteLocal(messageId)
             } else {
@@ -92,11 +97,21 @@ class MediaRepositoryImpl @Inject constructor(
         manager.clear(itemId)
     }
 
+    override fun retry(messageId: String) {
+        scope.launch {
+            val msg = loadMessage(messageId) as? Message.Media ?: return@launch
+            Log.d(TAG, "retry: msg=$messageId items=${msg.items.size}")
+            msg.items.forEach { cancelledItems.remove(it.id) }
+            setStatus(messageId, MessageStatus.SENDING)
+            uploadAndSend(messageId)
+        }
+    }
+
     private fun buildLocalMessage(
         conversationId: String,
         uris: List<String>,
         caption: String,
-    ): Message {
+    ): Message.Media {
         val senderId = authService.getCurrentUserId().orEmpty()
         val items = uris.mapNotNull { uriString ->
             runCatching {
@@ -117,57 +132,103 @@ class MediaRepositoryImpl @Inject constructor(
                 )
             }.getOrNull()
         }
-        return Message(
+        return Message.Media(
             id = UUID.randomUUID().toString(),
             conversationId = conversationId,
             senderId = senderId,
-            text = caption.trim(),
             timestamp = System.currentTimeMillis(),
             status = MessageStatus.SENDING,
-            type = Message.TYPE_MEDIA,
-            media = items,
+            items = items,
+            caption = caption.trim(),
         )
     }
 
     private suspend fun uploadAndSend(messageId: String) {
-        val original = loadMessage(messageId) ?: return
-        for (item in original.media) {
-            if (cancelledItems.contains(item.id)) continue
-            if (loadMessage(messageId) == null) return
-            val file = mediaCache.fileFor(item.id, item.kind)
-            val path = storagePath(original.conversationId, messageId, item)
-            val result = manager.upload(item.id, file, path)
-            when {
-                result.isSuccess -> {
-                    val url = result.getOrThrow()
-                    putMedia(messageId, loadMessage(messageId)?.media.orEmpty().map {
-                        if (it.id == item.id) it.copy(url = url, storagePath = path) else it
-                    })
-                    manager.clear(item.id)
+        val original = loadMessage(messageId) as? Message.Media ?: return
+        Log.d(TAG, "uploadAndSend start: msg=$messageId items=${original.items.size}")
+
+        coroutineScope {
+            val jobs = original.items
+                .filterNot { cancelledItems.contains(it.id) }
+                .map { item ->
+                    launch {
+                        val file = mediaCache.fileFor(item.id, item.kind)
+                        val path = storagePath(original.conversationId, messageId, item)
+                        val result = manager.upload(item.id, file, path)
+                        if (result.isSuccess) {
+                            val url = result.getOrThrow()
+                            val current = loadMessage(messageId) as? Message.Media
+                            putMedia(messageId, current?.items.orEmpty().map {
+                                if (it.id == item.id) it.copy(url = url, storagePath = path) else it
+                            })
+                            manager.clear(item.id)
+                        }
+                    }
                 }
-                result.exceptionOrNull() is TransferCancelledException -> continue
-                else -> {
-                    markFailed(messageId)
-                    return
-                }
+            val completed = withTimeoutOrNull(SEND_TIMEOUT_MS) { jobs.joinAll(); true } ?: false
+            if (!completed) {
+                Log.w(TAG, "uploadAndSend timeout after ${SEND_TIMEOUT_MS}ms: msg=$messageId")
+                jobs.forEach { it.cancel() }
             }
         }
 
-        val finalMessage = loadMessage(messageId) ?: return
-        if (finalMessage.media.isEmpty()) {
+        val finalMessage = loadMessage(messageId) as? Message.Media ?: return
+        if (finalMessage.items.isEmpty()) {
             deleteLocal(messageId)
             return
         }
-        if (finalMessage.media.any { it.url.isBlank() }) return
 
-        val sent = finalMessage.copy(status = MessageStatus.SENT)
-        val result = firestoreService.sendMessage(sent)
-        if (result.isSuccess) {
-            messageBox.put(sent.toObx())
-        } else {
-            markFailed(messageId)
-            enqueueRetry(messageId)
+        val succeeded = finalMessage.items.filter { it.url.isNotBlank() }
+        val failed = finalMessage.items.filter { it.url.isBlank() }
+        failed.forEach { manager.cancel(it.id) }
+        Log.d(TAG, "uploadAndSend partition: msg=$messageId succeeded=${succeeded.size} failed=${failed.size}")
+
+        when {
+            succeeded.isEmpty() -> markFailed(messageId)
+            failed.isEmpty() -> {
+                val sent = finalMessage.copy(status = MessageStatus.SENT)
+                sendOrFail(sent)
+            }
+            else -> {
+                val sentPart = finalMessage.copy(items = succeeded, status = MessageStatus.SENT)
+                messageBox.put(sentPart.toObx())
+                sendOrFail(sentPart)
+                splitFailed(finalMessage, failed)
+            }
         }
+    }
+
+    private suspend fun sendOrFail(message: Message.Media) {
+        val result = firestoreService.sendMessage(message)
+        if (result.isSuccess) {
+            Log.d(TAG, "firestore send OK: msg=${message.id}")
+            messageBox.put(message.toObx())
+        } else {
+            Log.e(TAG, "firestore send FAILED: msg=${message.id}", result.exceptionOrNull())
+            markFailed(message.id)
+        }
+    }
+
+    private fun splitFailed(source: Message.Media, failed: List<MediaItem>) {
+        val failedId = UUID.randomUUID().toString()
+        val failedMessage = Message.Media(
+            id = failedId,
+            conversationId = source.conversationId,
+            senderId = source.senderId,
+            timestamp = System.currentTimeMillis(),
+            status = MessageStatus.FAILED,
+            items = failed,
+            caption = "",
+        )
+        messageBox.put(failedMessage.toObx())
+        Log.d(TAG, "split failed bubble: id=$failedId items=${failed.size}")
+    }
+
+    private fun setStatus(messageId: String, status: MessageStatus) {
+        val existing = messageBox.query(ObxMessage_.uid.equal(messageId)).build()
+            .use { it.findFirst() } ?: return
+        existing.status = status.name
+        messageBox.put(existing)
     }
 
     private fun resolveKind(uri: Uri): String {
@@ -187,7 +248,7 @@ class MediaRepositoryImpl @Inject constructor(
     private fun putMedia(messageId: String, media: List<MediaItem>) {
         val existing = messageBox.query(ObxMessage_.uid.equal(messageId)).build()
             .use { it.findFirst() } ?: return
-        existing.media = media
+        existing.mediaItemsJson = media
         messageBox.put(existing)
     }
 
@@ -214,7 +275,7 @@ class MediaRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun updateConversationPreview(message: Message) {
+    private fun updateConversationPreview(message: Message.Media) {
         val conv = conversationBox.query(ObxConversation_.uid.equal(message.conversationId)).build()
             .use { it.findFirst() } ?: return
         val label = previewLabel(message)
@@ -225,20 +286,21 @@ class MediaRepositoryImpl @Inject constructor(
         conversationBox.put(conv)
     }
 
-    private fun previewLabel(message: Message): String {
-        if (message.text.isNotBlank()) return message.text
-        val media = message.media
-        val count = media.size
+    private fun previewLabel(message: Message.Media): String {
+        if (message.caption.isNotBlank()) return message.caption
+        val count = message.items.size
         return when {
-            count == 1 && media.first().kind == MediaItem.VIDEO -> "Video"
+            count == 1 && message.items.first().kind == MediaItem.VIDEO -> "Video"
             count == 1 -> "Photo"
-            media.all { it.kind == MediaItem.IMAGE } -> "$count photos"
-            media.all { it.kind == MediaItem.VIDEO } -> "$count videos"
+            message.items.all { it.kind == MediaItem.IMAGE } -> "$count photos"
+            message.items.all { it.kind == MediaItem.VIDEO } -> "$count videos"
             else -> "$count media"
         }
     }
 
     private companion object {
+        const val TAG = "MediaRepositoryImpl"
         const val MAX_GROUP = 15
+        const val SEND_TIMEOUT_MS = 35_000L
     }
 }

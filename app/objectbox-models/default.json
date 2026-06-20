@@ -71,7 +71,7 @@
     },
     {
       "id": "3:4341758104649949526",
-      "lastPropertyId": "14:482020273967582249",
+      "lastPropertyId": "15:303068290605816419",
       "name": "ObxMessage",
       "properties": [
         {
@@ -148,6 +148,11 @@
           "id": "14:482020273967582249",
           "name": "callDurationSeconds",
           "type": 5
+        },
+        {
+          "id": "15:303068290605816419",
+          "name": "mediaItemsJson",
+          "type": 9
         }
       ],
       "relations": []

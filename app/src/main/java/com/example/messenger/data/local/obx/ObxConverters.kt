@@ -1,5 +1,6 @@
 package com.example.messenger.data.local.obx
 
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.PhoneVisibility
 import com.google.gson.Gson
@@ -45,4 +46,17 @@ class PhoneVisibilityConverter : PropertyConverter<PhoneVisibility, String> {
     override fun convertToEntityProperty(databaseValue: String?): PhoneVisibility =
         runCatching { PhoneVisibility.valueOf(databaseValue ?: "") }
             .getOrDefault(PhoneVisibility.HIDDEN)
+}
+
+class MediaItemListConverter : PropertyConverter<List<MediaItem>, String> {
+    private val type = object : TypeToken<List<MediaItem>>() {}.type
+
+    override fun convertToDatabaseValue(entityProperty: List<MediaItem>): String =
+        gson.toJson(entityProperty)
+
+    override fun convertToEntityProperty(databaseValue: String?): List<MediaItem> {
+        if (databaseValue.isNullOrEmpty()) return emptyList()
+        return runCatching { gson.fromJson<List<MediaItem>>(databaseValue, type) }
+            .getOrDefault(emptyList())
+    }
 }

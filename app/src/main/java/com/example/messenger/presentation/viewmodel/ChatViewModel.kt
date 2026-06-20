@@ -3,9 +3,12 @@ package com.example.messenger.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
+import com.example.messenger.domain.repository.IMediaRepository
+import com.example.messenger.presentation.state.PendingAttachment
 import com.example.messenger.domain.usecase.message.DeleteMessageUseCase
 import com.example.messenger.domain.usecase.message.GetMessagesUseCase
 import com.example.messenger.domain.usecase.message.LoadOlderMessagesUseCase
@@ -32,6 +35,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -48,6 +53,7 @@ class ChatViewModel @Inject constructor(
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
     private val observeTypingUseCase: ObserveTypingUseCase,
     private val typingService: ITypingService,
+    private val mediaRepository: IMediaRepository,
     firebaseAuthService: FirebaseAuthService,
     savedStateHandle: SavedStateHandle,
 ) : MviViewModel<ChatUiState, ChatIntent, ChatEffect>(initialState = ChatUiState()) {
@@ -83,6 +89,7 @@ class ChatViewModel @Inject constructor(
                 partnerLastSeenDisplay = DateUtils.formatLastSeen(partnerPresence.lastSeen),
             )
         }
+        observeTransfers()
         if (conversationId.isNotBlank()) {
             loadMessages()
             syncMessages()
@@ -113,6 +120,13 @@ class ChatViewModel @Inject constructor(
             is ChatIntent.Forward -> setState { copy(forwardingMessage = intent.message) }
             ChatIntent.ClearForward -> setState { copy(forwardingMessage = null) }
             ChatIntent.ClearError -> setState { copy(error = null) }
+            is ChatIntent.DownloadMedia -> mediaRepository.downloadMedia(intent.item)
+            is ChatIntent.CancelUpload -> mediaRepository.cancelUpload(intent.messageId, intent.itemId)
+            is ChatIntent.CancelDownload -> mediaRepository.cancelDownload(intent.itemId)
+            is ChatIntent.ToggleAttachment -> toggleAttachment(intent.uri, intent.kind)
+            is ChatIntent.AddAttachment -> addAttachment(intent.uri, intent.kind)
+            ChatIntent.ClearAttachments -> setState { copy(pendingAttachments = emptyList()) }
+            is ChatIntent.RetryMedia -> mediaRepository.retry(intent.messageId)
         }
     }
 
@@ -199,7 +213,15 @@ class ChatViewModel @Inject constructor(
                             } else {
                                 this
                             }
-                            resolvedAnchor.copy(isLoading = false, messages = resource.data, error = null)
+                            val media = resource.data
+                                .filterIsInstance<Message.Media>()
+                                .flatMap { it.items }
+                            resolvedAnchor.copy(
+                                isLoading = false,
+                                messages = resource.data,
+                                conversationMedia = media,
+                                error = null,
+                            )
                         }
                     }
                     is Resource.Error -> setState { copy(isLoading = false, error = resource.message.toUiText()) }
@@ -251,6 +273,12 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun observeTransfers() {
+        mediaRepository.transfers
+            .onEach { setState { copy(transfers = it) } }
+            .launchIn(viewModelScope)
+    }
+
     private fun observeTyping() {
         viewModelScope.launch {
             observeTypingUseCase(conversationId)
@@ -294,7 +322,33 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun toggleAttachment(uri: Uri, kind: String) {
+        setState {
+            val existing = pendingAttachments.firstOrNull { it.uri == uri }
+            val updated = if (existing != null) {
+                pendingAttachments - existing
+            } else {
+                pendingAttachments + PendingAttachment(uri, kind)
+            }
+            Log.d(TAG, "toggleAttachment uri=$uri -> ${updated.size} pending")
+            copy(pendingAttachments = updated)
+        }
+    }
+
+    private fun addAttachment(uri: Uri, kind: String) {
+        setState {
+            if (pendingAttachments.any { it.uri == uri }) return@setState this
+            Log.d(TAG, "addAttachment uri=$uri -> ${pendingAttachments.size + 1} pending")
+            copy(pendingAttachments = pendingAttachments + PendingAttachment(uri, kind))
+        }
+    }
+
     private fun sendMessage(text: String) {
+        val attachments = currentState.pendingAttachments
+        if (attachments.isNotEmpty()) {
+            sendMediaMessage(text, attachments)
+            return
+        }
         val replyTo = currentState.replyingTo
         viewModelScope.launch {
             typingService.clearTyping(conversationId)
@@ -310,6 +364,17 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun sendMediaMessage(caption: String, attachments: List<PendingAttachment>) {
+        Log.d(TAG, "sendMediaMessage: ${attachments.size} attachments, captionBlank=${caption.isBlank()}")
+        viewModelScope.launch { typingService.clearTyping(conversationId) }
+        mediaRepository.sendMediaMessage(
+            conversationId = conversationId,
+            uris = attachments.map { it.uri.toString() },
+            caption = caption.trim(),
+        )
+        setState { copy(pendingAttachments = emptyList(), replyingTo = null) }
     }
 
     private fun markAsRead(message: Message) {

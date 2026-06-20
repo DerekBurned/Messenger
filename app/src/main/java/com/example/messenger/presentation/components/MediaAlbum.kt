@@ -44,6 +44,7 @@ import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.MediaTransfer
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
+
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
 import com.example.messenger.presentation.screens.ui.theme.BubbleSent
@@ -55,7 +56,7 @@ private val ALBUM_WIDTH = 240.dp
 
 @Composable
 fun MediaAlbumGrid(
-    message: Message,
+    message: Message.Media,
     isMe: Boolean,
     transfers: Map<String, MediaTransfer>,
     onOpen: (MediaItem) -> Unit,
@@ -84,9 +85,9 @@ fun MediaAlbumGrid(
                     onCancelUpload = onCancelUpload,
                     onCancelDownload = onCancelDownload,
                 )
-                if (message.text.isNotBlank()) {
+                if (message.caption.isNotBlank()) {
                     Text(
-                        text = message.text,
+                        text = message.caption,
                         color = if (isMe) Color.White else BubbleReceivedText,
                         fontSize = 15.sp,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
@@ -112,14 +113,14 @@ fun MediaAlbumGrid(
 
 @Composable
 private fun AlbumLayout(
-    message: Message,
+    message: Message.Media,
     transfers: Map<String, MediaTransfer>,
     onOpen: (MediaItem) -> Unit,
     onDownload: (MediaItem) -> Unit,
     onCancelUpload: (messageId: String, itemId: String) -> Unit,
     onCancelDownload: (itemId: String) -> Unit,
 ) {
-    val items = message.media
+    val items = message.items
     val cell: @Composable (MediaItem, Modifier) -> Unit = { item, modifier ->
         MediaCell(
             item = item,

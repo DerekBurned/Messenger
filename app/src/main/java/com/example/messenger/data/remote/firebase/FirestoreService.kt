@@ -1,10 +1,15 @@
 package com.example.messenger.data.remote.firebase
 
 import android.util.Log
+import com.example.messenger.data.remote.dto.RemoteMessageDto
+import com.example.messenger.data.remote.dto.toDomain
+import com.example.messenger.data.remote.dto.toRemoteDto
+import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.Conversation
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
-import com.example.messenger.domain.model.User 
+import com.example.messenger.domain.model.User
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -86,22 +91,21 @@ class FirestoreService @Inject constructor(
     }
     suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
-
-            val remoteMessage = if (message.status == MessageStatus.SENDING) {
-                message.copy(status = MessageStatus.SENT)
-            } else {
-                message
+            val dto = when {
+                message.status == MessageStatus.SENDING ->
+                    message.toRemoteDto().copy(status = MessageStatus.SENT.name)
+                else -> message.toRemoteDto()
             }
             val conversationRef = conversationsCollection.document(message.conversationId)
             conversationRef
                 .collection("messages")
-                .document(remoteMessage.id)
-                .set(remoteMessage)
+                .document(dto.id)
+                .set(dto)
                 .await()
             conversationRef
                 .update(
                     mapOf(
-                        "lastMessage" to message.text,
+                        "lastMessage" to previewLabel(message),
                         "lastMessageTimestamp" to message.timestamp,
                     ),
                 )
@@ -110,6 +114,25 @@ class FirestoreService @Inject constructor(
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error sending message", e)
             Result.failure(e)
+        }
+    }
+
+    private fun previewLabel(message: Message): String = when (message) {
+        is Message.Text  -> message.text
+        is Message.Media -> message.caption.ifBlank {
+            val count = message.items.size
+            when {
+                count == 1 && message.items.first().kind == MediaItem.VIDEO -> "Video"
+                count == 1 -> "Photo"
+                message.items.all { it.kind == MediaItem.IMAGE } -> "$count photos"
+                message.items.all { it.kind == MediaItem.VIDEO } -> "$count videos"
+                else -> "$count media"
+            }
+        }
+        is Message.Call  -> when (message.callType) {
+            CallType.MISSED    -> "Missed call"
+            CallType.UNREACHED -> "Unreached call"
+            CallType.ENDED     -> "Call"
         }
     }
 
@@ -165,9 +188,15 @@ class FirestoreService @Inject constructor(
 
             if (snapshot != null) {
                 val messages = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Message::class.java)?.copy(id = doc.id)
+                    doc.toObject(RemoteMessageDto::class.java)?.toDomain()?.let { msg ->
+                        when (msg) {
+                            is Message.Text  -> msg.copy(id = doc.id)
+                            is Message.Media -> msg.copy(id = doc.id)
+                            is Message.Call  -> msg.copy(id = doc.id)
+                        }
+                    }
                 }.reversed()
-                trySend(messages) 
+                trySend(messages)
             }
         }
 
@@ -196,7 +225,13 @@ class FirestoreService @Inject constructor(
                 .get()
                 .await()
             val messages = snapshot.documents.mapNotNull { doc ->
-                doc.toObject(Message::class.java)?.copy(id = doc.id)
+                doc.toObject(RemoteMessageDto::class.java)?.toDomain()?.let { msg ->
+                    when (msg) {
+                        is Message.Text  -> msg.copy(id = doc.id)
+                        is Message.Media -> msg.copy(id = doc.id)
+                        is Message.Call  -> msg.copy(id = doc.id)
+                    }
+                }
             }.reversed()
             Result.success(messages)
         } catch (e: Exception) {
