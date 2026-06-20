@@ -1,9 +1,14 @@
 package com.example.messenger.presentation.state
 
+import android.net.Uri
+import com.example.messenger.domain.model.MediaItem
+import com.example.messenger.domain.model.MediaTransfer
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.UserPresence
 import com.example.messenger.presentation.base.UiState
 import com.example.messenger.presentation.base.UiText
+
+data class PendingAttachment(val uri: Uri, val kind: String)
 
 data class ChatUiState(
     val isLoading: Boolean = false,
@@ -28,4 +33,10 @@ data class ChatUiState(
     val unreadAnchorResolved: Boolean = false,
     
     val highlightedMessageId: String? = null,
+
+    val transfers: Map<String, MediaTransfer> = emptyMap(),
+
+    val pendingAttachments: List<PendingAttachment> = emptyList(),
+
+    val conversationMedia: List<MediaItem> = emptyList(),
 ) : UiState

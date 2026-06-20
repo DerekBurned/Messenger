@@ -1,42 +1,127 @@
 package com.example.messenger.data.local.obx
 
+import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PhoneVisibility
 import com.example.messenger.domain.model.User
 
-fun ObxMessage.toDomain(): Message = Message(
-    id = uid,
-    conversationId = conversationId,
-    senderId = senderId,
-    text = text,
-    timestamp = timestamp,
-    status = parseStatus(status),
-    isRead = isRead,
-    deleted = deleted,
-    type = type.ifBlank { Message.TYPE_TEXT },
-    replyToMessageId = replyToMessageId,
-    replyToText = replyToText,
-    replyToSenderId = replyToSenderId,
-    callDurationSeconds = callDurationSeconds,
-)
+fun ObxMessage.toDomain(): Message {
+    val parsedStatus = parseStatus(status)
+    return when (type.ifBlank { Message.TYPE_TEXT }) {
+        Message.TYPE_MEDIA -> Message.Media(
+            id = uid,
+            conversationId = conversationId,
+            senderId = senderId,
+            timestamp = timestamp,
+            status = parsedStatus,
+            isRead = isRead,
+            deleted = deleted,
+            items = mediaItemsJson,
+            caption = text,
+            replyToMessageId = replyToMessageId,
+            replyToText = replyToText,
+            replyToSenderId = replyToSenderId,
+        )
+        Message.TYPE_MISSED_CALL -> Message.Call(
+            id = uid,
+            conversationId = conversationId,
+            senderId = senderId,
+            timestamp = timestamp,
+            status = parsedStatus,
+            isRead = isRead,
+            deleted = deleted,
+            callType = CallType.MISSED,
+        )
+        Message.TYPE_UNREACHED_CALL -> Message.Call(
+            id = uid,
+            conversationId = conversationId,
+            senderId = senderId,
+            timestamp = timestamp,
+            status = parsedStatus,
+            isRead = isRead,
+            deleted = deleted,
+            callType = CallType.UNREACHED,
+        )
+        Message.TYPE_ENDED_CALL -> Message.Call(
+            id = uid,
+            conversationId = conversationId,
+            senderId = senderId,
+            timestamp = timestamp,
+            status = parsedStatus,
+            isRead = isRead,
+            deleted = deleted,
+            callType = CallType.ENDED,
+            durationSeconds = callDurationSeconds,
+        )
+        else -> Message.Text(
+            id = uid,
+            conversationId = conversationId,
+            senderId = senderId,
+            timestamp = timestamp,
+            status = parsedStatus,
+            isRead = isRead,
+            deleted = deleted,
+            text = text,
+            replyToMessageId = replyToMessageId,
+            replyToText = replyToText,
+            replyToSenderId = replyToSenderId,
+        )
+    }
+}
 
-fun Message.toObx(): ObxMessage = ObxMessage(
-    uid = id,
-    conversationId = conversationId,
-    senderId = senderId,
-    text = text,
-    timestamp = timestamp,
-    status = status.name,
-    isRead = isRead,
-    deleted = deleted,
-    type = type,
-    replyToMessageId = replyToMessageId,
-    replyToText = replyToText,
-    replyToSenderId = replyToSenderId,
-    callDurationSeconds = callDurationSeconds,
-)
+fun Message.toObx(): ObxMessage = when (this) {
+    is Message.Text -> ObxMessage(
+        uid = id,
+        conversationId = conversationId,
+        senderId = senderId,
+        timestamp = timestamp,
+        status = status.name,
+        isRead = isRead,
+        deleted = deleted,
+        type = Message.TYPE_TEXT,
+        text = text,
+        replyToMessageId = replyToMessageId,
+        replyToText = replyToText,
+        replyToSenderId = replyToSenderId,
+        callDurationSeconds = 0,
+        mediaItemsJson = emptyList(),
+    )
+    is Message.Media -> ObxMessage(
+        uid = id,
+        conversationId = conversationId,
+        senderId = senderId,
+        timestamp = timestamp,
+        status = status.name,
+        isRead = isRead,
+        deleted = deleted,
+        type = Message.TYPE_MEDIA,
+        text = caption,
+        replyToMessageId = replyToMessageId,
+        replyToText = replyToText,
+        replyToSenderId = replyToSenderId,
+        callDurationSeconds = 0,
+        mediaItemsJson = items,
+    )
+    is Message.Call -> ObxMessage(
+        uid = id,
+        conversationId = conversationId,
+        senderId = senderId,
+        timestamp = timestamp,
+        status = status.name,
+        isRead = isRead,
+        deleted = deleted,
+        type = when (callType) {
+            CallType.MISSED    -> Message.TYPE_MISSED_CALL
+            CallType.UNREACHED -> Message.TYPE_UNREACHED_CALL
+            CallType.ENDED     -> Message.TYPE_ENDED_CALL
+        },
+        text = "",
+        callDurationSeconds = durationSeconds,
+        mediaItemsJson = emptyList(),
+    )
+}
 
 private fun parseStatus(value: String): MessageStatus {
 
