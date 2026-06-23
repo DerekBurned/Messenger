@@ -3,6 +3,8 @@ package com.example.messenger.data.remote.call
 import android.content.Context
 import androidx.core.content.ContextCompat
 import com.example.messenger.data.remote.auth.FirebaseAuthService
+import com.example.messenger.data.remote.call.telecom.TelecomCallManager
+import com.example.messenger.data.remote.call.telecom.TelecomCallMeta
 import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.service.ICallSignalingService
 import com.google.firebase.auth.FirebaseAuth
@@ -24,6 +26,7 @@ class IncomingCallCoordinator @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val firebaseAuth: FirebaseAuth,
     private val userRepository: IUserRepository,
+    private val telecomCallManager: TelecomCallManager,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var observerJob: Job? = null
@@ -48,16 +51,27 @@ class IncomingCallCoordinator @Inject constructor(
                 
                 if (ActiveCallHolder.snapshot()?.callId == signal.callId) return@collectLatest
                 lastSeenCallId = signal.callId
+                val partnerName = resolveCallerName(signal.callerId)
                 val intent = CallForegroundService.incomingIntent(
                     ctx = context,
                     callId = signal.callId,
                     callerId = signal.callerId,
                     calleeId = signal.calleeId,
                     channelName = signal.channelName,
-                    partnerName = resolveCallerName(signal.callerId),
+                    partnerName = partnerName,
                     partnerPhone = "",
                 )
                 ContextCompat.startForegroundService(context, intent)
+                val meta = TelecomCallMeta(
+                    callId = signal.callId,
+                    callerId = signal.callerId,
+                    calleeId = signal.calleeId,
+                    channelName = signal.channelName,
+                    partnerName = partnerName,
+                    partnerPhone = "",
+                    isIncoming = true,
+                )
+                runCatching { telecomCallManager.addIncoming(meta) }
             }
         }
     }

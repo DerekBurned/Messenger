@@ -12,9 +12,11 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.IBinder
+import android.telecom.DisconnectCause
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import com.example.messenger.R
 import com.example.messenger.domain.model.CallSignal
@@ -25,6 +27,7 @@ import com.example.messenger.domain.service.ICallService
 import com.example.messenger.domain.service.ICallSignalingService
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.example.messenger.data.remote.call.telecom.ActiveConnectionHolder
 import com.example.messenger.presentation.IncomingCallActivity
 import com.example.messenger.presentation.MainActivity
 import com.example.messenger.presentation.notification.NotificationChannels
@@ -95,6 +98,7 @@ class CallForegroundService : Service() {
             ACTION_END -> handleEnd()
             ACTION_TOGGLE_MUTE -> handleToggleMute()
             ACTION_TOGGLE_SPEAKER -> handleToggleSpeaker()
+            ACTION_SET_SPEAKER -> handleSetSpeaker(intent.getBooleanExtra(EXTRA_SPEAKER, false))
             else -> Unit
         }
         return START_NOT_STICKY
@@ -189,6 +193,7 @@ class CallForegroundService : Service() {
         ringTimeoutJob = null
         ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0, remotePresent = false) }
         if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call), withMicrophone = true)) return
+        ActiveConnectionHolder.get(call.callId)?.markActive()
         scope.launch {
             runCatching {
                 signalingService.updateCallStatus(call.calleeId, call.callId, CallStatus.ACTIVE)
@@ -258,6 +263,15 @@ class CallForegroundService : Service() {
         val speakerOn = !call.speakerOn
         callService.setSpeakerphone(speakerOn)
         ActiveCallHolder.update { it.copy(speakerOn = speakerOn) }
+        ActiveConnectionHolder.get(call.callId)?.applyAudioRoute(speakerOn)
+        refreshOngoingNotification()
+    }
+
+    private fun handleSetSpeaker(on: Boolean) {
+        val call = ActiveCallHolder.snapshot() ?: return
+        if (call.speakerOn == on) return
+        callService.setSpeakerphone(on)
+        ActiveCallHolder.update { it.copy(speakerOn = on) }
         refreshOngoingNotification()
     }
 
@@ -270,6 +284,7 @@ class CallForegroundService : Service() {
                     CallStatus.ACTIVE -> {
                         if (isCaller && ActiveCallHolder.snapshot()?.isActive != true) {
                             ActiveCallHolder.update { it.copy(isActive = true) }
+                            ActiveConnectionHolder.get(callId)?.markActive()
                             enterActiveState()
                             reconcileConnection()
                         }
@@ -468,7 +483,17 @@ class CallForegroundService : Service() {
         stopPresence()
         callService.leaveChannel()
         releaseAudioFocus()
+        val endedCall = ActiveCallHolder.snapshot()
         ActiveCallHolder.clear()
+        endedCall?.let {
+            val cause = when {
+                it.isActive -> DisconnectCause.LOCAL
+                declinedByMe -> DisconnectCause.REJECTED
+                it.wasIncoming -> DisconnectCause.MISSED
+                else -> DisconnectCause.LOCAL
+            }
+            ActiveConnectionHolder.get(it.callId)?.markDisconnected(cause)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
@@ -567,6 +592,7 @@ class CallForegroundService : Service() {
     private val eventListener = object : CallEventListener {
         override fun onRemoteUserJoined(uid: Int) {
             ActiveCallHolder.update { it.copy(isActive = true, isIncoming = false, remotePresent = true) }
+            ActiveCallHolder.snapshot()?.callId?.let { ActiveConnectionHolder.get(it)?.markActive() }
             enterActiveState()
             reconcileConnection()
         }
@@ -670,16 +696,17 @@ class CallForegroundService : Service() {
         val openAppPi = openAppPendingIntent()
         val endPi = actionPendingIntent(ACTION_END, REQ_END)
         return NotificationCompat.Builder(this, NotificationChannels.ONGOING_CALL)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(ContextCompat.getColor(this, R.color.notification_accent))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setContentTitle(call.partnerName.ifBlank { "Voice call" })
-            .setContentText(if (call.isActive) "On call" else "Calling…")
+            .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_voice_call) })
+            .setContentText(if (call.isActive) getString(R.string.notif_call_on_call) else getString(R.string.notif_call_calling))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openAppPi)
             .setShowWhen(true)
-            .addAction(0, "End call", endPi)
+            .addAction(0, getString(R.string.notif_call_action_end), endPi)
             .build()
     }
 
@@ -688,33 +715,37 @@ class CallForegroundService : Service() {
         val declinePi = actionPendingIntent(ACTION_DECLINE, REQ_DECLINE)
         val openPi = incomingCallActivityPendingIntent(accept = false)
         val builder = NotificationCompat.Builder(this, NotificationChannels.INCOMING_CALL)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(ContextCompat.getColor(this, R.color.notification_accent))
             .setOngoing(true)
-            .setContentTitle(call.partnerName.ifBlank { "Incoming call" })
-            .setContentText("Incoming voice call")
+            .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_incoming_title) })
+            .setContentText(getString(R.string.notif_call_incoming_text))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setFullScreenIntent(openPi, true)
             .setContentIntent(openPi)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val person = Person.Builder().setName(call.partnerName.ifBlank { "Caller" }).build()
+            val person = Person.Builder()
+                .setName(call.partnerName.ifBlank { getString(R.string.notif_call_caller_fallback) })
+                .build()
             builder.setStyle(
                 NotificationCompat.CallStyle.forIncomingCall(person, declinePi, acceptPi),
             )
         } else {
-            builder.addAction(0, "Decline", declinePi)
-            builder.addAction(0, "Accept", acceptPi)
+            builder.addAction(0, getString(R.string.notif_call_action_decline), declinePi)
+            builder.addAction(0, getString(R.string.notif_call_action_accept), acceptPi)
         }
         return builder.build()
     }
 
     private fun buildSilentIncomingNotification(call: ActiveCallHolder.ActiveCall): Notification {
         return NotificationCompat.Builder(this, NotificationChannels.ONGOING_CALL)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(ContextCompat.getColor(this, R.color.notification_accent))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setContentTitle(call.partnerName.ifBlank { "Incoming call" })
-            .setContentText("Incoming voice call")
+            .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_incoming_title) })
+            .setContentText(getString(R.string.notif_call_incoming_text))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(incomingCallActivityPendingIntent(accept = false))
@@ -785,6 +816,8 @@ class CallForegroundService : Service() {
         const val ACTION_END = "com.example.messenger.call.END"
         const val ACTION_TOGGLE_MUTE = "com.example.messenger.call.TOGGLE_MUTE"
         const val ACTION_TOGGLE_SPEAKER = "com.example.messenger.call.TOGGLE_SPEAKER"
+        const val ACTION_SET_SPEAKER = "com.example.messenger.call.SET_SPEAKER"
+        const val EXTRA_SPEAKER = "extra_speaker"
 
         const val EXTRA_CALL_ID = "extra_call_id"
         const val EXTRA_CALLER_ID = "extra_caller_id"

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import com.example.messenger.R
 import com.example.messenger.domain.model.CallType
@@ -31,7 +32,7 @@ class MissedCallRecorder @Inject constructor(
             Log.w(TAG, "record skipped: blank ids caller=$callerId callee=$calleeId")
             return
         }
-        val displayName = callerName.ifBlank { "Unknown" }
+        val displayName = callerName.ifBlank { context.getString(R.string.notif_unknown_caller) }
 
         val conversationResult = conversationRepository.createConversation(
             listOf(callerId, calleeId),
@@ -148,10 +149,11 @@ class MissedCallRecorder @Inject constructor(
             tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(context, NotificationChannels.CHAT_MESSAGES)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Missed call")
-            .setContentText("Missed call from $callerName")
+        val notification = NotificationCompat.Builder(context, NotificationChannels.MISSED_CALLS)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(ContextCompat.getColor(context, R.color.notification_accent))
+            .setContentTitle(context.getString(R.string.notif_missed_call_title))
+            .setContentText(context.getString(R.string.notif_missed_call_text, callerName))
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

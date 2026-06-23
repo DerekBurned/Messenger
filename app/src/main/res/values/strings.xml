@@ -38,4 +38,57 @@
 
     <!-- Generic -->
     <string name="error_generic">Something went wrong</string>
+
+    <!-- Notification channels -->
+    <string name="notif_group_messages">Messages</string>
+    <string name="notif_group_calls">Calls</string>
+    <string name="notif_channel_messages_name">Chat messages</string>
+    <string name="notif_channel_messages_desc">New chat messages</string>
+    <string name="notif_channel_incoming_call_name">Incoming calls</string>
+    <string name="notif_channel_incoming_call_desc">Ringing for incoming voice calls</string>
+    <string name="notif_channel_ongoing_call_name">Active call</string>
+    <string name="notif_channel_ongoing_call_desc">Persistent notification while a voice call is in progress</string>
+    <string name="notif_channel_missed_call_name">Missed calls</string>
+    <string name="notif_channel_missed_call_desc">Calls you missed</string>
+
+    <!-- Call notifications -->
+    <string name="notif_call_incoming_title">Incoming call</string>
+    <string name="notif_call_incoming_text">Incoming voice call</string>
+    <string name="notif_call_caller_fallback">Caller</string>
+    <string name="notif_call_voice_call">Voice call</string>
+    <string name="notif_call_on_call">On call</string>
+    <string name="notif_call_calling">Calling…</string>
+    <string name="notif_call_action_accept">Accept</string>
+    <string name="notif_call_action_decline">Decline</string>
+    <string name="notif_call_action_end">End call</string>
+
+    <!-- Missed call notifications -->
+    <string name="notif_missed_call_title">Missed call</string>
+    <string name="notif_missed_call_text">Missed call from %1$s</string>
+    <string name="notif_unknown_caller">Unknown</string>
+
+    <!-- Chat notifications -->
+    <string name="notif_message_fallback_sender">New message</string>
+    <string name="notif_message_you">You</string>
+    <string name="notif_action_reply">Reply</string>
+    <string name="notif_action_reply_hint">Reply…</string>
+    <string name="notif_action_mark_read">Mark as read</string>
+    <string name="notif_summary_new_messages">%1$d new messages</string>
+
+    <!-- Notification permission -->
+    <string name="notif_permission_rationale_title">Stay in the loop</string>
+    <string name="notif_permission_rationale_body">Allow notifications so you can see new messages and incoming calls even when the app is closed.</string>
+    <string name="notif_permission_rationale_allow">Allow</string>
+    <string name="notif_permission_rationale_not_now">Not now</string>
+    <string name="notif_permission_settings_prompt">Enable notifications so calls and messages can ring.</string>
+
+    <!-- Full-screen intent (lock-screen calls) -->
+    <string name="fsi_rationale_title">Show calls on the lock screen</string>
+    <string name="fsi_rationale_body">Allow full-screen notifications so incoming calls appear over the lock screen.</string>
+    <string name="fsi_rationale_open_settings">Open settings</string>
+
+    <!-- Incoming call screen -->
+    <string name="call_incoming_subtitle">Incoming voice call</string>
+    <string name="call_action_accept">Accept</string>
+    <string name="call_action_decline">Decline</string>
 </resources>

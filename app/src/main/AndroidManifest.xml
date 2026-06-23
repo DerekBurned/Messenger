@@ -61,14 +61,35 @@
             android:name=".data.remote.call.CallForegroundService"
             android:exported="false"
             android:foregroundServiceType="phoneCall|microphone" />
+        <service
+            android:name=".data.remote.call.telecom.MessengerConnectionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
         <activity
             android:name=".presentation.IncomingCallActivity"
             android:exported="false"
             android:launchMode="singleTop"
-            android:showOnLockScreen="true"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.Messenger" />
+        <activity
+            android:name=".presentation.BubbleActivity"
+            android:exported="false"
+            android:allowEmbedded="true"
+            android:resizeableActivity="true"
+            android:documentLaunchMode="always"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Messenger" />
 
+
+        <receiver
+            android:name=".presentation.notification.NotificationReplyReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

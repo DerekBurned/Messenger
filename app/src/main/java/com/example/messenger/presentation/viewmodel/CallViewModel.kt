@@ -9,6 +9,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.data.remote.call.telecom.TelecomCallManager
+import com.example.messenger.data.remote.call.telecom.TelecomCallMeta
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
@@ -40,6 +42,7 @@ class CallViewModel @Inject constructor(
     application: Application,
     private val auth: FirebaseAuth,
     private val conversationRepository: IConversationRepository,
+    private val telecomCallManager: TelecomCallManager,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
 
@@ -148,6 +151,15 @@ class CallViewModel @Inject constructor(
         val callId = UUID.randomUUID().toString()
         val channelName = "call-" + UUID.randomUUID().toString()
         Log.d(TAG, "startOutgoing")
+        val meta = TelecomCallMeta(
+            callId = callId,
+            callerId = myUserId,
+            calleeId = pendingPartnerId,
+            channelName = channelName,
+            partnerName = pendingPartnerName,
+            partnerPhone = pendingPartnerPhone,
+            isIncoming = false,
+        )
         val intent = CallForegroundService.outgoingIntent(
             ctx = context,
             callId = callId,
@@ -158,6 +170,7 @@ class CallViewModel @Inject constructor(
             partnerPhone = pendingPartnerPhone,
         )
         ContextCompat.startForegroundService(context, intent)
+        runCatching { telecomCallManager.placeOutgoing(meta) }
     }
 
     fun acceptCall() = sendAction(CallForegroundService.ACTION_ACCEPT)

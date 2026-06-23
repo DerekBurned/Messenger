@@ -33,6 +33,7 @@ import com.example.messenger.presentation.components.FloatingTabBar
 import com.example.messenger.presentation.components.IncomingCallBar
 import com.example.messenger.presentation.components.MainTab
 import com.example.messenger.presentation.intent.AuthIntent
+import com.example.messenger.presentation.notification.NotificationPermissionGate
 import com.example.messenger.presentation.screens.*
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
@@ -352,6 +353,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onOpen = { openActiveCall(accept = false) },
             )
         }
+        NotificationPermissionGate(isAuthenticated = authState.isAuthenticated)
     }
 }
 

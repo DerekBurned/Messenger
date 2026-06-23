@@ -27,6 +27,7 @@ interface MessageDoc {
 interface UserDoc {
   username?: string;
   fcmToken?: string;
+  avatarUrl?: string;
 }
 
 export const onMessageCreated = onDocumentCreated(
@@ -65,6 +66,7 @@ export const onMessageCreated = onDocumentCreated(
     ]);
     const sender = (senderSnap.data() ?? {}) as UserDoc;
     const senderName = sender.username ?? "New message";
+    const senderAvatar = sender.avatarUrl ?? "";
 
     const tokens = recipientSnaps
       .map((s) => (s.data() as UserDoc | undefined)?.fcmToken)
@@ -85,6 +87,7 @@ export const onMessageCreated = onDocumentCreated(
         messageId,
         senderId,
         senderName,
+        senderAvatar,
         preview,
         timestamp,
       },
