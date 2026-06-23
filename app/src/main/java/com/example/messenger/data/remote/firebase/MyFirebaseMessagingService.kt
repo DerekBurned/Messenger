@@ -1,25 +1,31 @@
 package com.example.messenger.data.remote.firebase
 
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.getSystemService
 import com.example.messenger.BuildConfig
 import com.example.messenger.R
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
-import com.example.messenger.presentation.MainActivity
+import com.example.messenger.data.remote.call.telecom.TelecomCallManager
+import com.example.messenger.data.remote.call.telecom.TelecomCallMeta
+import com.example.messenger.presentation.notification.ChatNotifier
 import com.example.messenger.presentation.notification.CurrentConversationHolder
-import com.example.messenger.presentation.notification.NotificationChannels
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface FcmEntryPoint {
+    fun firestoreService(): FirestoreService
+    fun telecomCallManager(): TelecomCallManager
+}
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -32,10 +38,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
             ?: return
+        val firestoreService = EntryPointAccessors.fromApplication(
+            applicationContext,
+            FcmEntryPoint::class.java,
+        ).firestoreService()
         CoroutineScope(Dispatchers.IO).launch {
-            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            firestore.collection("users").document(currentUid)
-                .update("fcmToken", token)
+            firestoreService.updateFcmToken(currentUid, token)
+                .onFailure { Log.w(TAG, "onNewToken: token sync failed", it) }
         }
     }
 
@@ -54,9 +63,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             TYPE_MESSAGE -> handleMessagePayload(data)
             TYPE_CALL -> handleCallPayload(data)
             else -> {
-                
                 Log.w(TAG, "onMessageReceived: unknown type, notification=${remoteMessage.notification != null}")
-                remoteMessage.notification?.let { sendChatNotification(it.title, it.body, conversationId = null, partnerId = "", partnerName = "") }
+                remoteMessage.notification?.let { ChatNotifier.notifyFallback(this, it.title, it.body) }
             }
         }
     }
@@ -64,21 +72,29 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun handleMessagePayload(data: Map<String, String>) {
         val conversationId = data["conversationId"].orEmpty()
         val senderId = data["senderId"].orEmpty()
-        val senderName = data["senderName"].orEmpty().ifBlank { "New message" }
+        val senderName = data["senderName"].orEmpty().ifBlank { getString(R.string.notif_message_fallback_sender) }
         val preview = data["preview"].orEmpty()
+        val senderAvatar = data["senderAvatar"].orEmpty()
+        val timestamp = data["timestamp"]?.toLongOrNull() ?: System.currentTimeMillis()
 
-        if (conversationId.isNotBlank() && CurrentConversationHolder.isOpen(conversationId)) {
+        if (conversationId.isBlank()) {
+            ChatNotifier.notifyFallback(this, senderName, preview)
+            return
+        }
+        if (CurrentConversationHolder.isOpen(conversationId)) {
             Log.d(TAG, "handleMessagePayload: conversation $conversationId already open, suppressing notification")
             return
         }
         Log.d(TAG, "handleMessagePayload: posting notification for conv=$conversationId sender=$senderName")
 
-        sendChatNotification(
-            title = senderName,
-            body = preview,
-            conversationId = conversationId.takeIf { it.isNotBlank() },
-            partnerId = senderId,
-            partnerName = senderName,
+        ChatNotifier.notifyIncoming(
+            context = this,
+            conversationId = conversationId,
+            senderId = senderId,
+            senderName = senderName,
+            text = preview,
+            timestamp = timestamp,
+            senderAvatar = senderAvatar,
         )
     }
 
@@ -89,7 +105,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val channelName = data["channelName"].orEmpty()
         val calleeId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
         if (callId.isBlank() || channelName.isBlank() || calleeId.isBlank()) return
-        
+
         if (ActiveCallHolder.snapshot()?.callId == callId) return
 
         val intent = CallForegroundService.incomingIntent(
@@ -102,50 +118,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             partnerPhone = "",
         )
         ContextCompat.startForegroundService(this, intent)
-    }
 
-    private fun sendChatNotification(
-        title: String?,
-        body: String?,
-        conversationId: String?,
-        partnerId: String,
-        partnerName: String,
-    ) {
-        val tapIntent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            if (conversationId != null) {
-                putExtra(MainActivity.EXTRA_OPEN_CONVERSATION_ID, conversationId)
-                putExtra(MainActivity.EXTRA_PARTNER_ID, partnerId)
-                putExtra(MainActivity.EXTRA_PARTNER_NAME, partnerName)
-            }
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            (conversationId ?: "").hashCode(),
-            tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        val meta = TelecomCallMeta(
+            callId = callId,
+            callerId = callerId,
+            calleeId = calleeId,
+            channelName = channelName,
+            partnerName = callerName,
+            partnerPhone = "",
+            isIncoming = true,
         )
-        val builder = NotificationCompat.Builder(this, NotificationChannels.CHAT_MESSAGES)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body.orEmpty()))
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-        if (conversationId != null) {
-            builder.setGroup(GROUP_PREFIX + conversationId)
+        runCatching {
+            EntryPointAccessors.fromApplication(applicationContext, FcmEntryPoint::class.java)
+                .telecomCallManager()
+                .addIncoming(meta)
         }
-        val nm = getSystemService<NotificationManager>() ?: return
-
-        val notificationId = (conversationId ?: System.currentTimeMillis().toString()).hashCode()
-        nm.notify(notificationId, builder.build())
     }
 
     companion object {
         private const val TYPE_MESSAGE = "message"
         private const val TYPE_CALL = "call"
-        private const val GROUP_PREFIX = "chat:"
     }
 }

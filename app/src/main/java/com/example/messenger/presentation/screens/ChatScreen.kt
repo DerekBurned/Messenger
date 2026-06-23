@@ -68,6 +68,7 @@ import com.example.messenger.presentation.components.TypingIndicator
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.effect.ChatEffect
 import com.example.messenger.presentation.intent.ChatIntent
+import com.example.messenger.presentation.notification.ChatNotifier
 import com.example.messenger.presentation.notification.CurrentConversationHolder
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
 import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
@@ -129,6 +130,7 @@ fun ChatScreenWithNav(
     DisposableEffect(conversationId) {
         if (conversationId.isNotBlank()) {
             CurrentConversationHolder.setOpen(conversationId)
+            ChatNotifier.clear(context, conversationId)
         }
         onDispose {
             if (conversationId.isNotBlank()) {

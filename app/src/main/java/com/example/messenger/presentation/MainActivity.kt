@@ -1,23 +1,13 @@
 package com.example.messenger.presentation
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.call.ActiveCallHolder
@@ -45,17 +35,11 @@ class MainActivity : ComponentActivity() {
     private var idleJob: Job? = null
     private var isIdle = false
 
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (!granted) promptOpenNotificationSettings()
-        }
-
     private val pendingIntent = mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        ensureNotificationsEnabled()
         pendingIntent.value = intent
         setContent {
             MessengerTheme {
@@ -150,38 +134,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private fun ensureNotificationsEnabled() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (!granted) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                return
-            }
-        }
-        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
-            promptOpenNotificationSettings()
-        }
-    }
-
-    private fun promptOpenNotificationSettings() {
-        Toast.makeText(
-            this,
-            "Enable notifications so calls and messages can ring.",
-            Toast.LENGTH_LONG,
-        ).show()
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-        } else {
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                .setData(Uri.fromParts("package", packageName, null))
-        }
-        runCatching { startActivity(intent) }
     }
 
     companion object {

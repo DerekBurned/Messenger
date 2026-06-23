@@ -14,6 +14,7 @@ import coil3.SingletonImageLoader
 import coil3.video.VideoFrameDecoder
 import com.example.messenger.data.presence.AppLifecycleObserver
 import com.example.messenger.data.remote.call.IncomingCallCoordinator
+import com.example.messenger.data.remote.call.telecom.TelecomCallManager
 import com.example.messenger.data.remote.firebase.FcmTokenSyncer
 import com.example.messenger.data.sync.SyncCoordinator
 import com.example.messenger.data.sync.SyncManager
@@ -42,6 +43,9 @@ class MessengerApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var incomingCallCoordinator: IncomingCallCoordinator
 
+    @Inject
+    lateinit var telecomCallManager: TelecomCallManager
+
     override fun onCreate() {
         super.onCreate()
 
@@ -63,6 +67,7 @@ class MessengerApplication : Application(), Configuration.Provider {
         syncManager.schedulePeriodicSync()
         fcmTokenSyncer.start()
         incomingCallCoordinator.start()
+        telecomCallManager.registerPhoneAccount()
         registerMemoryProfiling()
     }
 
