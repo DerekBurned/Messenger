@@ -2,9 +2,11 @@ package com.example.messenger.presentation.state
 
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.UserPresence
+import androidx.compose.runtime.Immutable
 import com.example.messenger.presentation.base.UiState
 import com.example.messenger.presentation.base.UiText
 
+@Immutable
 data class ConversationsUiState(
     val isLoading: Boolean = false,
     val conversations: List<Conversation> = emptyList(),

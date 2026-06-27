@@ -1,5 +1,8 @@
 package com.example.messenger.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class  Conversation(
     val id: String = "",
     val participantIds: List<String> = emptyList(),

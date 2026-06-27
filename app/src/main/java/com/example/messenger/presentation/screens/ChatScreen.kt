@@ -737,8 +737,13 @@ private fun ChatScreenContent(
                     unreadCount = unreadCount,
                     onClick = {
                         coroutineScope.launch {
-                            if (rows.isNotEmpty()) {
-                                listState.animateScrollToItem(rows.size - 1)
+                            val target = rows.lastIndex
+                            if (target >= 0) {
+                                val animatedTail = 20
+                                if (target - listState.firstVisibleItemIndex > animatedTail) {
+                                    listState.scrollToItem(target - animatedTail)
+                                }
+                                listState.animateScrollToItem(target)
                             }
                             unreadCount = 0
                         }

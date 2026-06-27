@@ -1,6 +1,7 @@
 package com.example.messenger.presentation.state
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.MediaTransfer
 import com.example.messenger.domain.model.Message
@@ -8,8 +9,10 @@ import com.example.messenger.domain.model.UserPresence
 import com.example.messenger.presentation.base.UiState
 import com.example.messenger.presentation.base.UiText
 
+@Immutable
 data class PendingAttachment(val uri: Uri, val kind: String)
 
+@Immutable
 data class ChatUiState(
     val isLoading: Boolean = false,
     val messages: List<Message> = emptyList(),
