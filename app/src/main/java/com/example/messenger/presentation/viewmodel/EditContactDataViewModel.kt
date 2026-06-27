@@ -11,7 +11,9 @@ import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.effect.EditContactDataEffect
 import com.example.messenger.presentation.state.EditContactDataUiState
 import com.example.messenger.util.Resource
+import com.example.messenger.util.resolveDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,10 +33,14 @@ class EditContactDataViewModel @Inject constructor(
 
     private fun load(contactId: String) {
         viewModelScope.launch {
+            val alias = userRepository.observeContactAliases().first()[contactId].orEmpty()
+            setState { copy(contactId = contactId, name = alias, initialName = alias) }
+        }
+        viewModelScope.launch {
             getUserByIdUseCase(contactId).collect { resource ->
                 if (resource is Resource.Success) {
-                    val name = resource.data?.username.orEmpty()
-                    setState { copy(contactId = contactId, name = name, initialName = name) }
+                    val handle = resolveDisplayName(resource.data?.username, null)
+                    setState { copy(contactId = contactId, username = handle) }
                 }
             }
         }

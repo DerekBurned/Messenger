@@ -49,7 +49,8 @@ class AuthRepositoryImpl @Inject constructor(
 
             val user = User(
                 id = firebaseUser.uid,
-                username = username?.takeIf { it.isNotBlank() } ?: firebaseUser.displayName,
+                username = username?.trim()?.takeIf { it.isNotBlank() }
+                    ?: firebaseUser.displayName?.takeIf { it.isNotBlank() && !it.startsWith("+") },
                 email = null,
                 phoneNumber = null,
                 avatarUrl = firebaseUser.photoUrl?.toString(),

@@ -9,6 +9,7 @@ import com.example.messenger.domain.usecase.conversation.DeleteConversationUseCa
 import com.example.messenger.domain.usecase.conversation.GetConversationsUseCase
 import com.example.messenger.domain.usecase.conversation.SyncConversationsUseCase
 import com.example.messenger.domain.usecase.presence.ObserveUserPresenceUseCase
+import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ConversationsUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -32,6 +33,7 @@ class ConversationsViewModel @Inject constructor(
     private val createConversationUseCase: CreateConversationUseCase,
     private val syncConversationsUseCase: SyncConversationsUseCase,
     private val observeUserPresenceUseCase: ObserveUserPresenceUseCase,
+    private val userRepository: IUserRepository,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -44,6 +46,16 @@ class ConversationsViewModel @Inject constructor(
 
     init {
         loadConversations()
+        observeAliases()
+    }
+
+    private fun observeAliases() {
+        viewModelScope.launch {
+            runCatching { userRepository.refreshContactAliases() }
+            userRepository.observeContactAliases().collect { aliases ->
+                _uiState.update { it.copy(aliases = aliases) }
+            }
+        }
     }
 
     private fun loadConversations() {

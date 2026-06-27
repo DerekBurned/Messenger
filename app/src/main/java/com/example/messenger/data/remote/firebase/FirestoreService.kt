@@ -255,6 +255,37 @@ class FirestoreService @Inject constructor(
         }
     }
 
+    suspend fun setContactAlias(myUid: String, contactId: String, name: String): Result<Unit> {
+        return try {
+            usersCollection.document(myUid)
+                .collection("contactAliases")
+                .document(contactId)
+                .set(mapOf("name" to name, "updatedAt" to System.currentTimeMillis()))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error setting contact alias", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getContactAliases(myUid: String): Result<Map<String, String>> {
+        return try {
+            val snapshot = usersCollection.document(myUid)
+                .collection("contactAliases")
+                .get()
+                .await()
+            val aliases = snapshot.documents.mapNotNull { doc ->
+                val name = doc.getString("name")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                doc.id to name
+            }.toMap()
+            Result.success(aliases)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching contact aliases", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun findExistingConversation(
         participantIds: List<String>,
         currentUserId: String,

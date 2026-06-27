@@ -13,6 +13,7 @@ import com.example.messenger.domain.model.sync.SyncAction
 import com.example.messenger.domain.model.sync.SyncEntityType
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.ISyncRepository
+import com.example.messenger.domain.repository.IUserRepository
 import io.objectbox.Box
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class SyncRepositoryImpl @Inject constructor(
     private val messageBox: Box<ObxMessage>,
     private val firestoreService: FirestoreService,
     private val conversationRepository: IConversationRepository,
+    private val userRepository: IUserRepository,
 ) : ISyncRepository {
 
     private companion object {
@@ -37,6 +39,8 @@ class SyncRepositoryImpl @Inject constructor(
             _syncStatus.value = SyncStatus.SYNCING
             runCatching { conversationRepository.syncConversations() }
                 .onFailure { Log.w(TAG, "Conversation backfill failed", it) }
+            runCatching { userRepository.refreshContactAliases() }
+                .onFailure { Log.w(TAG, "Contact alias backfill failed", it) }
             processSyncQueue()
             _syncStatus.value = SyncStatus.SYNCED
             Result.success(Unit)

@@ -65,6 +65,7 @@ import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
 import com.example.messenger.presentation.state.ConversationsUiState
 import com.example.messenger.presentation.viewmodel.ConversationsViewModel
 import com.example.messenger.util.DateUtils
+import com.example.messenger.util.resolveDisplayName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,9 +209,10 @@ private fun ChatsList(
             items(uiState.conversations, key = { it.id }) { conversation ->
                 val otherIdx = conversation.participantIds.indexOfFirst { it != currentUserId }
                 val otherUserId = conversation.participantIds.getOrNull(otherIdx) ?: ""
-                val otherUserName = conversation.participantNames.getOrNull(otherIdx)
-                    ?.takeIf { it.isNotBlank() }
-                    ?: "Unknown"
+                val otherUserName = resolveDisplayName(
+                    rawName = conversation.participantNames.getOrNull(otherIdx),
+                    alias = uiState.aliases[otherUserId],
+                )
                 SwipeableConversationRow(
                     displayName = otherUserName,
                     isOneOnOne = conversation.participantIds.size == 2,

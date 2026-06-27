@@ -1,5 +1,7 @@
 package com.example.messenger.data.repository
 
+import com.example.messenger.data.local.obx.ObxContactAlias
+import com.example.messenger.data.local.obx.ObxContactAlias_
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxUser
 import com.example.messenger.data.local.obx.ObxUser_
@@ -19,6 +21,7 @@ import javax.inject.Inject
 class UserRepositoryImpl @Inject constructor(
     private val userBox: Box<ObxUser>,
     private val conversationBox: Box<ObxConversation>,
+    private val contactAliasBox: Box<ObxContactAlias>,
     private val firestoreService: FirestoreService,
     private val authService: FirebaseAuthService,
 ) : IUserRepository {
@@ -108,31 +111,45 @@ class UserRepositoryImpl @Inject constructor(
         if (trimmed.isBlank()) {
             Result.failure(IllegalArgumentException("Name cannot be empty"))
         } else {
-            val local = findByUid(contactId)
-            if (local == null) {
-                val remote = firestoreService.getUserProfile(contactId).getOrNull()
-                val seed = remote?.copy(username = trimmed)?.toObx()
-                    ?: User(id = contactId, username = trimmed).toObx()
-                upsert(seed)
-            } else {
-                local.username = trimmed
-                userBox.put(local)
-            }
-            propagateRenameToConversations(contactId, trimmed)
+            val myUid = authService.getCurrentUserId()
+                ?: return@updateContactName Result.failure(IllegalStateException("Not logged in"))
+            cacheAlias(contactId, trimmed)
+            firestoreService.setContactAlias(myUid, contactId, trimmed)
             Result.success(Unit)
         }
     } catch (e: Exception) {
         Result.failure(e)
     }
 
-    private fun propagateRenameToConversations(contactId: String, newName: String) {
-        conversationBox.all.forEach { conv ->
-            val idx = conv.participantIds.indexOf(contactId)
-            if (idx < 0 || idx >= conv.participantNames.size) return@forEach
-            if (conv.participantNames[idx] == newName) return@forEach
-            conv.participantNames = conv.participantNames.toMutableList().apply { this[idx] = newName }
-            conversationBox.put(conv)
+    override fun observeContactAliases(): Flow<Map<String, String>> =
+        contactAliasBox.query().build()
+            .asFlow()
+            .map { rows -> rows.associate { it.contactId to it.name } }
+
+    override suspend fun refreshContactAliases(): Result<Unit> {
+        return try {
+            val myUid = authService.getCurrentUserId()
+                ?: return Result.failure(IllegalStateException("Not logged in"))
+            firestoreService.getContactAliases(myUid).onSuccess { aliases ->
+                aliases.forEach { (contactId, name) -> cacheAlias(contactId, name) }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
+
+    private fun cacheAlias(contactId: String, name: String) {
+        val existing = contactAliasBox.query(ObxContactAlias_.contactId.equal(contactId)).build()
+            .use { it.findFirst() }
+        contactAliasBox.put(
+            ObxContactAlias(
+                boxId = existing?.boxId ?: 0,
+                contactId = contactId,
+                name = name,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     private fun findByUid(uid: String): ObxUser? =

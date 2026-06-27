@@ -99,7 +99,7 @@ private fun EditContactDataScreenContent(
                     modifier = Modifier.size(84.dp).clip(CircleShape).background(LightGray),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val initial = state.name.take(1).uppercase()
+                    val initial = state.name.ifBlank { state.username }.take(1)
                     if (initial.isNotBlank()) {
                         Text(initial, color = PrimaryBlue, fontWeight = FontWeight.Bold, fontSize = 32.sp)
                     } else {
@@ -107,6 +107,9 @@ private fun EditContactDataScreenContent(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                if (state.username.isNotBlank()) {
+                    Text("@${state.username}", color = MaterialTheme.colorScheme.onBackground.copy(0.6f), fontSize = 13.sp)
+                }
                 TextButton(onClick = {}) {
                     Text("Change photo", color = PrimaryBlue, fontSize = 13.sp)
                 }
