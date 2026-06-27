@@ -37,6 +37,14 @@ class AuthRepositoryImpl @Inject constructor(
                     return Resource.Error("An account with this number already exists. Please log in instead.")
                 }
                 Log.d(TAG, "loginWithPhone: LOGIN existing user ${existing.id}")
+                if (existing.usernameLower.isNullOrBlank() && !existing.username.isNullOrBlank()) {
+                    runCatching {
+                        firestore.updateUserProfile(
+                            existing.id,
+                            mapOf("usernameLower" to existing.username!!.lowercase()),
+                        )
+                    }
+                }
                 return Resource.Success(existing)
             }
 
@@ -47,10 +55,12 @@ class AuthRepositoryImpl @Inject constructor(
                 return Resource.Error("User does not exist. Please register first.")
             }
 
+            val resolvedUsername = username?.trim()?.takeIf { it.isNotBlank() }
+                ?: firebaseUser.displayName?.takeIf { it.isNotBlank() && !it.startsWith("+") }
             val user = User(
                 id = firebaseUser.uid,
-                username = username?.trim()?.takeIf { it.isNotBlank() }
-                    ?: firebaseUser.displayName?.takeIf { it.isNotBlank() && !it.startsWith("+") },
+                username = resolvedUsername,
+                usernameLower = resolvedUsername?.lowercase(),
                 email = null,
                 phoneNumber = null,
                 avatarUrl = firebaseUser.photoUrl?.toString(),

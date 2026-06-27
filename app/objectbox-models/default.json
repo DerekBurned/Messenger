@@ -271,7 +271,7 @@
     },
     {
       "id": "6:9099934813054163096",
-      "lastPropertyId": "8:4041015398361419576",
+      "lastPropertyId": "9:5951392923929070310",
       "name": "ObxUser",
       "properties": [
         {
@@ -320,6 +320,13 @@
           "id": "8:4041015398361419576",
           "name": "isOnline",
           "type": 1
+        },
+        {
+          "id": "9:5951392923929070310",
+          "name": "usernameLower",
+          "indexId": "11:2128443420894485632",
+          "type": 9,
+          "flags": 2048
         }
       ],
       "relations": []
@@ -357,7 +364,7 @@
     }
   ],
   "lastEntityId": "7:3709367518730688828",
-  "lastIndexId": "10:7152094659063723557",
+  "lastIndexId": "11:2128443420894485632",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

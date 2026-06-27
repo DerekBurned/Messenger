@@ -13,6 +13,7 @@ import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IUserRepository
+import com.example.messenger.util.similarityScore
 import io.objectbox.Box
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -40,20 +41,26 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
             val currentUserId = authService.getCurrentUserId()
-            val local = userBox.query(ObxUser_.username.equal(query)).build().use { it.findFirst() }
-            if (local != null && local.uid != currentUserId) {
-                return Result.success(listOf(local.toDomain()))
+            val q = query.trim()
+
+            val remote = firestoreService.searchUsers(q).getOrElse { emptyList() }
+                .filter { it.id != currentUserId }
+            if (remote.isNotEmpty()) {
+                userBox.put(remote.map { it.toObx() })
             }
-            firestoreService.searchUsers(query).fold(
-                onSuccess = { users ->
-                    val filtered = users.filter { it.id != currentUserId }
-                    if (filtered.isNotEmpty()) {
-                        userBox.put(filtered.map { it.toObx() })
-                    }
-                    Result.success(filtered)
-                },
-                onFailure = { e -> Result.failure(e) },
-            )
+
+            val local = userBox.all
+                .filter { it.uid != currentUserId && it.username.contains(q, ignoreCase = true) }
+                .map { it.toDomain() }
+
+            val ranked = (remote + local)
+                .distinctBy { it.id }
+                .map { it to similarityScore(q, it.username.orEmpty()) }
+                .filter { it.second >= SIMILARITY_THRESHOLD }
+                .sortedByDescending { it.second }
+                .map { it.first }
+
+            Result.success(ranked)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -92,6 +99,7 @@ class UserRepositoryImpl @Inject constructor(
                     updates.forEach { (key, value) ->
                         when (key) {
                             "username" -> local.username = value as String
+                            "usernameLower" -> local.usernameLower = value as String
                             "email" -> local.email = value as? String
                             "avatarUrl" -> local.avatarUrl = value as? String
                             "phoneNumber" -> local.phoneNumber = value as? PhoneNumber
@@ -158,5 +166,9 @@ class UserRepositoryImpl @Inject constructor(
     private fun upsert(user: ObxUser) {
         findByUid(user.uid)?.let { user.boxId = it.boxId }
         userBox.put(user)
+    }
+
+    private companion object {
+        const val SIMILARITY_THRESHOLD = 0.4
     }
 }

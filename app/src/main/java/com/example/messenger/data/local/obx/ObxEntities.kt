@@ -39,6 +39,7 @@ data class ObxUser(
     @Id var boxId: Long = 0,
     @Unique(onConflict = ConflictStrategy.REPLACE) var uid: String = "",
     @Index var username: String = "",
+    @Index var usernameLower: String = "",
     @Index var email: String? = null,
     @Convert(converter = PhoneNumberConverter::class, dbType = String::class)
     var phoneNumber: PhoneNumber? = null,
