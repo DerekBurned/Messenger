@@ -12,6 +12,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.components.call.CallAwareTopBar
+import com.example.messenger.presentation.components.profile.AvatarPhotoViewer
 import com.example.messenger.presentation.components.profile.MediaTabsRow
 import com.example.messenger.presentation.components.profile.ProfileHeader
 import com.example.messenger.presentation.components.profile.ProfileInfoCard
@@ -38,6 +42,7 @@ import com.example.messenger.presentation.viewmodel.ChatUserProfileViewModel
 @Composable
 fun ChatUserProfileScreen(
     viewModel: ChatUserProfileViewModel = hiltViewModel(),
+    sharedKeyUserId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onEditClick: () -> Unit = {}
@@ -45,6 +50,7 @@ fun ChatUserProfileScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ChatUserProfileScreenContent(
         state = state,
+        sharedKeyUserId = sharedKeyUserId,
         onBackClick = onBackClick,
         onCallClick = onCallClick,
         onEditClick = onEditClick,
@@ -56,12 +62,17 @@ fun ChatUserProfileScreen(
 @Composable
 private fun ChatUserProfileScreenContent(
     state: ChatUserProfileUiState,
+    sharedKeyUserId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onMediaTabChange: (MediaTab) -> Unit = {},
     onEditClick: () -> Unit = {},
 ) {
     val tokens = messengerTokens
+    var showViewer by remember { mutableStateOf(false) }
+    val viewerPhotos = state.avatarPhotos.ifEmpty {
+        listOfNotNull(state.user?.avatarUrl).filter { it.isNotBlank() }
+    }
     val chipFill = if (tokens.isDark) Color.Black.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.06f)
     WallpaperBackground {
     Scaffold(
@@ -113,12 +124,25 @@ private fun ChatUserProfileScreenContent(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            item { ProfileHeader(state, onCallClick) }
+            item {
+                ProfileHeader(
+                    state = state,
+                    sharedKeyUserId = sharedKeyUserId,
+                    onAvatarClick = { if (viewerPhotos.isNotEmpty()) showViewer = true },
+                    onCallClick = onCallClick,
+                )
+            }
             item { ProfileInfoCard(state) }
             item { MediaTabsRow(state.mediaTab, onMediaTabChange) }
             item { ProfileMediaGrid() }
         }
     }
+    }
+    if (showViewer && viewerPhotos.isNotEmpty()) {
+        AvatarPhotoViewer(
+            photos = viewerPhotos,
+            onDismiss = { showViewer = false },
+        )
     }
 }
 

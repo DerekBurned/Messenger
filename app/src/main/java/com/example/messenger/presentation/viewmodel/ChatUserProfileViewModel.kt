@@ -3,6 +3,7 @@ package com.example.messenger.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.domain.usecase.user.GetUserByIdUseCase
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ChatUserProfileUiState
@@ -20,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatUserProfileViewModel @Inject constructor(
     private val getUserByIdUseCase: GetUserByIdUseCase,
+    private val userRepository: IUserRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUserProfileUiState())
@@ -27,7 +29,18 @@ class ChatUserProfileViewModel @Inject constructor(
 
     init {
         val userId: String? = savedStateHandle["userId"]
-        if (!userId.isNullOrBlank()) load(userId)
+        if (!userId.isNullOrBlank()) {
+            load(userId)
+            loadPhotos(userId)
+        }
+    }
+
+    private fun loadPhotos(userId: String) {
+        viewModelScope.launch {
+            userRepository.getProfilePhotos(userId).onSuccess { urls ->
+                _uiState.update { it.copy(avatarPhotos = urls) }
+            }
+        }
     }
 
     private fun load(userId: String) {

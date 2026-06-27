@@ -1,6 +1,7 @@
 package com.example.messenger.presentation.components.profile
 
 import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.sharedElementKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,16 +45,24 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 @Composable
 fun ProfileHeader(
     state: ChatUserProfileUiState,
+    sharedKeyUserId: String = "",
+    onAvatarClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit,
 ) {
     val tokens = messengerTokens
+    val sharedAvatarModifier =
+        if (sharedKeyUserId.isNotBlank()) Modifier.sharedElementKey("avatar-$sharedKeyUserId") else Modifier
+    val sharedNameModifier =
+        if (sharedKeyUserId.isNotBlank()) Modifier.sharedElementKey("name-$sharedKeyUserId") else Modifier
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         MessengerAvatar(
             name = state.user?.username.orEmpty(),
+            photoUrl = state.user?.avatarUrl,
             size = 112.dp,
+            modifier = sharedAvatarModifier.clickable(onClick = onAvatarClick),
         )
         Spacer(Modifier.height(12.dp))
         Text(
@@ -61,6 +70,7 @@ fun ProfileHeader(
             color = tokens.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
+            modifier = sharedNameModifier,
         )
         Spacer(Modifier.height(2.dp))
         Text(
