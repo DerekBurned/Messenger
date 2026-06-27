@@ -132,6 +132,7 @@ private fun parseStatus(value: String): MessageStatus {
 fun ObxUser.toDomain(): User = User(
     id = uid,
     username = username,
+    usernameLower = usernameLower.ifBlank { username.lowercase() },
     email = email,
     phoneNumber = phoneNumber,
     avatarUrl = avatarUrl,
@@ -144,6 +145,7 @@ fun ObxUser.toDomain(): User = User(
 fun User.toObx(): ObxUser = ObxUser(
     uid = id,
     username = username ?: "Unknown",
+    usernameLower = (usernameLower ?: username)?.lowercase().orEmpty(),
     email = email,
     phoneNumber = phoneNumber,
     avatarUrl = avatarUrl,

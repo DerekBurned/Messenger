@@ -95,7 +95,10 @@ class EditProfileViewModel @Inject constructor(
         }
         viewModelScope.launch {
             setState { copy(isSaving = true, error = null) }
-            val updates = mutableMapOf<String, Any>("username" to state.username)
+            val updates = mutableMapOf<String, Any>(
+                "username" to state.username,
+                "usernameLower" to state.username.lowercase(),
+            )
             val result = userRepository.updateUserProfile(updates)
             result.fold(
                 onSuccess = {

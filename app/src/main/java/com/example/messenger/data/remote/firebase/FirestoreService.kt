@@ -242,9 +242,11 @@ class FirestoreService @Inject constructor(
     }
     suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
+            val prefix = query.trim().lowercase()
             val snapshot = usersCollection
-                .whereGreaterThanOrEqualTo("username", query)
-                .whereLessThanOrEqualTo("username", query + "\uf8ff")
+                .whereGreaterThanOrEqualTo("usernameLower", prefix)
+                .whereLessThanOrEqualTo("usernameLower", prefix + "")
+                .limit(20)
                 .get()
                 .await()
             val users = snapshot.toObjects(User::class.java)
