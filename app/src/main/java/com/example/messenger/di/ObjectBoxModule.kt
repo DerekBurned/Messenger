@@ -3,6 +3,7 @@ package com.example.messenger.di
 import android.content.Context
 import com.example.messenger.BuildConfig
 import com.example.messenger.data.local.obx.MyObjectBox
+import com.example.messenger.data.local.obx.ObxContactAlias
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxMessage
 import com.example.messenger.data.local.obx.ObxProfile
@@ -53,4 +54,8 @@ object ObjectBoxModule {
 
     @Provides @Singleton
     fun provideProfileBox(store: BoxStore): Box<ObxProfile> = store.boxFor(ObxProfile::class.java)
+
+    @Provides @Singleton
+    fun provideContactAliasBox(store: BoxStore): Box<ObxContactAlias> =
+        store.boxFor(ObxContactAlias::class.java)
 }

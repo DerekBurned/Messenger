@@ -10,6 +10,7 @@ data class ConversationsUiState(
     val conversations: List<Conversation> = emptyList(),
     val error: UiText? = null,
     val presenceMap: Map<String, UserPresence> = emptyMap(),
+    val aliases: Map<String, String> = emptyMap(),
     val isRefreshing: Boolean = false,
     val currentUserId: String = "",
 ) : UiState

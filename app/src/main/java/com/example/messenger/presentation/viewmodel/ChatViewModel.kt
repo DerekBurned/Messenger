@@ -54,6 +54,7 @@ class ChatViewModel @Inject constructor(
     private val observeTypingUseCase: ObserveTypingUseCase,
     private val typingService: ITypingService,
     private val mediaRepository: IMediaRepository,
+    private val userRepository: com.example.messenger.domain.repository.IUserRepository,
     firebaseAuthService: FirebaseAuthService,
     savedStateHandle: SavedStateHandle,
 ) : MviViewModel<ChatUiState, ChatIntent, ChatEffect>(initialState = ChatUiState()) {
@@ -85,10 +86,11 @@ class ChatViewModel @Inject constructor(
         setState {
             copy(
                 currentUserId = currentUserId,
-                partnerUsername = partnerName.ifBlank { partnerUsername },
+                partnerUsername = com.example.messenger.util.resolveDisplayName(partnerName, null),
                 partnerLastSeenDisplay = DateUtils.formatLastSeen(partnerPresence.lastSeen),
             )
         }
+        observePartnerAlias()
         observeTransfers()
         if (conversationId.isNotBlank()) {
             loadMessages()
@@ -105,6 +107,17 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             markConversationAsReadUseCase(conversationId)
         }
+    }
+
+    private fun observePartnerAlias() {
+        if (partnerId.isBlank()) return
+        userRepository.observeContactAliases()
+            .onEach { aliases ->
+                setState {
+                    copy(partnerUsername = com.example.messenger.util.resolveDisplayName(partnerName, aliases[partnerId]))
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     override fun handleIntent(intent: ChatIntent) {

@@ -11,4 +11,6 @@ interface IUserRepository {
     suspend fun updateLastSeen(): Result<Unit>
     suspend fun updateUserProfile(updates: Map<String, Any>): Result<Unit>
     suspend fun updateContactName(contactId: String, newName: String): Result<Unit>
+    fun observeContactAliases(): Flow<Map<String, String>>
+    suspend fun refreshContactAliases(): Result<Unit>
 }

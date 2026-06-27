@@ -323,10 +323,41 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "7:3709367518730688828",
+      "lastPropertyId": "4:946174323153985725",
+      "name": "ObxContactAlias",
+      "properties": [
+        {
+          "id": "1:7586363242658437150",
+          "name": "boxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:8796799173963558270",
+          "name": "contactId",
+          "indexId": "10:7152094659063723557",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:5946190948966910260",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:946174323153985725",
+          "name": "updatedAt",
+          "type": 6
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "6:9099934813054163096",
-  "lastIndexId": "9:2387546174347519727",
+  "lastEntityId": "7:3709367518730688828",
+  "lastIndexId": "10:7152094659063723557",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

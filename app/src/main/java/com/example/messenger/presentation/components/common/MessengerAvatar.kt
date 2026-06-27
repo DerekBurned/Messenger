@@ -50,7 +50,7 @@ fun MessengerAvatar(
             )
         } else {
             Text(
-                text = name.take(1).uppercase().ifBlank { "?" },
+                text = name.take(1).ifBlank { "?" },
                 color = tokens.accent,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = (size.value * 0.4f).sp,

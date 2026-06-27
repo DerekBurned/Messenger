@@ -69,6 +69,14 @@ data class ObxConversation(
 )
 
 @Entity
+data class ObxContactAlias(
+    @Id var boxId: Long = 0,
+    @Unique(onConflict = ConflictStrategy.REPLACE) var contactId: String = "",
+    var name: String = "",
+    var updatedAt: Long = 0,
+)
+
+@Entity
 data class ObxSyncQueueItem(
     @Id var boxId: Long = 0,
     var entityType: String = "",
