@@ -1,7 +1,9 @@
 package com.example.messenger.presentation.components.chat
 
+import androidx.compose.runtime.Immutable
 import com.example.messenger.domain.model.MessageStatus
 
+@Immutable
 data class ChatMessage(
     val text: String,
     val isMe: Boolean,

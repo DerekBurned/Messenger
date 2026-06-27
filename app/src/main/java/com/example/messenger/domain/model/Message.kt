@@ -1,5 +1,8 @@
 package com.example.messenger.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 sealed class Message {
     abstract val id: String
     abstract val conversationId: String
