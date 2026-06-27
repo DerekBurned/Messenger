@@ -8,13 +8,34 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -22,65 +43,100 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.PresenceState
-import com.example.messenger.presentation.components.AttachmentBar
-import com.example.messenger.presentation.components.CallAwareTopBar
-import com.example.messenger.presentation.components.FullscreenMediaPager
-import com.example.messenger.presentation.components.MediaAlbumGrid
-import com.example.messenger.presentation.components.MediaSource
-import com.example.messenger.presentation.components.mediaCacheFile
-import com.example.messenger.presentation.components.MessageStatusIcon
-import com.example.messenger.presentation.components.PresenceIndicator
-import com.example.messenger.presentation.components.TypingIndicator
 import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.components.chat.AttachmentBar
+import com.example.messenger.presentation.components.call.CallAwareTopBar
+import com.example.messenger.presentation.components.chat.ChatMessage
+import com.example.messenger.presentation.components.chat.ChatMessageSkeleton
+import com.example.messenger.presentation.components.chat.ChatTextBubble
+import com.example.messenger.presentation.components.chat.ChatTopBar
+import com.example.messenger.presentation.components.chat.LongPressMessage
+import com.example.messenger.presentation.components.chat.MessageAction
+import com.example.messenger.presentation.components.chat.MessageContextMenuHost
+import com.example.messenger.presentation.components.chat.DateDivider
+import com.example.messenger.presentation.components.chat.EndedCallCard
+import com.example.messenger.presentation.components.media.FullscreenMediaPager
+import com.example.messenger.presentation.components.media.MediaAlbumGrid
+import com.example.messenger.presentation.components.media.MediaSource
+import com.example.messenger.presentation.components.chat.MissedCallCard
+import com.example.messenger.presentation.components.chat.ScrollToBottomButton
+import com.example.messenger.presentation.components.chat.UnreadMessagesDivider
+import com.example.messenger.presentation.components.chat.rememberMessageContextMenuState
+import com.example.messenger.presentation.components.common.WallpaperBackground
+import com.example.messenger.presentation.components.media.mediaCacheFile
+import com.example.messenger.presentation.components.common.rememberNavEnterSettled
 import com.example.messenger.presentation.effect.ChatEffect
 import com.example.messenger.presentation.intent.ChatIntent
 import com.example.messenger.presentation.notification.ChatNotifier
 import com.example.messenger.presentation.notification.CurrentConversationHolder
-import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
-import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
-import com.example.messenger.presentation.screens.ui.theme.BubbleSent
-import com.example.messenger.presentation.screens.ui.theme.ChatBackground
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.OnlineGreen
+import com.example.messenger.presentation.screens.ui.theme.Motion
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.ChatUiState
 import com.example.messenger.presentation.state.GalleryItem
 import com.example.messenger.presentation.viewmodel.ChatViewModel
 import com.example.messenger.util.DateUtils
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private fun mediaReadPermissions(): Array<String> =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -93,6 +149,8 @@ private fun mediaReadPermissions(): Array<String> =
 @Composable
 fun ChatScreenWithNav(
     viewModel: ChatViewModel = hiltViewModel(),
+    sharedKeyPartnerId: String = "",
+    inBubble: Boolean = false,
     onBackClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
     onIntercultorProfileClick: () -> Unit = {}
@@ -130,7 +188,7 @@ fun ChatScreenWithNav(
     DisposableEffect(conversationId) {
         if (conversationId.isNotBlank()) {
             CurrentConversationHolder.setOpen(conversationId)
-            ChatNotifier.clear(context, conversationId)
+            if (!inBubble) ChatNotifier.clear(context, conversationId)
         }
         onDispose {
             if (conversationId.isNotBlank()) {
@@ -141,6 +199,7 @@ fun ChatScreenWithNav(
 
     ChatScreenContent(
         uiState = uiState,
+        sharedKeyPartnerId = sharedKeyPartnerId,
         messageText = messageText,
         onMessageTextChange = { newText ->
             messageText = newText
@@ -232,6 +291,7 @@ fun ChatScreenWithNav(
 @Composable
 private fun ChatScreenContent(
     uiState: ChatUiState,
+    sharedKeyPartnerId: String = "",
     messageText: String,
     onMessageTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
@@ -253,8 +313,9 @@ private fun ChatScreenContent(
     onRetryMedia: (messageId: String) -> Unit,
 ) {
     val context = LocalContext.current
+    val tokens = messengerTokens
+    val enterSettled = rememberNavEnterSettled()
     var chatPreviewIndex by remember { mutableStateOf<Int?>(null) }
-
     val presenceStatusText = when {
         uiState.isPartnerTyping -> "typing..."
         uiState.partnerPresence.state == PresenceState.ONLINE -> "Online"
@@ -264,78 +325,39 @@ private fun ChatScreenContent(
         }
     }
 
-    val statusColor = when {
-        uiState.isPartnerTyping -> OnlineGreen
-        uiState.partnerPresence.state == PresenceState.ONLINE -> OnlineGreen
-        else -> Color.White.copy(alpha = 0.7f)
-    }
-
+    val ctxState = rememberMessageContextMenuState()
+    MessageContextMenuHost(state = ctxState) {
+    WallpaperBackground {
     Scaffold(
         topBar = {
             CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = uiState.partnerUsername.ifBlank { "Chat" },
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = presenceStatusText,
-                                color = statusColor,
-                                fontSize = 12.sp
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onCallClick) {
-                            Icon(
-                                Icons.Default.Call,
-                                contentDescription = "Voice call",
-                                tint = Color.White
-                            )
-                        }
-                        Box(
-                            contentAlignment = Alignment.BottomEnd,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clickable { onIntercultorProfileClick() }
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .padding(8.dp)
-                                    .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                            )
-                            PresenceIndicator(
-                                state = uiState.partnerPresence.state,
-                                size = 12.dp,
-                                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = PrimaryBlue
-                    )
+                ChatTopBar(
+                    partnerName = uiState.partnerUsername,
+                    presenceStatusText = presenceStatusText,
+                    statusAccent = uiState.isPartnerTyping ||
+                        uiState.partnerPresence.state == PresenceState.ONLINE,
+                    presenceState = uiState.partnerPresence.state,
+                    sharedKeyPartnerId = sharedKeyPartnerId,
+                    onBackClick = onBackClick,
+                    onProfileClick = onIntercultorProfileClick,
                 )
             }
         },
-        containerColor = ChatBackground
+        containerColor = Color.Transparent,
     ) { padding ->
         val listState = rememberLazyListState()
         val coroutineScope = rememberCoroutineScope()
+        val animatedIds = remember { mutableSetOf<String>() }
+        val exitingIds = remember { mutableStateListOf<String>() }
+        val requestDelete: (Message) -> Unit = { message ->
+            if (message.id !in exitingIds) {
+                exitingIds.add(message.id)
+                coroutineScope.launch {
+                    delay(220L)
+                    onDelete(message)
+                }
+            }
+        }
         val focusManager = LocalFocusManager.current
         val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -359,9 +381,21 @@ private fun ChatScreenContent(
             seededReopenAnchor = true
         }
 
+        var seededAppear by remember { mutableStateOf(false) }
+        if (!seededAppear && uiState.messages.isNotEmpty()) {
+            uiState.messages.forEach { animatedIds.add(it.id) }
+            seededAppear = true
+        }
+
         val rows = remember(uiState.messages, dividerAnchorId) {
             buildList<ChatRow> {
+                var lastDayStart = Long.MIN_VALUE
                 uiState.messages.forEach { message ->
+                    val dayStart = DateUtils.startOfDay(message.timestamp)
+                    if (dayStart != lastDayStart) {
+                        add(ChatRow.DateDivider(dayStart, DateUtils.formatDayDivider(message.timestamp)))
+                        lastDayStart = dayStart
+                    }
                     if (message.id == dividerAnchorId) add(ChatRow.UnreadDivider)
                     add(ChatRow.MessageRow(message))
                 }
@@ -376,6 +410,7 @@ private fun ChatScreenContent(
             } else {
                 listState.scrollToItem(rows.size - 1)
             }
+            lastKnownNewestId = uiState.messages.lastOrNull()?.id
             didInitialScroll = true
         }
 
@@ -454,20 +489,18 @@ private fun ChatScreenContent(
                 .collect { messages -> if (messages.isNotEmpty()) onMessagesSeen(messages) }
         }
 
-        Column(
+        val density = LocalDensity.current
+        var composerHeightPx by remember { mutableStateOf(0) }
+        val composerHeight = with(density) { composerHeightPx.toDp() }
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .imePadding()
         ) {
+            Column(modifier = Modifier.fillMaxSize()) {
             when {
-                uiState.isLoading && uiState.messages.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = PrimaryBlue)
-                    }
+                !enterSettled || (uiState.isLoading && uiState.messages.isEmpty()) -> {
+                    ChatMessageSkeleton(modifier = Modifier.weight(1f).fillMaxWidth())
                 }
                 uiState.error != null && uiState.messages.isEmpty() -> {
                     val errorMessage = uiState.error.asString()
@@ -484,8 +517,8 @@ private fun ChatScreenContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "No messages yet — say hi 👋",
-                            color = Color.Gray,
+                            text = "No messages yet — say hi",
+                            color = tokens.textPrimary.copy(alpha = 0.7f),
                             fontSize = 14.sp,
                         )
                     }
@@ -502,11 +535,35 @@ private fun ChatScreenContent(
                                 })
                             }
                     ) {
+                        val topPaddingPx = with(density) { (padding.calculateTopPadding() + 75.dp).toPx() }
+                        val bottomPaddingPx = composerHeightPx.toFloat() + with(density) { 75.dp.toPx() }
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize()
+                                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                                .drawWithContent {
+                                drawContent()
+
+                                // Calculate where the gradient should become fully visible (solid black mask)
+                                val topStop = (topPaddingPx / size.height).coerceIn(0f, 1f)
+                                val bottomStop = ((size.height - bottomPaddingPx) / size.height).coerceIn(0f, 1f)
+
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        0f to Color.Transparent,        // Top edge: fully transparent
+                                        topStop to Color.Black,         // End of top bar: fully opaque (visible)
+                                        bottomStop to Color.Black,      // Start of bottom bar: fully opaque
+                                        1f to Color.Transparent         // Bottom edge: fully transparent
+                                    ),
+                                    blendMode = BlendMode.DstIn
+                                )
+                            },
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = padding.calculateTopPadding() + 8.dp,
+                                bottom = composerHeight + 8.dp
+                            ),
                             verticalArrangement = Arrangement.Bottom
                         ) {
                             items(
@@ -515,54 +572,105 @@ private fun ChatScreenContent(
                                     when (row) {
                                         is ChatRow.MessageRow -> row.message.id
                                         ChatRow.UnreadDivider -> "unread_divider"
+                                        is ChatRow.DateDivider -> "date_${row.dayStart}"
                                     }
                                 },
                             ) { row ->
                                 when (row) {
                                     ChatRow.UnreadDivider -> UnreadMessagesDivider()
+                                    is ChatRow.DateDivider -> DateDivider(label = row.label)
                                     is ChatRow.MessageRow -> {
-                                        when (val msg = row.message) {
-                                        is Message.Call -> when (msg.callType) {
-                                            CallType.MISSED -> MissedCallCard(
-                                                onCall = onCallClick,
-                                                timestamp = msg.timestamp,
-                                                isMe = msg.senderId == uiState.currentUserId,
-                                                status = msg.status,
+                                        val msg = row.message
+                                        val isMe = msg.senderId == uiState.currentUserId
+                                        MessageAppearance(
+                                            messageId = msg.id,
+                                            isMe = isMe,
+                                            exiting = msg.id in exitingIds,
+                                            animatedIds = animatedIds,
+                                        ) {
+                                        Column {
+                                        when (msg) {
+                                        is Message.Call -> {
+                                            val noop: () -> Unit = {}
+                                            val callActions = listOf(
+                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
                                             )
-                                            CallType.UNREACHED -> MissedCallCard(
-                                                onCall = onCallClick,
-                                                timestamp = msg.timestamp,
-                                                isMe = msg.senderId == uiState.currentUserId,
-                                                title = "Unreached call",
-                                                status = msg.status,
-                                            )
-                                            CallType.ENDED -> EndedCallCard(
-                                                durationSeconds = msg.durationSeconds,
-                                                timestamp = msg.timestamp,
-                                                isMe = msg.senderId == uiState.currentUserId,
-                                            )
-                                        }
-                                        is Message.Media -> MediaAlbumGrid(
-                                            message = msg,
-                                            isMe = msg.senderId == uiState.currentUserId,
-                                            transfers = uiState.transfers,
-                                            onOpen = { item ->
-                                                if (msg.status == MessageStatus.FAILED) {
-                                                    onRetryMedia(msg.id)
-                                                } else {
-                                                    val idx = uiState.conversationMedia
-                                                        .indexOfFirst { it.id == item.id }
-                                                    if (idx >= 0) chatPreviewIndex = idx
+                                            val callCard: @Composable (live: Boolean) -> Unit = { live ->
+                                                val onCall = if (live) onCallClick else noop
+                                                when (msg.callType) {
+                                                    CallType.MISSED -> MissedCallCard(
+                                                        onCall = onCall,
+                                                        timestamp = msg.timestamp,
+                                                        isMe = isMe,
+                                                        status = msg.status,
+                                                    )
+                                                    CallType.UNREACHED -> MissedCallCard(
+                                                        onCall = onCall,
+                                                        timestamp = msg.timestamp,
+                                                        isMe = isMe,
+                                                        title = "Unreached call",
+                                                        status = msg.status,
+                                                    )
+                                                    CallType.ENDED -> EndedCallCard(
+                                                        durationSeconds = msg.durationSeconds,
+                                                        timestamp = msg.timestamp,
+                                                        isMe = isMe,
+                                                    )
                                                 }
-                                            },
-                                            onDownload = { onDownload(it) },
-                                            onCancelUpload = { messageId, itemId -> onCancelUpload(messageId, itemId) },
-                                            onCancelDownload = { onCancelDownload(it) },
-                                        )
+                                            }
+                                            LongPressMessage(
+                                                isMe = isMe,
+                                                messageKey = msg.id,
+                                                actions = callActions,
+                                                state = ctxState,
+                                                preview = { callCard(false) },
+                                            ) { callCard(true) }
+                                        }
+                                        is Message.Media -> {
+                                            val mediaActions = listOf(
+                                                MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
+                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
+                                            )
+                                            LongPressMessage(
+                                                isMe = isMe,
+                                                messageKey = msg.id,
+                                                actions = mediaActions,
+                                                state = ctxState,
+                                                preview = {
+                                                    MediaAlbumGrid(
+                                                        message = msg,
+                                                        isMe = isMe,
+                                                        transfers = uiState.transfers,
+                                                        onOpen = {},
+                                                        onDownload = {},
+                                                        onCancelUpload = { _, _ -> },
+                                                        onCancelDownload = {},
+                                                    )
+                                                },
+                                            ) {
+                                                MediaAlbumGrid(
+                                                    message = msg,
+                                                    isMe = isMe,
+                                                    transfers = uiState.transfers,
+                                                    onOpen = { item ->
+                                                        if (msg.status == MessageStatus.FAILED) {
+                                                            onRetryMedia(msg.id)
+                                                        } else {
+                                                            val idx = uiState.conversationMedia
+                                                                .indexOfFirst { it.id == item.id }
+                                                            if (idx >= 0) chatPreviewIndex = idx
+                                                        }
+                                                    },
+                                                    onDownload = { onDownload(it) },
+                                                    onCancelUpload = { messageId, itemId -> onCancelUpload(messageId, itemId) },
+                                                    onCancelDownload = { onCancelDownload(it) },
+                                                )
+                                            }
+                                        }
                                         is Message.Text -> {
                                             val chatMessage = ChatMessage(
                                                 text = msg.text,
-                                                isMe = msg.senderId == uiState.currentUserId,
+                                                isMe = isMe,
                                                 status = msg.status,
                                                 timestamp = msg.timestamp,
                                                 replyToMessageId = msg.replyToMessageId,
@@ -572,22 +680,31 @@ private fun ChatScreenContent(
                                                     else uiState.partnerUsername.ifBlank { "User" }
                                                 },
                                             )
-                                            MessageWithContextMenu(
-                                                message = chatMessage,
-                                                highlighted = msg.id == uiState.highlightedMessageId,
-                                                onCopy = { onCopy(msg.text) },
-                                                onReply = { onReply(msg) },
-                                                onReplyClick = {
-                                                    msg.replyToMessageId?.let(onReplyClick)
-                                                },
-                                                onEdit = { },
-                                                onPin = { },
-                                                onForward = { },
-                                                onDelete = { onDelete(msg) },
+                                            val textActions = listOf(
+                                                MessageAction("Copy", Icons.Default.ContentCopy, color = tokens.textPrimary) { onCopy(msg.text) },
+                                                MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
+                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
                                             )
+                                            LongPressMessage(
+                                                isMe = isMe,
+                                                messageKey = msg.id,
+                                                actions = textActions,
+                                                state = ctxState,
+                                                preview = {
+                                                    ChatTextBubble(message = chatMessage, highlighted = false, onReplyClick = {})
+                                                },
+                                            ) {
+                                                ChatTextBubble(
+                                                    message = chatMessage,
+                                                    highlighted = msg.id == uiState.highlightedMessageId,
+                                                    onReplyClick = { msg.replyToMessageId?.let(onReplyClick) },
+                                                )
+                                            }
                                         }
                                     }
                                         Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        }
                                     }
                                 }
                             }
@@ -599,38 +716,49 @@ private fun ChatScreenContent(
                                 strokeWidth = 2.dp,
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
-                                    .padding(top = 8.dp)
+                                    .padding(top = padding.calculateTopPadding() + 8.dp)
                                     .size(28.dp),
-                            )
-                        }
-
-                        if (unreadCount > 0) {
-                            NewMessagesPill(
-                                count = unreadCount,
-                                onClick = {
-                                    coroutineScope.launch {
-                                        if (rows.isNotEmpty()) {
-                                            listState.animateScrollToItem(rows.size - 1)
-                                        }
-                                        unreadCount = 0
-                                    }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(end = 16.dp, bottom = 12.dp)
                             )
                         }
                     }
                 }
             }
+            }
 
-            if (uiState.isPartnerTyping) {
+            AnimatedVisibility(
+                visible = !isAtBottom,
+                enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                exit = fadeOut() + scaleOut(targetScale = 0.6f),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = composerHeight + 12.dp),
+            ) {
+                ScrollToBottomButton(
+                    unreadCount = unreadCount,
+                    onClick = {
+                        coroutineScope.launch {
+                            if (rows.isNotEmpty()) {
+                                listState.animateScrollToItem(rows.size - 1)
+                            }
+                            unreadCount = 0
+                        }
+                    },
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { composerHeightPx = it.height },
+            ) {
+            /*if (uiState.isPartnerTyping) {
                 TypingIndicator(
                     usernames = uiState.typingUsernames.ifEmpty {
                         listOf(uiState.partnerUsername.ifBlank { "User" })
                     }
                 )
-            }
+            }*/
 
             AttachmentBar(
                 attachments = uiState.pendingAttachments,
@@ -643,14 +771,14 @@ private fun ChatScreenContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFE8EEF8))
+                        .background(tokens.fieldFill)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Reply,
                         contentDescription = null,
-                        tint = PrimaryBlue,
+                        tint = tokens.accent,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -660,7 +788,7 @@ private fun ChatScreenContent(
                             is Message.Media -> replyingTo.caption.ifBlank { "Media" }
                             is Message.Call  -> "Call"
                         },
-                        color = Color.DarkGray,
+                        color = tokens.textOnField,
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -683,8 +811,9 @@ private fun ChatScreenContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PrimaryBlue)
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .background(Color.Transparent)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -694,41 +823,72 @@ private fun ChatScreenContent(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add attachment",
-                        tint = Color.White
+                        tint = tokens.textPrimary
                     )
                 }
 
-                BasicTextField(
-                    value = messageText,
-                    onValueChange = onMessageTextChange,
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(Color.White, RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(tokens.fieldFill)
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    textStyle = TextStyle(
-                        color = Color.Black,
-                        fontSize = 16.sp
+                ) {
+                    if (messageText.isEmpty()) {
+                        Text(
+                            text = "Message",
+                            color = tokens.textMuted,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    BasicTextField(
+                        value = messageText,
+                        onValueChange = onMessageTextChange,
+                        cursorBrush = SolidColor(tokens.accent),
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = tokens.textOnField),
                     )
-                )
+                }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                IconButton(
-                    onClick = onSendClick,
-                    modifier = Modifier.size(40.dp),
-                    enabled = !uiState.isSending
+                val hasContent = messageText.isNotBlank() || uiState.pendingAttachments.isNotEmpty()
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(tokens.accent)
+                        .clickable(enabled = !uiState.isSending) {
+                            if (hasContent) onSendClick()
+                        },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "Send",
-                        tint = Color.White
+                        imageVector = if (hasContent) Icons.AutoMirrored.Outlined.Send else Icons.Default.Mic,
+                        contentDescription = if (hasContent) "Send" else "Record voice message",
+                        tint = tokens.onAccent,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
+            }
         }
     }
+    }
+    }
 
-    chatPreviewIndex?.let { startIndex ->
+    var lastPreviewIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(chatPreviewIndex) { chatPreviewIndex?.let { lastPreviewIndex = it } }
+    androidx.compose.animation.AnimatedVisibility(
+        visible = chatPreviewIndex != null,
+        enter = androidx.compose.animation.fadeIn(tween(Motion.durationShort)) +
+            androidx.compose.animation.scaleIn(
+                initialScale = 0.88f,
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+            ),
+        exit = androidx.compose.animation.fadeOut(tween(Motion.durationShort)) +
+            androidx.compose.animation.scaleOut(targetScale = 0.92f),
+    ) {
         val media = uiState.conversationMedia
         val sources = remember(media) {
             media.map { item ->
@@ -744,7 +904,7 @@ private fun ChatScreenContent(
         }
         FullscreenMediaPager(
             sources = sources,
-            startIndex = startIndex,
+            startIndex = lastPreviewIndex,
             onDismiss = { chatPreviewIndex = null },
             onPageSettled = { idx ->
                 media.getOrNull(idx)?.let { item ->
@@ -759,242 +919,74 @@ private fun ChatScreenContent(
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start
-    ) {
-        Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 280.dp)
-                    .background(
-                        color = if (message.isMe) BubbleSent else BubbleReceived,
-                        shape = RoundedCornerShape(
-                            topStart = 18.dp,
-                            topEnd = 18.dp,
-                            bottomStart = if (message.isMe) 18.dp else 4.dp,
-                            bottomEnd = if (message.isMe) 4.dp else 18.dp
-                        )
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = message.text,
-                    color = if (message.isMe) Color.White else BubbleReceivedText,
-                    fontSize = 15.sp
-                )
-            }
-            
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
-            ) {
-                Text(
-                    text = DateUtils.formatMessageTime(message.timestamp),
-                    color = Color.Gray,
-                    fontSize = 11.sp
-                )
-                if (message.isMe) {
-                    MessageStatusIcon(status = message.status)
-                }
-            }
+private fun MessageAppearance(
+    messageId: String,
+    isMe: Boolean,
+    exiting: Boolean,
+    animatedIds: MutableSet<String>,
+    content: @Composable () -> Unit,
+) {
+    val isNew = remember(messageId) { messageId !in animatedIds }
+    val progress = remember(messageId) { Animatable(if (isNew) 0f else 1f) }
+    val slidePx = with(LocalDensity.current) { 120.dp.toPx() }
+
+    LaunchedEffect(messageId) {
+        if (isNew) {
+            animatedIds.add(messageId)
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
         }
     }
-}
+    LaunchedEffect(exiting) {
+        if (exiting) {
+            progress.animateTo(targetValue = 0f, animationSpec = tween(durationMillis = 200))
+        }
+    }
 
-data class ChatMessage(
-    val text: String,
-    val isMe: Boolean,
-    val status: MessageStatus = MessageStatus.SENT,
-    val timestamp: Long = 0L,
-    val replyToMessageId: String? = null,
-    val replyToText: String? = null,
-    val replyToSenderLabel: String? = null,
-)
+    Box(
+        modifier = Modifier
+            .graphicsLayer {
+                val p = progress.value
+                alpha = p.coerceIn(0f, 1f)
+                if (exiting) {
+                    transformOrigin = TransformOrigin(if (isMe) 1f else 0f, 0f)
+                    scaleX = p
+                    scaleY = p
+                } else {
+                    translationX = (1f - p) * slidePx * if (isMe) 1f else -1f
+                    val s = 0.7f + 0.3f * p
+                    scaleX = s
+                    scaleY = s
+                }
+            }
+            .then(
+                if (exiting) {
+                    Modifier.layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val h = (placeable.height * progress.value).roundToInt().coerceAtLeast(0)
+                        layout(placeable.width, h) { placeable.place(0, 0) }
+                    }
+                } else {
+                    Modifier
+                }
+            ),
+    ) {
+        content()
+    }
+}
 
 private sealed interface ChatRow {
     data class MessageRow(val message: Message) : ChatRow
     data object UnreadDivider : ChatRow
+    data class DateDivider(val dayStart: Long, val label: String) : ChatRow
 }
 
-@Composable
-private fun UnreadMessagesDivider(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
-        Text(
-            text = "Unread messages",
-            color = PrimaryBlue,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 12.dp),
-        )
-        HorizontalDivider(modifier = Modifier.weight(1f), color = PrimaryBlue.copy(alpha = 0.4f))
-    }
-}
-
-@Composable
-private fun MissedCallCard(
-    onCall: () -> Unit,
-    timestamp: Long,
-    isMe: Boolean,
-    modifier: Modifier = Modifier,
-    title: String = "Missed Call",
-    status: MessageStatus? = null,
-) {
-
-    val titleColor = if (isMe) Color.White else BubbleReceivedText
-    val subtitleColor = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
-    ) {
-        Surface(
-            onClick = onCall,
-            shape = RoundedCornerShape(18.dp),
-            color = if (isMe) BubbleSent else BubbleReceived,
-            shadowElevation = 1.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CallMissed,
-                    contentDescription = null,
-                    tint = Color(0xFFE53935),
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = title,
-                        color = titleColor,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Tap to call back · ${DateUtils.formatMessageTime(timestamp)}",
-                            color = subtitleColor,
-                            fontSize = 12.sp,
-                        )
-                        if (isMe && status != null) {
-                            Spacer(Modifier.width(4.dp))
-                            MessageStatusIcon(status = status)
-                        }
-                    }
-                }
-                Spacer(Modifier.width(14.dp))
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(Color(0xFF34C759), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = "Call back",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EndedCallCard(
-    durationSeconds: Int,
-    timestamp: Long,
-    isMe: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val titleColor = if (isMe) Color.White else BubbleReceivedText
-    val subtitleColor = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = if (isMe) BubbleSent else BubbleReceived,
-            shadowElevation = 1.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 12.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Call,
-                    contentDescription = null,
-                    tint = Color(0xFF34C759),
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Call",
-                        color = titleColor,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                    )
-                    Text(
-                        text = "${DateUtils.formatDuration(durationSeconds)} · ${DateUtils.formatMessageTime(timestamp)}",
-                        color = subtitleColor,
-                        fontSize = 12.sp,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NewMessagesPill(
-    count: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = CircleShape,
-        color = PrimaryBlue,
-        shadowElevation = 6.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = "Scroll to newest",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (count == 1) "1 new message" else "$count new messages",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true, showSystemUi = true, name = "preview")
 @Composable
 private fun ChatScreenPreview() {
     val fakeMessages = listOf(

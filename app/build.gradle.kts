@@ -109,6 +109,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.runtime.saveable)
 
+    // Haze - Native Glass/Blur Effect
+    implementation("dev.chrisbanes.haze:haze:1.7.2")
+
 
     // Firebase - BOM manages all versions
     implementation(platform(libs.firebase.bom))
@@ -128,6 +131,9 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
+
+    // DataStore - theme-mode preference
+    implementation(libs.androidx.datastore.preferences)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
@@ -149,13 +155,13 @@ dependencies {
     //AgoraRTC
     implementation("io.agora.rtc:voice-sdk:4.6.3")
 
-    // Coil 3 - image + video thumbnails
-    implementation(libs.coil.compose)
-    implementation(libs.coil.video)
-
     // Media3 - ExoPlayer
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+
+    //Coil
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
 
     // CameraX
     implementation(libs.androidx.camera.core)

@@ -10,7 +10,7 @@ import com.example.messenger.R
 import com.example.messenger.presentation.base.MviViewModel
 import com.example.messenger.presentation.base.UiText
 import com.example.messenger.presentation.base.toUiText
-import com.example.messenger.presentation.components.Countries
+import com.example.messenger.presentation.components.auth.Countries
 import com.example.messenger.presentation.effect.ChangePhoneEffect
 import com.example.messenger.presentation.intent.ChangePhoneIntent
 import com.example.messenger.presentation.state.ChangePhoneStep

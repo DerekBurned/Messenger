@@ -93,6 +93,19 @@ object ChatNotifier {
         }
     }
 
+    fun openAsBubble(context: Context, conversationId: String, partnerId: String, partnerName: String) {
+        synchronized(lock) {
+            val state = states[conversationId] ?: ConvState(
+                partnerId = partnerId,
+                partnerName = partnerName,
+                partnerAvatar = "",
+                partnerIcon = monogramIcon(partnerName),
+            ).also { states[conversationId] = it }
+            ConversationShortcuts.push(context, conversationId, state.partnerId, state.partnerName, state.partnerIcon)
+            post(context, conversationId, state, silent = true, expandAsBubble = true)
+        }
+    }
+
     fun clear(context: Context, conversationId: String) {
         synchronized(lock) {
             states.remove(conversationId)
@@ -121,7 +134,7 @@ object ChatNotifier {
         while (state.messages.size > MAX_MESSAGES) state.messages.removeAt(0)
     }
 
-    private fun post(context: Context, conversationId: String, state: ConvState, silent: Boolean) {
+    private fun post(context: Context, conversationId: String, state: ConvState, silent: Boolean, expandAsBubble: Boolean = false) {
         val nm = context.getSystemService<NotificationManager>() ?: return
         val me = Person.Builder().setName(context.getString(R.string.notif_message_you)).build()
         val style = NotificationCompat.MessagingStyle(me)
@@ -151,10 +164,13 @@ object ChatNotifier {
             .setGroup(GROUP_KEY)
             .setShortcutId(conversationId)
             .setLocusId(LocusIdCompat(conversationId))
-            .setBubbleMetadata(bubbleMetadata(context, conversationId, state))
             .setContentIntent(contentIntent(context, conversationId, state))
             .addAction(replyAction(context, conversationId, state))
+            .addAction(openInWindowAction(context, conversationId, state))
             .addAction(markReadAction(context, conversationId))
+        if (expandAsBubble) {
+            builder.setBubbleMetadata(bubbleMetadata(context, conversationId, state))
+        }
         nm.notify(conversationId.hashCode(), builder.build())
     }
 
@@ -177,8 +193,8 @@ object ChatNotifier {
         val icon = state.partnerIcon ?: IconCompat.createWithResource(context, R.drawable.ic_stat_notification)
         return NotificationCompat.BubbleMetadata.Builder(pendingIntent, icon)
             .setDesiredHeight(BUBBLE_HEIGHT_DP)
-            .setAutoExpandBubble(false)
-            .setSuppressNotification(false)
+            .setAutoExpandBubble(true)
+            .setSuppressNotification(true)
             .build()
     }
 
@@ -279,6 +295,30 @@ object ChatNotifier {
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
             .build()
+    }
+
+    private fun openInWindowAction(
+        context: Context,
+        conversationId: String,
+        state: ConvState,
+    ): NotificationCompat.Action {
+        val intent = Intent(context, NotificationReplyReceiver::class.java).apply {
+            action = NotificationReplyReceiver.ACTION_OPEN_BUBBLE
+            putExtra(NotificationReplyReceiver.EXTRA_CONVERSATION_ID, conversationId)
+            putExtra(NotificationReplyReceiver.EXTRA_PARTNER_ID, state.partnerId)
+            putExtra(NotificationReplyReceiver.EXTRA_PARTNER_NAME, state.partnerName)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (conversationId + ":openwin").hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        return NotificationCompat.Action.Builder(
+            R.drawable.ic_stat_notification,
+            context.getString(R.string.notif_action_open_window),
+            pendingIntent,
+        ).build()
     }
 
     private fun postSummary(context: Context) {

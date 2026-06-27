@@ -157,6 +157,7 @@ fun ObxConversation.toDomain(): Conversation = Conversation(
     participantNames = participantNames,
     participantAvatars = participantAvatars,
     lastMessage = latestMessageText ?: lastMessage,
+    lastMessageSenderId = if (latestMessageText != null) latestMessageSenderId else lastMessageSenderId,
     lastMessageTimestamp = if (latestMessageTimestamp > 0L) latestMessageTimestamp else lastMessageTimestamp,
     unreadCount = unreadCount,
 )
@@ -167,6 +168,7 @@ fun Conversation.toObx(): ObxConversation = ObxConversation(
     participantNames = participantNames,
     participantAvatars = participantAvatars,
     lastMessage = lastMessage,
+    lastMessageSenderId = lastMessageSenderId,
     lastMessageTimestamp = lastMessageTimestamp,
     unreadCount = unreadCount,
 )

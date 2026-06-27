@@ -23,14 +23,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.CallAwareTopBar
+import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.MessengerInputField
+import com.example.messenger.presentation.components.common.PillButton
+import com.example.messenger.presentation.components.common.PillButtonStyle
+import com.example.messenger.presentation.components.common.RoundedCard
+import com.example.messenger.presentation.components.common.SettingsRow
+import com.example.messenger.presentation.screens.settings.SettingsSubScaffold
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.effect.EditProfileEffect
 import com.example.messenger.presentation.intent.EditProfileIntent
-import com.example.messenger.presentation.screens.ui.theme.DangerRed
-import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.Dimens
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.EditProfileUiState
 import com.example.messenger.presentation.viewmodel.EditProfileViewModel
 
@@ -64,7 +69,6 @@ fun EditProfileScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditProfileScreenContent(
     state: EditProfileUiState,
@@ -77,181 +81,63 @@ private fun EditProfileScreenContent(
     onChangeAccountClick: () -> Unit = {},
     onChangePhoneClick: () -> Unit = {},
 ) {
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = { Text("Edit profile", color = Color.White, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-                )
-            }
-        }
-    ) { padding ->
+    val tokens = messengerTokens
+    SettingsSubScaffold(title = "Edit profile", onBack = onBackClick) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(Color.White)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .background(LightGray),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val initial = state.name.take(1).uppercase()
-                    if (initial.isNotBlank()) {
-                        Text(initial, color = PrimaryBlue, fontWeight = FontWeight.Bold, fontSize = 36.sp)
-                    } else {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(48.dp))
-                    }
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            TextButton(onClick = {}, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("Change photo", color = Color.Gray, fontSize = 13.sp)
-            }
-            Spacer(Modifier.height(16.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BlueTextField(state.name, onNameChange, "Profile name")
-                ReadOnlyPhoneField(
-                    phone = state.phone,
-                    onChangeClick = onChangePhoneClick,
-                )
-                BlueTextField(state.username, onUsernameChange, "Username")
-                BlueTextField(state.dob, onDobChange, "Date of birth")
-
-                Button(
-                    onClick = onChangeAccountClick,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Change account", color = Color.White)
-                        Text("+", color = Color.White.copy(0.7f), fontSize = 20.sp)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            state.error?.let { err ->
-                Text(err.asString(), color = DangerRed, fontSize = 13.sp)
-                Spacer(Modifier.height(8.dp))
-            }
-
-            Button(
-                onClick = onSaveClick,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                enabled = !state.isSaving,
-            ) {
-                if (state.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text("Confirm changes", color = Color.White, fontWeight = FontWeight.SemiBold)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            OutlinedButton(
-                onClick = onLogoutClick,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
-            ) {
-                Text("Log out", fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReadOnlyPhoneField(
-    phone: String,
-    onChangeClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(PrimaryBlue, RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Phone number",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 11.sp,
-            )
-            Text(
-                text = phone.ifBlank { "(not set)" },
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        TextButton(onClick = onChangeClick) {
-            Text("Change", color = Color.White, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun BlueTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(PrimaryBlue, RoundedCornerShape(12.dp))
-    ) {
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = Color.White.copy(0.6f)) },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = Color.White,
-            ),
-            singleLine = true,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MessengerAvatar(name = state.name, size = Dimens.avatarLarge)
+            TextButton(onClick = {}) {
+                Text("Change photo", color = tokens.accent, fontSize = 13.sp)
+            }
+        }
+
+        MessengerInputField(state.name, onNameChange, "Profile name")
+
+        RoundedCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Phone number", color = tokens.textMuted, style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = state.phone.ifBlank { "(not set)" },
+                        color = tokens.textOnField,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+                TextButton(onClick = onChangePhoneClick) {
+                    Text("Change", color = tokens.accent, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        MessengerInputField(state.username, onUsernameChange, "Username")
+        MessengerInputField(state.dob, onDobChange, "Date of birth")
+
+        RoundedCard {
+            SettingsRow(title = "Switch account", onClick = onChangeAccountClick)
+        }
+
+        state.error?.let { err ->
+            Text(err.asString(), color = tokens.danger, fontSize = 13.sp)
+        }
+
+        Spacer(Modifier.height(4.dp))
+        PillButton(
+            text = "Confirm changes",
+            onClick = onSaveClick,
+            loading = state.isSaving,
+            enabled = !state.isSaving,
+        )
+        PillButton(
+            text = "Log out",
+            onClick = onLogoutClick,
+            style = PillButtonStyle.Danger,
         )
     }
 }

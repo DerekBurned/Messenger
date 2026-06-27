@@ -54,6 +54,7 @@ class AuthViewModel @Inject constructor(
         when (intent) {
             is AuthIntent.SendVerificationCode ->
                 sendVerificationCode(intent.activity, intent.phoneNumber, intent.username, intent.isRegister)
+            is AuthIntent.ResendCode -> resendCode(intent.activity, intent.phoneNumber)
             is AuthIntent.VerifyOtpAndLogin -> verifyOtpAndLogin(intent.otpCode)
             is AuthIntent.VerifyOtpAndLink -> verifyOtpAndLink(intent.otpCode)
             AuthIntent.Logout -> logout()
@@ -106,6 +107,30 @@ class AuthViewModel @Inject constructor(
                 }
             } else {
                 Log.e(TAG, "sendVerificationCode: FAILED", result.exceptionOrNull())
+                val errorMsg: UiText = result.exceptionOrNull()?.message?.toUiText()
+                    ?: UiText.StringResource(R.string.auth_error_verification_failed)
+                setState { copy(isLoading = false, error = errorMsg) }
+            }
+        }
+    }
+
+    private fun resendCode(activity: Activity, phoneNumber: String) {
+        Log.d(TAG, "resendCode: phone='$phoneNumber'")
+        setState { copy(isLoading = true, error = null) }
+
+        viewModelScope.launch {
+            val result = firebaseAuthService.resendVerificationCode(phoneNumber, activity)
+            Log.d(TAG, "resendCode: result isSuccess=${result.isSuccess}")
+
+            if (result.isSuccess) {
+                when (val verifyResult = result.getOrThrow()) {
+                    is VerificationResult.CodeSent ->
+                        setState { copy(isLoading = false, codeSent = true) }
+                    is VerificationResult.AutoVerified ->
+                        signInWithPhone(verifyResult.credential)
+                }
+            } else {
+                Log.e(TAG, "resendCode: FAILED", result.exceptionOrNull())
                 val errorMsg: UiText = result.exceptionOrNull()?.message?.toUiText()
                     ?: UiText.StringResource(R.string.auth_error_verification_failed)
                 setState { copy(isLoading = false, error = errorMsg) }

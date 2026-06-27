@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.CallAwareTopBar
+import com.example.messenger.presentation.components.call.CallAwareTopBar
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.effect.EditContactDataEffect
 import com.example.messenger.presentation.screens.ui.theme.DangerRed
@@ -88,7 +88,7 @@ private fun EditContactDataScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp, vertical = 24.dp),
         ) {
             Column(

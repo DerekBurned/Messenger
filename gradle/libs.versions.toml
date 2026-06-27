@@ -40,6 +40,9 @@ coil = "3.5.0"
 media3 = "1.10.0"
 camerax = "1.4.2"
 
+# DataStore - theme-mode preference
+datastore = "1.1.7"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -103,6 +106,9 @@ coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "c
 # Media3 - ExoPlayer + PlayerView
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+
+# DataStore - Preferences (theme mode)
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 # CameraX - live camera preview cell + capture
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }

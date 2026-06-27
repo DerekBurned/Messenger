@@ -18,23 +18,12 @@
     },
     "typing": {
       "$conversationId": {
+        ".read": "auth != null",
         "$userId": {
-          ".read": "auth != null",
           ".write": "auth != null && auth.uid === $userId",
           ".validate": "newData.hasChild('timestamp') || !newData.exists()",
           "timestamp": {
             ".validate": "newData.val() === now"
-          }
-        }
-      }
-    },
-    "receipts": {
-      "$conversationId": {
-        "$userId": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.uid === $userId",
-          "lastReadTimestamp": {
-            ".validate": "newData.isNumber()"
           }
         }
       }

@@ -6,15 +6,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.example.messenger.data.local.prefs.ThemePreferenceStore
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.navigation.AppNavigation
 import com.example.messenger.presentation.navigation.Screens
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
+import com.example.messenger.presentation.screens.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +35,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var presenceManager: PresenceManager
 
+    @Inject
+    lateinit var themePreferenceStore: ThemePreferenceStore
+
     private val idleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var idleJob: Job? = null
     private var isIdle = false
@@ -42,7 +49,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         pendingIntent.value = intent
         setContent {
-            MessengerTheme {
+            val themeMode by themePreferenceStore.themeMode
+                .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            MessengerTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
                 val deepLink = remember { pendingIntent }
                 AppNavigation(navController = navController)

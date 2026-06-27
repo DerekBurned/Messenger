@@ -2,7 +2,7 @@ package com.example.messenger.presentation.intent
 
 import android.app.Activity
 import com.example.messenger.presentation.base.UiIntent
-import com.example.messenger.presentation.components.Country
+import com.example.messenger.presentation.components.auth.Country
 
 sealed interface ChangePhoneIntent : UiIntent {
     data class NewCountrySelected(val country: Country) : ChangePhoneIntent

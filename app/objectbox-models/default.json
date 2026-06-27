@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "2:1061585220423384893",
-      "lastPropertyId": "11:3445055875133605208",
+      "lastPropertyId": "13:1904136900589569768",
       "name": "ObxConversation",
       "properties": [
         {
@@ -65,6 +65,16 @@
           "id": "11:3445055875133605208",
           "name": "clearedAtForMe",
           "type": 6
+        },
+        {
+          "id": "12:935237610211219593",
+          "name": "lastMessageSenderId",
+          "type": 9
+        },
+        {
+          "id": "13:1904136900589569768",
+          "name": "latestMessageSenderId",
+          "type": 9
         }
       ],
       "relations": []

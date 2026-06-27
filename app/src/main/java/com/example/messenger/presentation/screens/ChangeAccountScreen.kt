@@ -1,4 +1,5 @@
 package com.example.messenger.presentation.screens
+import com.example.messenger.presentation.components.list.AccountRow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,9 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,10 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.CallAwareTopBar
-import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.components.common.CardDivider
+import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.RoundedCard
+import com.example.messenger.presentation.screens.settings.SettingsSubScaffold
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.AccountSummary
 import com.example.messenger.presentation.state.ChangeAccountUiState
 import com.example.messenger.presentation.viewmodel.ChangeAccountViewModel
@@ -47,7 +49,6 @@ fun ChangeAccountScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChangeAccountScreenContent(
     state: ChangeAccountUiState,
@@ -55,84 +56,46 @@ private fun ChangeAccountScreenContent(
     onSelect: (String) -> Unit = {},
     onAddAccount: () -> Unit = {},
 ) {
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = { Text("Change account", color = Color.White, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
+    val tokens = messengerTokens
+    SettingsSubScaffold(title = "Accounts", onBack = onBackClick) {
+        RoundedCard {
+            state.accounts.forEachIndexed { index, account ->
+                if (index > 0) CardDivider()
+                AccountRow(
+                    account = account,
+                    isCurrent = account.id == state.currentAccountId,
+                    onClick = { onSelect(account.id) },
                 )
             }
         }
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).background(Color.White)) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(state.accounts, key = { it.id }) { account ->
-                    AccountRow(
-                        account = account,
-                        isCurrent = account.id == state.currentAccountId,
-                        onClick = { onSelect(account.id) },
-                    )
-                    HorizontalDivider(color = LightGray, thickness = 0.5.dp)
-                }
-            }
+        RoundedCard {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PrimaryBlue)
                     .clickable(onClick = onAddAccount)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier.size(42.dp).clip(CircleShape).background(Color.White.copy(0.2f)),
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(tokens.accent.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Default.Add, contentDescription = "Add account", tint = Color.White) }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add account", tint = tokens.accent)
+                }
                 Spacer(Modifier.width(12.dp))
-                Text("Add account", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White.copy(0.7f))
+                Text(
+                    "Add account",
+                    color = tokens.textOnField,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
     }
 }
 
-@Composable
-private fun AccountRow(account: AccountSummary, isCurrent: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(if (isCurrent) PrimaryBlue.copy(0.05f) else Color.White)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(46.dp).clip(CircleShape).background(LightGray),
-            contentAlignment = Alignment.Center,
-        ) {
-            val initial = account.name.take(1).uppercase()
-            if (initial.isNotBlank()) {
-                Text(initial, color = PrimaryBlue, fontWeight = FontWeight.Bold)
-            } else {
-                Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue)
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(account.name, color = Color.Black, fontSize = 15.sp)
-            Text(account.phone, color = Color.Gray, fontSize = 12.sp)
-        }
-        if (isCurrent) {
-            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(PrimaryBlue))
-        }
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

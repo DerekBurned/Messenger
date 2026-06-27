@@ -16,8 +16,10 @@ import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.sync.SyncAction
 import com.example.messenger.domain.repository.IMessageRepository
 import io.objectbox.Box
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -37,6 +39,7 @@ class MessageRepositoryImpl @Inject constructor(
             .build()
             .asFlow()
             .map { rows -> rows.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
     }
 
     private fun cutoffFor(conversationId: String): Long =
@@ -66,12 +69,12 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun enqueueRetry(messageId: String) {
+    private fun enqueueRetry(messageId: String, action: String = SyncAction.SEND) {
         syncQueueBox.put(
             ObxSyncQueueItem(
                 entityType = com.example.messenger.domain.model.sync.SyncEntityType.MESSAGE,
                 entityId = messageId,
-                action = SyncAction.SEND,
+                action = action,
                 timestamp = System.currentTimeMillis(),
             ),
         )
@@ -79,14 +82,16 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMessage(message: Message): Result<Unit> {
         return try {
+            updateMessage(message.id) { it.deleted = true }
             val result = firestoreService.deleteMessage(message)
-            if (result.isSuccess) {
-                
-                updateMessage(message.id) { it.deleted = true }
+            if (result.isFailure) {
+                enqueueRetry(message.id, SyncAction.DELETE)
             }
-            result
+            Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            runCatching { updateMessage(message.id) { it.deleted = true } }
+            runCatching { enqueueRetry(message.id, SyncAction.DELETE) }
+            Result.success(Unit)
         }
     }
 
@@ -108,13 +113,13 @@ class MessageRepositoryImpl @Inject constructor(
     override suspend fun observeRecentMessages(conversationId: String, limit: Long): Flow<Result<Unit>> = flow {
         try {
             firestoreService.getRecentMessagesStream(conversationId, limit, cutoffFor(conversationId)).collect { messages ->
-                messageBox.put(messages.map { it.toObx() })
+                putPreservingReadState(conversationId, messages)
                 emit(Result.success(Unit))
             }
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     override suspend fun loadOlderMessages(conversationId: String, limit: Long): Result<Int> {
         val oldestId = messageBox.query(ObxMessage_.conversationId.equal(conversationId))
@@ -123,9 +128,7 @@ class MessageRepositoryImpl @Inject constructor(
             .use { it.findFirst()?.uid }
             ?: return Result.success(0)
         return firestoreService.fetchOlderMessages(conversationId, oldestId, limit, cutoffFor(conversationId)).map { older ->
-            if (older.isNotEmpty()) {
-                messageBox.put(older.map { it.toObx() })
-            }
+            putPreservingReadState(conversationId, older)
             older.size
         }
     }
@@ -137,13 +140,32 @@ class MessageRepositoryImpl @Inject constructor(
         messageBox.put(existing)
     }
 
+    private fun putPreservingReadState(conversationId: String, messages: List<Message>) {
+        if (messages.isEmpty()) return
+        val localByUid = messageBox.query(ObxMessage_.conversationId.equal(conversationId))
+            .build().use { it.find() }.associateBy { it.uid }
+        val merged = messages.map { domain ->
+            domain.toObx().also { incoming ->
+                localByUid[incoming.uid]?.let { local ->
+                    incoming.boxId = local.boxId
+                    if (local.isRead) incoming.isRead = true
+                    if (local.status == MessageStatus.READ.name) incoming.status = MessageStatus.READ.name
+                    if (local.deleted) incoming.deleted = true
+                }
+            }
+        }
+        messageBox.put(merged)
+    }
+
     private fun updateConversationPreview(message: Message) {
         val conv = conversationBox.query(ObxConversation_.uid.equal(message.conversationId)).build()
             .use { it.findFirst() } ?: return
         val label = previewLabel(message)
         conv.lastMessage = label
+        conv.lastMessageSenderId = message.senderId
         conv.lastMessageTimestamp = message.timestamp
         conv.latestMessageText = label
+        conv.latestMessageSenderId = message.senderId
         conv.latestMessageTimestamp = message.timestamp
         conversationBox.put(conv)
     }

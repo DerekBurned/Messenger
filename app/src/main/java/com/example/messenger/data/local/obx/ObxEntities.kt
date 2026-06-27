@@ -58,10 +58,12 @@ data class ObxConversation(
     @Convert(converter = NullableStringListConverter::class, dbType = String::class)
     var participantAvatars: List<String?> = emptyList(),
     var lastMessage: String? = null,
+    var lastMessageSenderId: String = "",
     var lastMessageTimestamp: Long = 0,
     var unreadCount: Int = 0,
 
     var latestMessageText: String? = null,
+    var latestMessageSenderId: String = "",
     var latestMessageTimestamp: Long = 0,
    var clearedAtForMe: Long = 0,
 )

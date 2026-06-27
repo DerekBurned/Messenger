@@ -1,11 +1,12 @@
 package com.example.messenger.domain.model
 
-data class Conversation(
+data class  Conversation(
     val id: String = "",
     val participantIds: List<String> = emptyList(),
     val participantNames: List<String> = emptyList(),
     val participantAvatars: List<String?> = emptyList(),
     val lastMessage: String? = null,
+    val lastMessageSenderId: String = "",
     val lastMessageTimestamp: Long = 0L,
     val unreadCount: Int = 0,
     val unreadCounts: Map<String, Int> = emptyMap(),

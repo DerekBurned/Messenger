@@ -1,4 +1,5 @@
 package com.example.messenger.presentation.screens
+import com.example.messenger.presentation.components.list.EditChatRow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.CallAwareTopBar
+import com.example.messenger.presentation.components.call.CallAwareTopBar
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.presentation.base.ObserveAsEvents
 import com.example.messenger.presentation.effect.EditChatEffect
@@ -84,7 +85,7 @@ private fun EditChatScreenContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .navigationBarsPadding()
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
@@ -106,7 +107,7 @@ private fun EditChatScreenContent(
         },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).background(Color.White),
+            modifier = Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background),
         ) {
             items(state.conversations, key = { it.id }) { conversation ->
                 val selected = conversation.id in state.selectedIds
@@ -121,47 +122,6 @@ private fun EditChatScreenContent(
     }
 }
 
-@Composable
-private fun EditChatRow(conversation: Conversation, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(46.dp).clip(CircleShape).background(LightGray),
-            contentAlignment = Alignment.Center,
-        ) {
-            val initial = conversation.participantNames.firstOrNull()?.take(1)?.uppercase().orEmpty()
-            if (initial.isNotBlank()) {
-                Text(initial, color = PrimaryBlue, fontWeight = FontWeight.Bold)
-            } else {
-                Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue)
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text = conversation.participantNames.firstOrNull() ?: "Unknown",
-            color = Color.Black,
-            fontSize = 15.sp,
-            modifier = Modifier.weight(1f),
-        )
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(if (selected) PrimaryBlue else Color.Transparent)
-                .border(2.dp, if (selected) PrimaryBlue else LightGray, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-            }
-        }
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

@@ -251,6 +251,7 @@ class ConversationRepositoryImpl @Inject constructor(
         findByUid(conversation.id)?.let { existing ->
             incoming.boxId = existing.boxId
             incoming.latestMessageText = existing.latestMessageText
+            incoming.latestMessageSenderId = existing.latestMessageSenderId
             incoming.latestMessageTimestamp = existing.latestMessageTimestamp
         }
         incoming.clearedAtForMe = serverClearedAt

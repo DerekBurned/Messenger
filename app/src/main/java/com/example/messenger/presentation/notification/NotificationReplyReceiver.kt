@@ -30,6 +30,15 @@ class NotificationReplyReceiver : BroadcastReceiver() {
         if (conversationId.isBlank()) return
 
         val appContext = context.applicationContext
+        if (intent.action == ACTION_OPEN_BUBBLE) {
+            ChatNotifier.openAsBubble(
+                appContext,
+                conversationId,
+                intent.getStringExtra(EXTRA_PARTNER_ID).orEmpty(),
+                intent.getStringExtra(EXTRA_PARTNER_NAME).orEmpty(),
+            )
+            return
+        }
         val entry = EntryPointAccessors.fromApplication(appContext, NotificationActionEntryPoint::class.java)
         val pending = goAsync()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -76,6 +85,7 @@ class NotificationReplyReceiver : BroadcastReceiver() {
         private const val TAG = "NotifReplyReceiver"
         const val ACTION_REPLY = "com.example.messenger.notification.REPLY"
         const val ACTION_MARK_READ = "com.example.messenger.notification.MARK_READ"
+        const val ACTION_OPEN_BUBBLE = "com.example.messenger.notification.OPEN_BUBBLE"
         const val KEY_TEXT_REPLY = "key_text_reply"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
         const val EXTRA_PARTNER_ID = "extra_partner_id"
