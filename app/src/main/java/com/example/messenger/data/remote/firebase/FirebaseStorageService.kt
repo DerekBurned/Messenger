@@ -17,13 +17,26 @@ class FirebaseStorageService @Inject constructor(
     suspend fun uploadProfileImage(uid: String, imageUri: Uri): Result<String> {
         return try {
 
-            val fileRef = profileImagesRef.child(uid).child("${UUID.randomUUID()}.jpg")
+            val fileRef = profileImagesRef.child(uid).child("${System.currentTimeMillis()}_${UUID.randomUUID()}.jpg")
 
             val uploadTask = fileRef.putFile(imageUri).await()
 
             val downloadUrl = fileRef.downloadUrl.await()
 
             Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun listProfileImages(uid: String): Result<List<String>> {
+        return try {
+            val userFolderRef = profileImagesRef.child(uid)
+            val listResult = userFolderRef.listAll().await()
+            val urls = listResult.items
+                .sortedByDescending { it.name }
+                .map { it.downloadUrl.await().toString() }
+            Result.success(urls)
         } catch (e: Exception) {
             Result.failure(e)
         }
