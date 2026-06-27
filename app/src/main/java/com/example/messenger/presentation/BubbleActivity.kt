@@ -40,7 +40,7 @@ class BubbleActivity : ComponentActivity() {
                             navArgument("partnerName") { type = NavType.StringType; defaultValue = partnerName },
                         ),
                     ) {
-                        ChatScreenWithNav(onBackClick = { finish() })
+                        ChatScreenWithNav(inBubble = true, onBackClick = { finish() })
                     }
                 }
             }

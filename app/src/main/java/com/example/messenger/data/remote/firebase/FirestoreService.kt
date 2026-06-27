@@ -106,6 +106,7 @@ class FirestoreService @Inject constructor(
                 .update(
                     mapOf(
                         "lastMessage" to previewLabel(message),
+                        "lastMessageSenderId" to message.senderId,
                         "lastMessageTimestamp" to message.timestamp,
                     ),
                 )

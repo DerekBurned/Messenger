@@ -1,4 +1,5 @@
 package com.example.messenger.presentation.screens
+import com.example.messenger.presentation.components.list.ContactRow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,7 +63,7 @@ private fun ContactsScreenContentInner(
     onQueryChange: (String) -> Unit,
     onContactClick: (User) -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxSize().background(Color.White)) {
+    Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         val shape = RoundedCornerShape(12.dp)
         TextField(
             value = query,
@@ -118,46 +119,6 @@ private fun ContactsScreenContentInner(
     }
 }
 
-@Composable
-private fun ContactRow(user: User, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(LightGray),
-            contentAlignment = Alignment.Center,
-        ) {
-            val initial = user.username?.take(1)?.uppercase()
-            if (!initial.isNullOrBlank()) {
-                Text(initial, fontWeight = FontWeight.Bold, color = PrimaryBlue)
-            } else {
-                Icon(Icons.Filled.Person, contentDescription = null, tint = PrimaryBlue)
-            }
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = user.username ?: "Unknown",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-            )
-            Text(
-                text = user.email ?: user.phoneNumber?.getFullNumber() ?: "",
-                color = Color.Gray,
-                fontSize = 12.sp,
-            )
-        }
-    }
-    HorizontalDivider(color = LightGray, modifier = Modifier.padding(start = 72.dp))
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

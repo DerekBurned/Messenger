@@ -65,6 +65,7 @@ private fun parseStatus(value: String): MessageStatus {
 
 fun RemoteMessageDto.toDomain(): Message {
     val parsedStatus = parseStatus(status)
+    val read = isRead || parsedStatus == MessageStatus.READ
     return when (type.ifBlank { Message.TYPE_TEXT }) {
         Message.TYPE_MEDIA -> Message.Media(
             id = id,
@@ -72,7 +73,7 @@ fun RemoteMessageDto.toDomain(): Message {
             senderId = senderId,
             timestamp = timestamp,
             status = parsedStatus,
-            isRead = isRead,
+            isRead = read,
             deleted = deleted,
             items = mediaItems.map { it.toMediaItem() },
             caption = text,
@@ -86,7 +87,7 @@ fun RemoteMessageDto.toDomain(): Message {
             senderId = senderId,
             timestamp = timestamp,
             status = parsedStatus,
-            isRead = isRead,
+            isRead = read,
             deleted = deleted,
             callType = CallType.MISSED,
         )
@@ -96,7 +97,7 @@ fun RemoteMessageDto.toDomain(): Message {
             senderId = senderId,
             timestamp = timestamp,
             status = parsedStatus,
-            isRead = isRead,
+            isRead = read,
             deleted = deleted,
             callType = CallType.UNREACHED,
         )
@@ -106,7 +107,7 @@ fun RemoteMessageDto.toDomain(): Message {
             senderId = senderId,
             timestamp = timestamp,
             status = parsedStatus,
-            isRead = isRead,
+            isRead = read,
             deleted = deleted,
             callType = CallType.ENDED,
             durationSeconds = callDurationSeconds,
@@ -117,7 +118,7 @@ fun RemoteMessageDto.toDomain(): Message {
             senderId = senderId,
             timestamp = timestamp,
             status = parsedStatus,
-            isRead = isRead,
+            isRead = read,
             deleted = deleted,
             text = text,
             replyToMessageId = replyToMessageId,

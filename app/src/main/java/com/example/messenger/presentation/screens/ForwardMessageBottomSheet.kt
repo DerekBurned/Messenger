@@ -1,4 +1,5 @@
 package com.example.messenger.presentation.screens
+import com.example.messenger.presentation.components.list.ForwardConversationRow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,7 +71,7 @@ private fun ForwardMessageBottomSheetContent(
         onDismissRequest = onDismiss,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -141,7 +142,7 @@ private fun ForwardMessageBottomSheetContent(
                     }
                 } else {
                     items(list, key = { it.id }) { conv ->
-                        ConversationRow(
+                        ForwardConversationRow(
                             conversation = conv,
                             currentUserId = currentUserId,
                             onClick = { onForward(conv.id) },
@@ -156,50 +157,13 @@ private fun ForwardMessageBottomSheetContent(
     }
 }
 
-@Composable
-private fun ConversationRow(
-    conversation: Conversation,
-    currentUserId: String,
-    onClick: () -> Unit,
-) {
-    val partnerIndex = conversation.participantIds.indexOfFirst { it != currentUserId }
-        .takeIf { it >= 0 } ?: 0
-    val name = conversation.participantNames.getOrNull(partnerIndex).orEmpty()
-        .ifBlank { "Unknown" }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(46.dp).clip(CircleShape).background(LightGray),
-            contentAlignment = Alignment.Center,
-        ) {
-            val initial = name.take(1).uppercase()
-            if (initial.isNotBlank()) {
-                Text(initial, color = PrimaryBlue, fontWeight = FontWeight.Bold)
-            } else {
-                Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue)
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(name, color = Color.Black, fontSize = 14.sp)
-            conversation.lastMessage?.let {
-                Text(it, color = Color.Gray, fontSize = 12.sp, maxLines = 1)
-            }
-        }
-    }
-}
 
 @Preview(showBackground = true)
 @Composable
 private fun ForwardMessageBottomSheetPreview() {
     MessengerTheme {
         
-        Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+        Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
             Text("ForwardMessageBottomSheet (preview stub)", modifier = Modifier.padding(16.dp))
         }
     }

@@ -14,40 +14,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
+import com.example.messenger.presentation.components.common.SegmentedToggle
 
 enum class CallsFilter { ALL, MISSED }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallsScreenContent(
     modifier: Modifier = Modifier,
 ) {
     var filter by remember { mutableStateOf(CallsFilter.ALL) }
+    val tokens = messengerTokens
 
-    Column(modifier = modifier.fillMaxSize().background(Color.White)) {
-        SingleChoiceSegmentedButtonRow(
+    Column(modifier = modifier.fillMaxSize()) {
+        SegmentedToggle(
+            options = listOf("All", "Missed"),
+            selectedIndex = if (filter == CallsFilter.ALL) 0 else 1,
+            onSelect = { filter = if (it == 0) CallsFilter.ALL else CallsFilter.MISSED },
+            selectedContentColors = listOf(Color(0xFF1C1C1E), tokens.danger),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            SegmentedButton(
-                selected = filter == CallsFilter.ALL,
-                onClick = { filter = CallsFilter.ALL },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) {
-                Text("All")
-            }
-            SegmentedButton(
-                selected = filter == CallsFilter.MISSED,
-                onClick = { filter = CallsFilter.MISSED },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) {
-                Text("Missed")
-            }
-        }
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+        )
 
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -61,24 +50,20 @@ fun CallsScreenContent(
                         Icons.Filled.Call
                     },
                     contentDescription = null,
-                    tint = LightGray,
+                    tint = tokens.textPrimary.copy(alpha = 0.4f),
                     modifier = Modifier.size(72.dp),
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (filter == CallsFilter.MISSED) {
-                        "No missed calls"
-                    } else {
-                        "No calls yet"
-                    },
-                    color = Color.Gray,
+                    text = if (filter == CallsFilter.MISSED) "No missed calls" else "No calls yet",
+                    color = tokens.textPrimary.copy(alpha = 0.8f),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Voice / video calls coming soon",
-                    color = Color.Gray,
+                    color = tokens.textPrimary.copy(alpha = 0.5f),
                     fontSize = 12.sp,
                 )
             }

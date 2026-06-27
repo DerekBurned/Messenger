@@ -6,4 +6,5 @@ object SyncEntityType {
 
 object SyncAction {
     const val SEND = "send"
+    const val DELETE = "delete"
 }

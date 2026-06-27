@@ -2,8 +2,8 @@ package com.example.messenger.presentation.state
 
 import com.example.messenger.presentation.base.UiState
 import com.example.messenger.presentation.base.UiText
-import com.example.messenger.presentation.components.Countries
-import com.example.messenger.presentation.components.Country
+import com.example.messenger.presentation.components.auth.Countries
+import com.example.messenger.presentation.components.auth.Country
 
 enum class ChangePhoneStep {
     

@@ -7,6 +7,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import com.example.messenger.presentation.components.common.WallpaperBackground
+import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.call.CallControlButton
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
+import com.example.messenger.presentation.screens.ui.theme.MessengerShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
@@ -114,9 +120,10 @@ private fun CallScreenContent(
     onToggleSpeaker: () -> Unit = {},
     onToggleMute: () -> Unit = {},
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(PrimaryBlue)) {
+    val tokens = messengerTokens
+    WallpaperBackground {
         Column(
-            modifier = Modifier.fillMaxSize().padding(vertical = 64.dp),
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -125,52 +132,58 @@ private fun CallScreenContent(
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = state.partnerName.ifBlank { "Calling…" },
-                    color = Color.White,
+                    color = tokens.textPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 if (state.partnerPhone.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
-                    Text(state.partnerPhone, color = Color.White.copy(0.7f), fontSize = 16.sp)
+                    Text(state.partnerPhone, color = tokens.textPrimary.copy(0.7f), fontSize = 16.sp)
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = callStatusText(state),
-                    color = Color.White.copy(0.7f),
+                    color = if (state.isActive && state.remotePresent) tokens.callAccept
+                    else tokens.textPrimary.copy(0.7f),
                     fontSize = 16.sp,
                 )
                 if (micDenied) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = "Microphone permission is required to talk.",
-                        color = Color(0xFFFFD2D2),
+                        color = tokens.danger,
                         fontSize = 13.sp,
                     )
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(MessengerShapes.card)
+                    .background(tokens.pillFill)
+                    .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (state.isIncoming) {
-                    CallControlButton(Icons.Default.CallEnd, "Decline", Color.Red, onClick = onDecline)
-                    CallControlButton(Icons.Default.Call, "Accept", Color(0xFF34C759), onClick = onAccept)
+                    CallControlButton(Icons.Default.CallEnd, "Decline", tokens.danger, onClick = onDecline)
+                    CallControlButton(Icons.Default.Call, "Accept", tokens.callAccept, onClick = onAccept)
                 } else {
                     CallControlButton(
                         Icons.Default.VolumeUp,
                         "Speaker",
-                        if (state.speakerOn) Color.White else Color.White.copy(0.2f),
-                        iconTint = if (state.speakerOn) PrimaryBlue else Color.White,
+                        if (state.speakerOn) tokens.accent else tokens.neutralButtonFill,
+                        iconTint = if (state.speakerOn) tokens.onAccent else tokens.textPrimary,
                         onClick = onToggleSpeaker,
                     )
-                    CallControlButton(Icons.Default.CallEnd, "End", Color.Red, size = 68.dp, onClick = onEnd)
+                    CallControlButton(Icons.Default.CallEnd, "End", tokens.danger, size = 68.dp, onClick = onEnd)
                     CallControlButton(
                         Icons.Default.MicOff,
                         "Mute",
-                        if (state.muted) Color.White else Color.White.copy(0.2f),
-                        iconTint = if (state.muted) PrimaryBlue else Color.White,
+                        if (state.muted) tokens.accent else tokens.neutralButtonFill,
+                        iconTint = if (state.muted) tokens.onAccent else tokens.textPrimary,
                         onClick = onToggleMute,
                     )
                 }
@@ -193,39 +206,9 @@ internal fun callStatusText(state: CallUiState): String = when {
 
 @Composable
 private fun CallAvatar(name: String) {
-    Box(
-        modifier = Modifier.size(120.dp).background(Color.White.copy(0.2f), CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        val initial = name.take(1).uppercase()
-        if (initial.isNotBlank()) {
-            Text(initial, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 48.sp)
-        } else {
-            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(64.dp))
-        }
-    }
+    MessengerAvatar(name = name, size = 121.dp)
 }
 
-@Composable
-private fun CallControlButton(
-    icon: ImageVector,
-    label: String,
-    backgroundColor: Color,
-    iconTint: Color = Color.White,
-    size: Dp = 58.dp,
-    onClick: () -> Unit,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(size).background(backgroundColor, CircleShape),
-        ) {
-            Icon(imageVector = icon, contentDescription = label, tint = iconTint)
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(label, color = Color.White.copy(0.7f), fontSize = 12.sp)
-    }
-}
 
 private fun formatSeconds(s: Int): String {
     val m = s / 60

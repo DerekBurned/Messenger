@@ -1,6 +1,7 @@
 package com.example.messenger.util
 
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -12,6 +13,12 @@ object DateUtils {
     }
     private val dateFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
         SimpleDateFormat("MM/dd 'at' HH:mm", Locale.getDefault())
+    }
+    private val dayMonthFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat("MMMM d", Locale.getDefault())
+    }
+    private val dayMonthYearFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
     }
 
     private fun time(): SimpleDateFormat = timeFormat.get()!!
@@ -38,6 +45,34 @@ object DateUtils {
     fun formatMessageTime(timestamp: Long): String {
         if (timestamp <= 0L) return ""
         return time().format(Date(timestamp))
+    }
+
+    fun startOfDay(timestamp: Long): Long {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = timestamp
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return cal.timeInMillis
+    }
+
+    fun formatDayDivider(timestamp: Long): String {
+        if (timestamp <= 0L) return ""
+        val message = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val today = Calendar.getInstance()
+        val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
+        fun sameDay(a: Calendar, b: Calendar): Boolean =
+            a.get(Calendar.YEAR) == b.get(Calendar.YEAR) &&
+                a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+        return when {
+            sameDay(message, today) -> "Today"
+            sameDay(message, yesterday) -> "Yesterday"
+            message.get(Calendar.YEAR) == today.get(Calendar.YEAR) ->
+                dayMonthFormat.get()!!.format(Date(timestamp))
+            else -> dayMonthYearFormat.get()!!.format(Date(timestamp))
+        }
     }
 
     fun formatDuration(seconds: Int): String {

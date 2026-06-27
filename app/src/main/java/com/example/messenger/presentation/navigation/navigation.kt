@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,13 +34,22 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
-import com.example.messenger.presentation.components.LocalOpenActiveCall
-import com.example.messenger.presentation.components.FloatingTabBar
-import com.example.messenger.presentation.components.IncomingCallBar
-import com.example.messenger.presentation.components.MainTab
+import com.example.messenger.presentation.components.call.LocalOpenActiveCall
+import com.example.messenger.presentation.components.common.LocalNavAnimatedVisibilityScope
+import com.example.messenger.presentation.components.common.LocalSharedTransitionScope
+import com.example.messenger.presentation.components.common.FloatingTabBar
+import com.example.messenger.presentation.components.search.SearchResultsOverlay
+import com.example.messenger.presentation.components.call.IncomingCallBar
+import com.example.messenger.presentation.components.common.MainTab
 import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.notification.NotificationPermissionGate
 import com.example.messenger.presentation.screens.*
+import com.example.messenger.presentation.screens.settings.AppearanceScreen
+import com.example.messenger.presentation.screens.settings.DataStorageScreen
+import com.example.messenger.presentation.screens.settings.LanguageScreen
+import com.example.messenger.presentation.screens.settings.NotificationsScreen
+import com.example.messenger.presentation.screens.settings.PrivacyScreen
+import com.example.messenger.presentation.screens.settings.SecurityScreen
 import com.example.messenger.presentation.viewmodel.AuthViewModel
 
 sealed class Screens(val route: String) {
@@ -42,7 +57,6 @@ sealed class Screens(val route: String) {
     object ChatsScreen : Screens("chats_screen")
     object CallsScreen : Screens("calls_screen")
     object ContactsScreen : Screens("contacts_screen")
-    object SearchUsersScreen : Screens("search_users_screen")
     object ChatScreen : Screens("chat_screen/{conversationId}/{partnerId}/{partnerName}") {
         fun createRoute(conversationId: String, partnerId: String, partnerName: String): String {
             val encodedName = java.net.URLEncoder.encode(partnerName, "UTF-8")
@@ -52,6 +66,12 @@ sealed class Screens(val route: String) {
     object ProfileScreen : Screens("profile_screen")
     object SearchScreen : Screens("search_screen")
     object SettingsScreen : Screens("settings_screen")
+    object PrivacyScreen : Screens("privacy_screen")
+    object NotificationsScreen : Screens("notifications_screen")
+    object AppearanceScreen : Screens("appearance_screen")
+    object LanguageScreen : Screens("language_screen")
+    object DataStorageScreen : Screens("data_storage_screen")
+    object SecurityScreen : Screens("security_screen")
     object EditProfileScreen : Screens("edit_profile_screen")
     object ChangeAccountScreen : Screens("change_account_screen")
     object EditChatScreen : Screens("edit_chat_screen")
@@ -71,6 +91,7 @@ sealed class Screens(val route: String) {
     }
 }
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val authViewModel: AuthViewModel = hiltViewModel()
@@ -89,17 +110,24 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val tabRoutes = setOf(
         Screens.ChatsScreen.route,
         Screens.CallsScreen.route,
-        Screens.ContactsScreen.route,
         Screens.SettingsScreen.route
     )
     val showTabBar = currentRoute in tabRoutes
     val selectedTab = when (currentRoute) {
         Screens.CallsScreen.route -> MainTab.CALLS
-        Screens.ContactsScreen.route -> MainTab.CONTACTS
         Screens.SettingsScreen.route -> MainTab.SETTINGS
         else -> MainTab.CHATS
     }
     val context = LocalContext.current
+
+    var isSearching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    LaunchedEffect(showTabBar) {
+        if (!showTabBar) {
+            isSearching = false
+            searchQuery = ""
+        }
+    }
 
     fun logout() {
         authViewModel.dispatch(AuthIntent.Logout)
@@ -122,9 +150,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalOpenActiveCall provides { openActiveCall(accept = false) }) {
+        SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
         NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -165,15 +199,16 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         }
 
         composable(route = Screens.ChatsScreen.route) {
-            ChatsScreen(
-                onChatClick = { conversationId, partnerId, partnerName ->
-                    navController.navigate(
-                        Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
-                    )
-                },
-                onLogoutClick = { logout() },
-                onSearchClick = { navController.navigate(Screens.SearchScreen.route) },
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                ChatsScreen(
+                    onChatClick = { conversationId, partnerId, partnerName ->
+                        navController.navigate(
+                            Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
+                        )
+                    },
+                    onLogoutClick = { logout() },
+                )
+            }
         }
 
         composable(route = Screens.CallsScreen.route) {
@@ -192,6 +227,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(route = Screens.SettingsScreen.route) {
             SettingsScreen(
                 onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
+                onSwitchAccountClick = { navController.navigate(Screens.ChangeAccountScreen.route) },
+                onPrivacyClick = { navController.navigate(Screens.PrivacyScreen.route) },
+                onNotificationsClick = { navController.navigate(Screens.NotificationsScreen.route) },
+                onAppearanceClick = { navController.navigate(Screens.AppearanceScreen.route) },
+                onSecurityClick = { navController.navigate(Screens.SecurityScreen.route) },
+                onDataStorageClick = { navController.navigate(Screens.DataStorageScreen.route) },
+                onLanguageClick = { navController.navigate(Screens.LanguageScreen.route) },
                 onLogoutClick = {
                     authViewModel.dispatch(AuthIntent.Logout)
                     navController.navigate(Screens.AuthScreen.route) {
@@ -199,6 +241,30 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                     }
                 },
             )
+        }
+
+        composable(route = Screens.PrivacyScreen.route) {
+            PrivacyScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.NotificationsScreen.route) {
+            NotificationsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.AppearanceScreen.route) {
+            AppearanceScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.LanguageScreen.route) {
+            LanguageScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.DataStorageScreen.route) {
+            DataStorageScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screens.SecurityScreen.route) {
+            SecurityScreen(onBack = { navController.popBackStack() })
         }
 
         composable(route = Screens.ProfileScreen.route) {
@@ -212,19 +278,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onStartEditing = {
                     navController.navigate(Screens.EditProfileScreen.route)
                 },
-            )
-        }
-
-        composable(route = Screens.SearchScreen.route) {
-            SearchUsersScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onConversationCreated = { conversationId, partnerId, partnerName ->
-                    navController.navigate(Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)) {
-                        popUpTo(Screens.SearchScreen.route) { inclusive = true }
-                    }
-                }
             )
         }
 
@@ -314,32 +367,64 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val partnerId = backStackEntry.arguments?.getString("partnerId").orEmpty()
             val partnerName = backStackEntry.arguments?.getString("partnerName").orEmpty()
-            ChatScreenWithNav(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onIntercultorProfileClick = {
-                    if (partnerId.isNotBlank()) {
-                        navController.navigate(
-                            Screens.ChatUserProfileScreen.createRoute(partnerId)
-                        )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                ChatScreenWithNav(
+                    sharedKeyPartnerId = partnerId,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onIntercultorProfileClick = {
+                        if (partnerId.isNotBlank()) {
+                            navController.navigate(
+                                Screens.ChatUserProfileScreen.createRoute(partnerId)
+                            )
+                        }
+                    },
+                    onCallClick = {
+                        navController.navigate(Screens.CallScreen.createRoute(partnerId,
+                            partnerName, ""))
                     }
-                },
-                onCallClick = {
-                    navController.navigate(Screens.CallScreen.createRoute(partnerId,
-                        partnerName, ""))
-                }
-            )
+                )
+            }
         }
 
         }
         }
         }
+        }
+        }
+        if (showTabBar && isSearching) {
+            SearchResultsOverlay(
+                query = searchQuery,
+                onConversationCreated = { conversationId, partnerId, partnerName ->
+                    isSearching = false
+                    searchQuery = ""
+                    navController.navigate(
+                        Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 72.dp),
+            )
+        }
         if (showTabBar) {
             FloatingTabBar(
                 selected = selectedTab,
                 onSelect = { tab -> navController.navigateToTab(tab.route()) },
-                modifier = Modifier.align(Alignment.BottomCenter),
+                isSearching = isSearching,
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSearchOpen = { isSearching = true },
+                onSearchClose = {
+                    isSearching = false
+                    searchQuery = ""
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             )
         }
         if (showCallBar) {
@@ -347,7 +432,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 56.dp),
+                    .padding(top = 76.dp),
                 onAccept = { openActiveCall(accept = true) },
                 onDecline = { sendCallAction(context, CallForegroundService.ACTION_DECLINE) },
                 onOpen = { openActiveCall(accept = false) },
@@ -373,6 +458,5 @@ private fun NavHostController.navigateToTab(route: String) {
 private fun MainTab.route(): String = when (this) {
     MainTab.CHATS -> Screens.ChatsScreen.route
     MainTab.CALLS -> Screens.CallsScreen.route
-    MainTab.CONTACTS -> Screens.ContactsScreen.route
     MainTab.SETTINGS -> Screens.SettingsScreen.route
 }

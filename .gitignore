@@ -166,3 +166,5 @@ fabric.properties
 /ruvector.db
 /graphify-out/
 app/objectbox-models/*.bak
+/.figma_tmp/
+/app/release/

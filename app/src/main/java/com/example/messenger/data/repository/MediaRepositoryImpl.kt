@@ -280,8 +280,10 @@ class MediaRepositoryImpl @Inject constructor(
             .use { it.findFirst() } ?: return
         val label = previewLabel(message)
         conv.lastMessage = label
+        conv.lastMessageSenderId = message.senderId
         conv.lastMessageTimestamp = message.timestamp
         conv.latestMessageText = label
+        conv.latestMessageSenderId = message.senderId
         conv.latestMessageTimestamp = message.timestamp
         conversationBox.put(conv)
     }

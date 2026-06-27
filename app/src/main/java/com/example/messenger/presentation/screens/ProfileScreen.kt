@@ -1,38 +1,37 @@
 package com.example.messenger.presentation.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.messenger.presentation.components.CallAwareTopBar
-import com.example.messenger.domain.model.PresenceState
-import com.example.messenger.presentation.components.PresenceIndicator
-import com.example.messenger.presentation.screens.ui.theme.DangerRed
-import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.domain.model.User
+import com.example.messenger.presentation.components.common.CardDivider
+import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.NavHeaderPill
+import com.example.messenger.presentation.components.common.PillButton
+import com.example.messenger.presentation.components.common.RoundedCard
+import com.example.messenger.presentation.components.common.WallpaperBackground
+import com.example.messenger.presentation.screens.ui.theme.Dimens
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.OnSurface
-import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
+import com.example.messenger.presentation.state.ProfileUiState
 import com.example.messenger.presentation.viewmodel.ProfileViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
@@ -41,150 +40,86 @@ fun ProfileScreen(
     onStartEditing: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     ProfileScreenContent(
         uiState = uiState,
         onBackClick = onBackClick,
-        onLogoutClick = {
-            viewModel.logout()
-            onLogoutClick()
-        },
-        onStartEditing = onStartEditing,
-        onCancelEditing = { viewModel.cancelEditing() },
-        onSaveProfile = { editedUsername -> viewModel.updateProfile(editedUsername) },
+        onEditClick = onStartEditing,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileScreenContent(
-    uiState: com.example.messenger.presentation.state.ProfileUiState,
+    uiState: ProfileUiState,
     onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onStartEditing: () -> Unit,
-    onCancelEditing: () -> Unit,
-    onSaveProfile: (String) -> Unit,
+    onEditClick: () -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = {
-                        Text(
-                            text = "Profile",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue),
-                    actions = {
-                        IconButton(onClick = onStartEditing) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit",
-                                tint = Color.White,
-                            )
-                        }
-                    },
-                )
-            }
-        },
-    ) { padding ->
+    val tokens = messengerTokens
+    val user = uiState.user
+    WallpaperBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(Color.White),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .statusBarsPadding(),
         ) {
-            Spacer(modifier = Modifier.height(36.dp))
-
-            Box(contentAlignment = Alignment.BottomEnd) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .background(LightGray, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val initial = uiState.user?.username?.take(1)?.uppercase().orEmpty()
-                    if (initial.isNotBlank()) {
-                        Text(
-                            text = initial,
-                            color = PrimaryBlue,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 48.sp,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(64.dp),
-                            tint = PrimaryBlue,
-                        )
-                    }
-                }
-                PresenceIndicator(
-                    state = PresenceState.ONLINE,
-                    size = 20.dp,
-                    borderWidth = 3.dp,
-                    modifier = Modifier.padding(end = 6.dp, bottom = 6.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = uiState.user?.username ?: "User Name",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = OnSurface,
-            )
-
-            val subtitle = uiState.user?.email
-                ?: uiState.user?.phoneNumber?.getFullNumber()
-                ?: ""
-            if (subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    color = OnSurfaceMuted,
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            OutlinedButton(
-                onClick = onLogoutClick,
+            NavHeaderPill(title = "Profile", onBack = onBackClick)
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Dimens.screenPadding)
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                    contentDescription = null,
+                Spacer(modifier = Modifier.height(8.dp))
+                MessengerAvatar(
+                    name = user?.username.orEmpty(),
+                    photoUrl = user?.avatarUrl,
+                    size = Dimens.avatarLarge,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Log out", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(24.dp))
+                RoundedCard {
+                    ProfileDisplayRow(
+                        label = "Phone number",
+                        value = user?.phoneNumber?.getFullNumber().orEmpty(),
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                RoundedCard {
+                    ProfileDisplayRow(label = "Name", value = user?.username.orEmpty())
+                    CardDivider()
+                    ProfileDisplayRow(
+                        label = "Username",
+                        value = user?.username?.let { "@$it" }.orEmpty(),
+                    )
+                    CardDivider()
+                    ProfileDisplayRow(label = "Email", value = user?.email.orEmpty())
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+                PillButton(text = "Edit profile", onClick = onEditClick)
             }
-
-            Spacer(modifier = Modifier.height(28.dp))
         }
+    }
+}
+
+@Composable
+private fun ProfileDisplayRow(label: String, value: String) {
+    val tokens = messengerTokens
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = label,
+            color = tokens.textMuted,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = value.ifBlank { "—" },
+            color = tokens.textOnField,
+            style = MaterialTheme.typography.bodyLarge,
+        )
     }
 }
 
@@ -193,18 +128,15 @@ private fun ProfileScreenContent(
 private fun ProfileScreenPreview() {
     MessengerTheme {
         ProfileScreenContent(
-            uiState = com.example.messenger.presentation.state.ProfileUiState(
-                user = com.example.messenger.domain.model.User(
+            uiState = ProfileUiState(
+                user = User(
                     id = "preview-uid",
                     username = "Jane Doe",
                     email = "jane@example.com",
                 ),
             ),
             onBackClick = {},
-            onLogoutClick = {},
-            onStartEditing = {},
-            onCancelEditing = {},
-            onSaveProfile = {},
+            onEditClick = {},
         )
     }
 }

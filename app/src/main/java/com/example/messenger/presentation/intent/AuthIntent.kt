@@ -11,6 +11,11 @@ sealed interface AuthIntent : UiIntent {
         val isRegister: Boolean,
     ) : AuthIntent
 
+    data class ResendCode(
+        val activity: Activity,
+        val phoneNumber: String,
+    ) : AuthIntent
+
     data class VerifyOtpAndLogin(val otpCode: String) : AuthIntent
     data class VerifyOtpAndLink(val otpCode: String) : AuthIntent
     data object Logout : AuthIntent
