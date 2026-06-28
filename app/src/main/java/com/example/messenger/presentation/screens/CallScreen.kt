@@ -128,7 +128,7 @@ private fun CallScreenContent(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CallAvatar(name = state.partnerName)
+                CallAvatar(name = state.partnerName, photoUrl = state.partnerAvatarUrl)
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = state.partnerName.ifBlank { "Calling…" },
@@ -205,8 +205,8 @@ internal fun callStatusText(state: CallUiState): String = when {
 }
 
 @Composable
-private fun CallAvatar(name: String) {
-    MessengerAvatar(name = name, size = 121.dp)
+private fun CallAvatar(name: String, photoUrl: String? = null) {
+    MessengerAvatar(name = name, photoUrl = photoUrl, size = 121.dp)
 }
 
 

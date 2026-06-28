@@ -7,6 +7,7 @@ import com.example.messenger.presentation.base.UiText
 data class CallUiState(
     val partnerName: String = "",
     val partnerPhone: String = "",
+    val partnerAvatarUrl: String? = null,
     val channelName: String = "",
     val isIncoming: Boolean = false,
     val isActive: Boolean = false,
