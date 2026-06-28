@@ -11,6 +11,7 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.video.VideoFrameDecoder
 import com.example.messenger.data.presence.AppLifecycleObserver
 import com.example.messenger.data.remote.call.IncomingCallCoordinator
@@ -51,7 +52,10 @@ class MessengerApplication : Application(), Configuration.Provider {
 
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)
-                .components { add(VideoFrameDecoder.Factory()) }
+                .components {
+                    add(OkHttpNetworkFetcherFactory())
+                    add(VideoFrameDecoder.Factory())
+                }
                 .build()
         }
 

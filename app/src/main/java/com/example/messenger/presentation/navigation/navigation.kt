@@ -339,15 +339,18 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId").orEmpty()
-            ChatUserProfileScreen(
-                onBackClick = { navController.popBackStack() },
-                onCallClick = { partnerId, partnerName, partnerPhone ->
-                navController.navigate(Screens.CallScreen.createRoute(partnerId, partnerName, partnerPhone))
-            },
-            onEditClick = {
-                    navController.navigate(Screens.EditContactDataScreen.createRoute(userId))
-                },
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                ChatUserProfileScreen(
+                    sharedKeyUserId = userId,
+                    onBackClick = { navController.popBackStack() },
+                    onCallClick = { partnerId, partnerName, partnerPhone ->
+                        navController.navigate(Screens.CallScreen.createRoute(partnerId, partnerName, partnerPhone))
+                    },
+                    onEditClick = {
+                        navController.navigate(Screens.EditContactDataScreen.createRoute(userId))
+                    },
+                )
+            }
         }
 
         composable(

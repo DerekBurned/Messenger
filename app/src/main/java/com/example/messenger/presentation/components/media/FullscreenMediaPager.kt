@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,6 +63,7 @@ fun FullscreenMediaPager(
     startIndex: Int,
     onDismiss: () -> Unit,
     onPageSettled: (Int) -> Unit = {},
+    onAddClick: (() -> Unit)? = null,
 ) {
     if (sources.isEmpty()) return
     val context = LocalContext.current
@@ -183,6 +185,17 @@ fun FullscreenMediaPager(
                     .padding(8.dp),
             ) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+
+            if (onAddClick != null) {
+                IconButton(
+                    onClick = onAddClick,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add photo", tint = Color.White)
+                }
             }
         }
     }

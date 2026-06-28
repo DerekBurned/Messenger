@@ -1,5 +1,6 @@
 package com.example.messenger.presentation.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.messenger.data.presence.PresenceManager
@@ -59,6 +60,38 @@ class ProfileViewModel @Inject constructor(
                     is Resource.Loading -> {}
                 }
             }
+        }
+    }
+
+    fun loadPhotos() {
+        val uid = _uiState.value.user?.id ?: getCurrentUserUseCase()?.id ?: return
+        viewModelScope.launch {
+            userRepository.getProfilePhotos(uid).onSuccess { urls ->
+                _uiState.update { it.copy(photos = urls) }
+            }
+        }
+    }
+
+    fun addPhoto(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            userRepository.uploadAvatar(uri).fold(
+                onSuccess = { url ->
+                    _uiState.update {
+                        it.copy(isLoading = false, user = it.user?.copy(avatarUrl = url))
+                    }
+                    loadPhotos()
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                                ?: UiText.StringResource(R.string.profile_error_update_failed),
+                        )
+                    }
+                },
+            )
         }
     }
 
