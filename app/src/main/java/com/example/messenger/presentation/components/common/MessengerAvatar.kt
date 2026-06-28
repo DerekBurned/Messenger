@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -42,18 +43,18 @@ fun MessengerAvatar(
             .background(tokens.fieldFill),
         contentAlignment = Alignment.Center,
     ) {
+        Text(
+            text = name.take(1).ifBlank { "?" },
+            color = tokens.accent,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = (size.value * 0.4f).sp,
+        )
         if (!photoUrl.isNullOrBlank()) {
             AsyncImage(
                 model = photoUrl,
                 contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Text(
-                text = name.take(1).ifBlank { "?" },
-                color = tokens.accent,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = (size.value * 0.4f).sp,
             )
         }
     }
