@@ -49,13 +49,22 @@ class UserRepositoryImpl @Inject constructor(
                 userBox.put(remote.map { it.toObx() })
             }
 
+            val aliases = contactAliasBox.all.associate { it.contactId to it.name }
+
             val local = userBox.all
-                .filter { it.uid != currentUserId && it.username.contains(q, ignoreCase = true) }
+                .filter {
+                    it.uid != currentUserId &&
+                        (it.username.contains(q, ignoreCase = true) ||
+                            aliases[it.uid]?.contains(q, ignoreCase = true) == true)
+                }
                 .map { it.toDomain() }
 
             val ranked = (remote + local)
                 .distinctBy { it.id }
-                .map { it to similarityScore(q, it.username.orEmpty()) }
+                .map { user ->
+                    val aliasScore = aliases[user.id]?.let { similarityScore(q, it) } ?: 0.0
+                    user to maxOf(similarityScore(q, user.username.orEmpty()), aliasScore)
+                }
                 .filter { it.second >= SIMILARITY_THRESHOLD }
                 .sortedByDescending { it.second }
                 .map { it.first }
