@@ -48,6 +48,7 @@ fun ConversationListItem(
     presence: UserPresence?,
     currentUserId: String,
     onClick: () -> Unit,
+    photoUrl: String? = null,
 ) {
     val tokens = messengerTokens
     Row(
@@ -61,7 +62,7 @@ fun ConversationListItem(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ConversationAvatar(partnerId = partnerId, displayName = displayName, presence = presence)
+        ConversationAvatar(partnerId = partnerId, displayName = displayName, presence = presence, photoUrl = photoUrl)
         Spacer(modifier = Modifier.width(14.dp))
         ConversationPreview(
             displayName = displayName,
@@ -85,10 +86,11 @@ fun ConversationListItem(
 }
 
 @Composable
-private fun ConversationAvatar(partnerId: String, displayName: String, presence: UserPresence?) {
+private fun ConversationAvatar(partnerId: String, displayName: String, presence: UserPresence?, photoUrl: String?) {
     Box(contentAlignment = Alignment.BottomEnd) {
         MessengerAvatar(
             name = displayName,
+            photoUrl = photoUrl,
             size = 52.dp,
             modifier = Modifier.sharedElementKey("avatar-$partnerId"),
         )

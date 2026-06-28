@@ -61,7 +61,7 @@ fun ProfileHeader(
         val displayName = state.displayName.ifBlank { state.user?.username.orEmpty() }
         MessengerAvatar(
             name = displayName,
-            photoUrl = state.user?.avatarUrl,
+            photoUrl = state.avatarPhotos.firstOrNull() ?: state.user?.avatarUrl,
             size = 112.dp,
             modifier = sharedAvatarModifier.clickable(onClick = onAvatarClick),
         )

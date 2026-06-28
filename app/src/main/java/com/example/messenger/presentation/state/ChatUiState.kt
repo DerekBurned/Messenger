@@ -20,6 +20,7 @@ data class ChatUiState(
     val isSending: Boolean = false,
     val partnerPresence: UserPresence = UserPresence(),
     val partnerUsername: String = "",
+    val partnerAvatarUrl: String? = null,
     val typingUsernames: List<String> = emptyList(),
     val isPartnerTyping: Boolean = false,
     val replyingTo: Message? = null,

@@ -68,7 +68,35 @@ class ConversationsViewModel @Inject constructor(
                         it.copy(isLoading = false, conversations = conversations, error = null)
                     }
                     observeParticipantPresence(conversations)
+                    loadParticipantAvatars(conversations)
                 }
+        }
+    }
+
+    private fun loadParticipantAvatars(conversations: List<com.example.messenger.domain.model.Conversation>) {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: return
+        val seeded = buildMap<String, String?> {
+            conversations.forEach { conversation ->
+                conversation.participantIds.forEachIndexed { index, id ->
+                    if (id != currentUserId && this[id].isNullOrBlank()) {
+                        put(id, conversation.participantAvatars.getOrNull(index))
+                    }
+                }
+            }
+        }
+        _uiState.update { it.copy(avatars = it.avatars + seeded) }
+
+        val otherUserIds = conversations
+            .flatMap { it.participantIds }
+            .filter { it != currentUserId }
+            .distinct()
+        viewModelScope.launch {
+            otherUserIds.forEach { id ->
+                val url = runCatching { userRepository.getUserById(id).getOrNull()?.avatarUrl }.getOrNull()
+                if (url != null) {
+                    _uiState.update { it.copy(avatars = it.avatars + (id to url)) }
+                }
+            }
         }
     }
 

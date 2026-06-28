@@ -10,5 +10,6 @@ data class EditProfileUiState(
     val phone: String = "",
     val username: String = "",
     val dob: String = "",
+    val avatarUrl: String? = null,
     val error: UiText? = null,
 ) : UiState

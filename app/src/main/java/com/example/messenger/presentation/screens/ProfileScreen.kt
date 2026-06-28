@@ -202,7 +202,7 @@ private fun ProfileScreenContent(
                 Spacer(modifier = Modifier.height(8.dp))
                 MessengerAvatar(
                     name = user?.username.orEmpty(),
-                    photoUrl = user?.avatarUrl,
+                    photoUrl = uiState.photos.firstOrNull() ?: user?.avatarUrl,
                     size = Dimens.avatarLarge,
                     modifier = Modifier.clickable(onClick = onAvatarClick),
                 )

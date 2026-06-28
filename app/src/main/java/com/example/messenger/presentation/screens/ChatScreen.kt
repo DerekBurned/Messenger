@@ -340,6 +340,7 @@ private fun ChatScreenContent(
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onBackClick = onBackClick,
                     onProfileClick = onIntercultorProfileClick,
+                    partnerAvatarUrl = uiState.partnerAvatarUrl,
                 )
             }
         },
