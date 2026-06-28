@@ -47,10 +47,14 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getUserById(userId: String): Result<User?> {
         return try {
-            findByUid(userId)?.let { return Result.success(it.toDomain()) }
-            val remoteResult = firestoreService.getUserProfile(userId)
-            remoteResult.onSuccess { user -> upsert(user.toObx()) }
-            Result.success(remoteResult.getOrNull())
+            val local = findByUid(userId)?.toDomain()
+            val remote = firestoreService.getUserProfile(userId).getOrNull()
+            if (remote != null) {
+                upsert(remote.toObx())
+                Result.success(remote)
+            } else {
+                Result.success(local)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
