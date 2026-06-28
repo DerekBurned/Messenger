@@ -76,8 +76,10 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             userRepository.uploadAvatar(uri).fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
+                onSuccess = { url ->
+                    _uiState.update {
+                        it.copy(isLoading = false, user = it.user?.copy(avatarUrl = url))
+                    }
                     loadPhotos()
                 },
                 onFailure = { e ->
