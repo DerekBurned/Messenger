@@ -12,7 +12,7 @@ class FirebaseStorageService @Inject constructor(
     private val storage: FirebaseStorage
 ) {
 
-    private val profileImagesRef = storage.reference.child("profileImages")
+    private val profileImagesRef = storage.reference.child("avatars")
 
     suspend fun uploadProfileImage(uid: String, imageUri: Uri): Result<String> {
         return try {

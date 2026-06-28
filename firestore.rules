@@ -91,11 +91,26 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       allow create: if isOwner(userId)
-                    && isValidString(request.resource.data.username, 50)
-                    && request.resource.data.id == userId;
+          && isValidString(request.resource.data.username, 50)
+          && request.resource.data.id == userId;
 
       allow update: if isOwner(userId)
-                    && request.resource.data.id == resource.data.id;
+          && request.resource.data.id == resource.data.id;
+
+      allow delete: if isOwner(userId);
+    }
+
+    // ── /users/{userId}/contactAliases/{aliasId} ───────────────────────────────────────────
+
+    match /users/{userId}/contactAliases/{aliasId} {
+
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId)
+          && isValidString(request.resource.data.name, 50);
+
+      allow update: if isOwner(userId)
+          && isValidString(request.resource.data.name, 50);
 
       allow delete: if isOwner(userId);
     }
