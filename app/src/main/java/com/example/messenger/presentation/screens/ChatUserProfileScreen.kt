@@ -42,7 +42,7 @@ import com.example.messenger.presentation.viewmodel.ChatUserProfileViewModel
 @Composable
 fun ChatUserProfileScreen(
     viewModel: ChatUserProfileViewModel = hiltViewModel(),
-    sharedKeyUserId: String = "",
+    sharedKeyPartnerId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onEditClick: () -> Unit = {}
@@ -50,7 +50,7 @@ fun ChatUserProfileScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ChatUserProfileScreenContent(
         state = state,
-        sharedKeyUserId = sharedKeyUserId,
+        sharedKeyPartnerId = sharedKeyPartnerId,
         onBackClick = onBackClick,
         onCallClick = onCallClick,
         onEditClick = onEditClick,
@@ -62,7 +62,7 @@ fun ChatUserProfileScreen(
 @Composable
 private fun ChatUserProfileScreenContent(
     state: ChatUserProfileUiState,
-    sharedKeyUserId: String = "",
+    sharedKeyPartnerId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onMediaTabChange: (MediaTab) -> Unit = {},
@@ -127,7 +127,7 @@ private fun ChatUserProfileScreenContent(
             item {
                 ProfileHeader(
                     state = state,
-                    sharedKeyUserId = sharedKeyUserId,
+                    sharedKeyPartnerId = sharedKeyPartnerId,
                     onAvatarClick = { if (viewerPhotos.isNotEmpty()) showViewer = true },
                     onCallClick = onCallClick,
                 )

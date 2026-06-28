@@ -1,6 +1,7 @@
 package com.example.messenger.presentation.components.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -65,22 +67,29 @@ fun SearchResultsOverlay(
     }
 
     WallpaperBackground(modifier = modifier.fillMaxSize()) {
-        when {
-            uiState.isCreatingConversation || uiState.isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = PrimaryBlue,
-                )
-            }
-            uiState.error != null -> CenterMessage(uiState.error!!.asString())
-            query.isBlank() -> CenterMessage("Type a username to search")
-            uiState.users.isEmpty() -> CenterMessage("No users found")
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
-            ) {
-                items(uiState.users, key = { it.id }) { user ->
-                    SearchResultRow(user = user, onClick = { viewModel.createConversationWithUser(user) })
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(top = 72.dp),
+        ) {
+            when {
+                uiState.isCreatingConversation || uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = PrimaryBlue,
+                    )
+                }
+                uiState.error != null -> CenterMessage(uiState.error!!.asString())
+                query.isBlank() -> CenterMessage("Type a username to search")
+                uiState.users.isEmpty() -> CenterMessage("No users found")
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                ) {
+                    items(uiState.users, key = { it.id }) { user ->
+                        SearchResultRow(user = user, onClick = { viewModel.createConversationWithUser(user) })
+                    }
                 }
             }
         }

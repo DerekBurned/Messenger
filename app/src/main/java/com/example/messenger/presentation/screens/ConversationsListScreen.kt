@@ -1,5 +1,10 @@
 package com.example.messenger.presentation.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -46,6 +51,8 @@ import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.list.ConversationListItem
 import com.example.messenger.presentation.components.list.SwipeableConversationRow
 import com.example.messenger.presentation.components.common.sharedElementKey
+import com.example.messenger.presentation.components.common.LocalNavAnimatedVisibilityScope
+import com.example.messenger.presentation.screens.ui.theme.Motion
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.screens.ui.theme.MessengerShapes
 import androidx.compose.ui.draw.shadow
@@ -197,6 +204,7 @@ private fun ChatsList(
     onDeleteForEveryone: (String) -> Unit,
 ) {
     val currentUserId = uiState.currentUserId
+    val navScope = LocalNavAnimatedVisibilityScope.current
     PullToRefreshBox(
         isRefreshing = uiState.isRefreshing,
         onRefresh = onRefresh,
@@ -206,20 +214,39 @@ private fun ChatsList(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
-            items(uiState.conversations, key = { it.id }) { conversation ->
+            itemsIndexed(uiState.conversations, key = { _, it -> it.id }) { index, conversation ->
                 val otherIdx = conversation.participantIds.indexOfFirst { it != currentUserId }
                 val otherUserId = conversation.participantIds.getOrNull(otherIdx) ?: ""
                 val otherUserName = resolveDisplayName(
                     rawName = conversation.participantNames.getOrNull(otherIdx),
                     alias = uiState.aliases[otherUserId],
                 )
+                val collapseModifier = if (navScope != null) {
+                    val stagger = (index * 20).coerceAtMost(160)
+                    with(navScope) {
+                        Modifier.animateEnterExit(
+                            enter = expandVertically(
+                                animationSpec = tween(Motion.durationMedium, delayMillis = stagger, easing = Motion.emphasized),
+                            ) + fadeIn(
+                                animationSpec = tween(Motion.durationMedium, delayMillis = stagger),
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = tween(Motion.durationShort, easing = Motion.standard),
+                            ) + fadeOut(
+                                animationSpec = tween(Motion.durationShort),
+                            ),
+                        )
+                    }
+                } else {
+                    Modifier
+                }
                 SwipeableConversationRow(
                     displayName = otherUserName,
                     isOneOnOne = conversation.participantIds.size == 2,
                     onClick = { onChatClick(conversation.id, otherUserId, otherUserName) },
                     onDeleteForMe = { onDeleteForMe(conversation.id) },
                     onDeleteForEveryone = { onDeleteForEveryone(conversation.id) },
-                    modifier = Modifier.animateItem(),
+                    modifier = collapseModifier.animateItem(),
                 ) { rowOnClick ->
                     ConversationListItem(
                         conversation = conversation,

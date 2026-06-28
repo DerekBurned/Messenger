@@ -9,10 +9,12 @@ import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.ChatUserProfileUiState
 import com.example.messenger.presentation.state.MediaTab
 import com.example.messenger.util.Resource
+import com.example.messenger.util.resolveDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,20 +47,25 @@ class ChatUserProfileViewModel @Inject constructor(
 
     private fun load(userId: String) {
         viewModelScope.launch {
-            getUserByIdUseCase(userId).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
-                    is Resource.Success -> _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            user = resource.data,
-                            isOnline = resource.data?.isOnline == true,
-                        )
+            combine(
+                getUserByIdUseCase(userId),
+                userRepository.observeContactAliases(),
+            ) { resource, aliases -> resource to aliases[userId] }
+                .collect { (resource, alias) ->
+                    when (resource) {
+                        is Resource.Loading -> _uiState.update { it.copy(isLoading = true, error = null) }
+                        is Resource.Success -> _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                user = resource.data,
+                                displayName = resolveDisplayName(resource.data?.username, alias),
+                                isOnline = resource.data?.isOnline == true,
+                            )
+                        }
+                        is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message.toUiText()) }
+                        is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message?.toUiText()) }
                     }
-                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, error = resource.message.toUiText()) }
-                    is Resource.Failure -> _uiState.update { it.copy(isLoading = false, error = resource.exception.message?.toUiText()) }
                 }
-            }
         }
     }
 
