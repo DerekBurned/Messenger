@@ -9,6 +9,7 @@ enum class MediaTab { PHOTO, VIDEO, FILE }
 data class ChatUserProfileUiState(
     val isLoading: Boolean = false,
     val user: User? = null,
+    val displayName: String = "",
     val isOnline: Boolean = false,
     val lastSeen: String = "",
     val mediaTab: MediaTab = MediaTab.PHOTO,

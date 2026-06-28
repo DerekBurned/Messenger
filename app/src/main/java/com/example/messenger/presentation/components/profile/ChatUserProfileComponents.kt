@@ -45,28 +45,29 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 @Composable
 fun ProfileHeader(
     state: ChatUserProfileUiState,
-    sharedKeyUserId: String = "",
+    sharedKeyPartnerId: String = "",
     onAvatarClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit,
 ) {
     val tokens = messengerTokens
     val sharedAvatarModifier =
-        if (sharedKeyUserId.isNotBlank()) Modifier.sharedElementKey("avatar-$sharedKeyUserId") else Modifier
+        if (sharedKeyPartnerId.isNotBlank()) Modifier.sharedElementKey("avatar-$sharedKeyPartnerId") else Modifier
     val sharedNameModifier =
-        if (sharedKeyUserId.isNotBlank()) Modifier.sharedElementKey("name-$sharedKeyUserId") else Modifier
+        if (sharedKeyPartnerId.isNotBlank()) Modifier.sharedElementKey("name-$sharedKeyPartnerId") else Modifier
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        val displayName = state.displayName.ifBlank { state.user?.username.orEmpty() }
         MessengerAvatar(
-            name = state.user?.username.orEmpty(),
+            name = displayName,
             photoUrl = state.user?.avatarUrl,
             size = 112.dp,
             modifier = sharedAvatarModifier.clickable(onClick = onAvatarClick),
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = state.user?.username ?: "Unknown",
+            text = displayName.ifBlank { "Unknown" },
             color = tokens.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
