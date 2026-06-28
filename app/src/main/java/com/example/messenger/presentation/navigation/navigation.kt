@@ -1,4 +1,4 @@
- package com.example.messenger.presentation.navigation
+package com.example.messenger.presentation.navigation
 
 import android.content.Context
 import android.content.Intent
@@ -63,6 +63,7 @@ sealed class Screens(val route: String) {
             return "chat_screen/$conversationId/$partnerId/$encodedName"
         }
     }
+
     object ProfileScreen : Screens("profile_screen")
     object SearchScreen : Screens("search_screen")
     object SettingsScreen : Screens("settings_screen")
@@ -83,9 +84,11 @@ sealed class Screens(val route: String) {
             return "call_screen/$partnerId/$encodedName/$encodedPhone"
         }
     }
+
     object ChatUserProfileScreen : Screens("chat_user_profile_screen/{userId}") {
         fun createRoute(userId: String): String = "chat_user_profile_screen/$userId"
     }
+
     object EditContactDataScreen : Screens("edit_contact_data_screen/{contactId}") {
         fun createRoute(contactId: String): String = "edit_contact_data_screen/$contactId"
     }
@@ -106,7 +109,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route.orEmpty()
     val showCallBar = !currentRoute.startsWith("call_screen") &&
-        currentRoute != Screens.AuthScreen.route
+            currentRoute != Screens.AuthScreen.route
     val tabRoutes = setOf(
         Screens.ChatsScreen.route,
         Screens.CallsScreen.route,
@@ -156,242 +159,282 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             .background(MaterialTheme.colorScheme.background),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalOpenActiveCall provides { openActiveCall(accept = false) }) {
-        SharedTransitionLayout {
-        CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
-        NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        enterTransition = {
-            slideInHorizontally(
-                initialOffsetX = { 1000 },
-                animationSpec = tween(300)
-            ) + fadeIn(animationSpec = tween(300))
-        },
-        exitTransition = {
-            slideOutHorizontally(
-                targetOffsetX = { -1000 },
-                animationSpec = tween(300)
-            ) + fadeOut(animationSpec = tween(300))
-        },
-        popEnterTransition = {
-            slideInHorizontally(
-                initialOffsetX = { -1000 },
-                animationSpec = tween(300)
-            ) + fadeIn(animationSpec = tween(300))
-        },
-        popExitTransition = {
-            slideOutHorizontally(
-                targetOffsetX = { 1000 },
-                animationSpec = tween(300)
-            ) + fadeOut(animationSpec = tween(300))
-        }
-    ) {
-        composable(route = Screens.AuthScreen.route) {
-            AuthScreen(
-                viewModel = authViewModel,
-                onAuthSuccess = {
-                    navController.navigate(Screens.ChatsScreen.route) {
-                        popUpTo(Screens.AuthScreen.route) { inclusive = true }
+            CompositionLocalProvider(LocalOpenActiveCall provides { openActiveCall(accept = false) }) {
+                SharedTransitionLayout {
+                    CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = startDestination,
+                            enterTransition = {
+                                slideInHorizontally(
+                                    initialOffsetX = { 1000 },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            },
+                            exitTransition = {
+                                slideOutHorizontally(
+                                    targetOffsetX = { -1000 },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            },
+                            popEnterTransition = {
+                                slideInHorizontally(
+                                    initialOffsetX = { -1000 },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            },
+                            popExitTransition = {
+                                slideOutHorizontally(
+                                    targetOffsetX = { 1000 },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        ) {
+                            composable(route = Screens.AuthScreen.route) {
+                                AuthScreen(
+                                    viewModel = authViewModel,
+                                    onAuthSuccess = {
+                                        navController.navigate(Screens.ChatsScreen.route) {
+                                            popUpTo(Screens.AuthScreen.route) { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
+
+                            composable(route = Screens.ChatsScreen.route) {
+                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                                    ChatsScreen(
+                                        onChatClick = { conversationId, partnerId, partnerName ->
+                                            navController.navigate(
+                                                Screens.ChatScreen.createRoute(
+                                                    conversationId,
+                                                    partnerId,
+                                                    partnerName
+                                                )
+                                            )
+                                        },
+                                        onLogoutClick = { logout() },
+                                    )
+                                }
+                            }
+
+                            composable(route = Screens.CallsScreen.route) {
+                                CallsScreen(onLogoutClick = { logout() })
+                            }
+
+                            composable(route = Screens.ContactsScreen.route) {
+                                ContactsScreen(
+                                    onLogoutClick = { logout() },
+                                    onContactClick = { userId ->
+                                        navController.navigate(
+                                            Screens.ChatUserProfileScreen.createRoute(
+                                                userId
+                                            )
+                                        )
+                                    },
+                                )
+                            }
+
+                            composable(route = Screens.SettingsScreen.route) {
+                                SettingsScreen(
+                                    onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
+                                    onSwitchAccountClick = { navController.navigate(Screens.ChangeAccountScreen.route) },
+                                    onPrivacyClick = { navController.navigate(Screens.PrivacyScreen.route) },
+                                    onNotificationsClick = { navController.navigate(Screens.NotificationsScreen.route) },
+                                    onAppearanceClick = { navController.navigate(Screens.AppearanceScreen.route) },
+                                    onSecurityClick = { navController.navigate(Screens.SecurityScreen.route) },
+                                    onDataStorageClick = { navController.navigate(Screens.DataStorageScreen.route) },
+                                    onLanguageClick = { navController.navigate(Screens.LanguageScreen.route) },
+                                    onLogoutClick = {
+                                        authViewModel.dispatch(AuthIntent.Logout)
+                                        navController.navigate(Screens.AuthScreen.route) {
+                                            popUpTo(navController.graph.id) { inclusive = true }
+                                        }
+                                    },
+                                )
+                            }
+
+                            composable(route = Screens.PrivacyScreen.route) {
+                                PrivacyScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.NotificationsScreen.route) {
+                                NotificationsScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.AppearanceScreen.route) {
+                                AppearanceScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.LanguageScreen.route) {
+                                LanguageScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.DataStorageScreen.route) {
+                                DataStorageScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.SecurityScreen.route) {
+                                SecurityScreen(onBack = { navController.popBackStack() })
+                            }
+
+                            composable(route = Screens.ProfileScreen.route) {
+                                ProfileScreen(
+                                    onBackClick = { navController.popBackStack() },
+                                    onLogoutClick = {
+                                        navController.navigate(Screens.AuthScreen.route) {
+                                            popUpTo(navController.graph.id) { inclusive = true }
+                                        }
+                                    },
+                                    onStartEditing = {
+                                        navController.navigate(Screens.EditProfileScreen.route)
+                                    },
+                                )
+                            }
+
+                            composable(route = Screens.EditProfileScreen.route) {
+                                EditProfileScreen(
+                                    onBackClick = { navController.popBackStack() },
+                                    onSaved = { navController.popBackStack() },
+                                    onLogout = {
+                                        authViewModel.dispatch(AuthIntent.Logout)
+                                        navController.navigate(Screens.AuthScreen.route) {
+                                            popUpTo(navController.graph.id) { inclusive = true }
+                                        }
+                                    },
+                                    onChangeAccount = { navController.navigate(Screens.ChangeAccountScreen.route) },
+                                    onChangePhone = { navController.navigate(Screens.ChangePhoneScreen.route) },
+                                )
+                            }
+
+                            composable(route = Screens.ChangePhoneScreen.route) {
+                                ChangePhoneScreen(
+                                    onBackClick = { navController.popBackStack() },
+                                    onDone = { navController.popBackStack() },
+                                )
+                            }
+
+                            composable(route = Screens.ChangeAccountScreen.route) {
+                                ChangeAccountScreen(
+                                    onBackClick = { navController.popBackStack() },
+                                    onAddAccount = { navController.navigate(Screens.AuthScreen.route) },
+                                )
+                            }
+
+                            composable(route = Screens.EditChatScreen.route) {
+                                EditChatScreen(onBackClick = { navController.popBackStack() })
+                            }
+
+                            composable(
+                                route = Screens.CallScreen.route,
+                                arguments = listOf(
+                                    navArgument("partnerId") { type = NavType.StringType },
+                                    navArgument("partnerName") { type = NavType.StringType },
+                                    navArgument("partnerPhone") { type = NavType.StringType },
+                                )
+                            ) {
+                                CallScreen(
+                                    onCallEnded = { navController.popBackStack() },
+                                    onOpenChat = { conversationId, partnerId, partnerName ->
+                                        navController.navigate(
+                                            Screens.ChatScreen.createRoute(
+                                                conversationId,
+                                                partnerId,
+                                                partnerName
+                                            ),
+                                        ) {
+                                            popUpTo(Screens.CallScreen.route) { inclusive = true }
+                                        }
+                                    },
+                                )
+                            }
+
+                            composable(
+                                route = Screens.ChatUserProfileScreen.route,
+                                arguments = listOf(navArgument("userId") {
+                                    type = NavType.StringType
+                                })
+                            ) { backStackEntry ->
+                                val userId = backStackEntry.arguments?.getString("userId").orEmpty()
+                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                                    ChatUserProfileScreen(
+                                        sharedKeyPartnerId = userId,
+                                        onBackClick = { navController.popBackStack() },
+                                        onCallClick = { partnerId, partnerName, partnerPhone ->
+                                            navController.navigate(
+                                                Screens.CallScreen.createRoute(
+                                                    partnerId,
+                                                    partnerName,
+                                                    partnerPhone
+                                                )
+                                            )
+                                        },
+                                        onEditClick = {
+                                            navController.navigate(
+                                                Screens.EditContactDataScreen.createRoute(
+                                                    userId
+                                                )
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+
+                            composable(
+                                route = Screens.EditContactDataScreen.route,
+                                arguments = listOf(navArgument("contactId") {
+                                    type = NavType.StringType
+                                })
+                            ) {
+                                EditContactDataScreen(onBackClick = { navController.popBackStack() })
+                            }
+
+                            composable(
+                                route = Screens.ChatScreen.route,
+                                arguments = listOf(
+                                    navArgument("conversationId") { type = NavType.StringType },
+                                    navArgument("partnerId") {
+                                        type = NavType.StringType; defaultValue = ""
+                                    },
+                                    navArgument("partnerName") {
+                                        type = NavType.StringType; defaultValue = ""
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val partnerId =
+                                    backStackEntry.arguments?.getString("partnerId").orEmpty()
+                                val partnerName =
+                                    backStackEntry.arguments?.getString("partnerName").orEmpty()
+                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                                    ChatScreenWithNav(
+                                        sharedKeyPartnerId = partnerId,
+                                        onBackClick = {
+                                            navController.popBackStack()
+                                        },
+                                        onIntercultorProfileClick = {
+                                            if (partnerId.isNotBlank()) {
+                                                navController.navigate(
+                                                    Screens.ChatUserProfileScreen.createRoute(
+                                                        partnerId
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onCallClick = {
+                                            navController.navigate(
+                                                Screens.CallScreen.createRoute(
+                                                    partnerId,
+                                                    partnerName, ""
+                                                )
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            )
-        }
-
-        composable(route = Screens.ChatsScreen.route) {
-            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
-                ChatsScreen(
-                    onChatClick = { conversationId, partnerId, partnerName ->
-                        navController.navigate(
-                            Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
-                        )
-                    },
-                    onLogoutClick = { logout() },
-                )
             }
-        }
-
-        composable(route = Screens.CallsScreen.route) {
-            CallsScreen(onLogoutClick = { logout() })
-        }
-
-        composable(route = Screens.ContactsScreen.route) {
-            ContactsScreen(
-                onLogoutClick = { logout() },
-                onContactClick = { userId ->
-                    navController.navigate(Screens.ChatUserProfileScreen.createRoute(userId))
-                },
-            )
-        }
-
-        composable(route = Screens.SettingsScreen.route) {
-            SettingsScreen(
-                onProfileClick = { navController.navigate(Screens.ProfileScreen.route) },
-                onSwitchAccountClick = { navController.navigate(Screens.ChangeAccountScreen.route) },
-                onPrivacyClick = { navController.navigate(Screens.PrivacyScreen.route) },
-                onNotificationsClick = { navController.navigate(Screens.NotificationsScreen.route) },
-                onAppearanceClick = { navController.navigate(Screens.AppearanceScreen.route) },
-                onSecurityClick = { navController.navigate(Screens.SecurityScreen.route) },
-                onDataStorageClick = { navController.navigate(Screens.DataStorageScreen.route) },
-                onLanguageClick = { navController.navigate(Screens.LanguageScreen.route) },
-                onLogoutClick = {
-                    authViewModel.dispatch(AuthIntent.Logout)
-                    navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                },
-            )
-        }
-
-        composable(route = Screens.PrivacyScreen.route) {
-            PrivacyScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.NotificationsScreen.route) {
-            NotificationsScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.AppearanceScreen.route) {
-            AppearanceScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.LanguageScreen.route) {
-            LanguageScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.DataStorageScreen.route) {
-            DataStorageScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.SecurityScreen.route) {
-            SecurityScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(route = Screens.ProfileScreen.route) {
-            ProfileScreen(
-                onBackClick = { navController.popBackStack() },
-                onLogoutClick = {
-                    navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                },
-                onStartEditing = {
-                    navController.navigate(Screens.EditProfileScreen.route)
-                },
-            )
-        }
-
-        composable(route = Screens.EditProfileScreen.route) {
-            EditProfileScreen(
-                onBackClick = { navController.popBackStack() },
-                onSaved = { navController.popBackStack() },
-                onLogout = {
-                    authViewModel.dispatch(AuthIntent.Logout)
-                    navController.navigate(Screens.AuthScreen.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                },
-                onChangeAccount = { navController.navigate(Screens.ChangeAccountScreen.route) },
-                onChangePhone = { navController.navigate(Screens.ChangePhoneScreen.route) },
-            )
-        }
-
-        composable(route = Screens.ChangePhoneScreen.route) {
-            ChangePhoneScreen(
-                onBackClick = { navController.popBackStack() },
-                onDone = { navController.popBackStack() },
-            )
-        }
-
-        composable(route = Screens.ChangeAccountScreen.route) {
-            ChangeAccountScreen(
-                onBackClick = { navController.popBackStack() },
-                onAddAccount = { navController.navigate(Screens.AuthScreen.route) },
-            )
-        }
-
-        composable(route = Screens.EditChatScreen.route) {
-            EditChatScreen(onBackClick = { navController.popBackStack() })
-        }
-
-        composable(
-            route = Screens.CallScreen.route,
-            arguments = listOf(
-                navArgument("partnerId") { type = NavType.StringType },
-                navArgument("partnerName") { type = NavType.StringType },
-                navArgument("partnerPhone") { type = NavType.StringType },
-            )
-        ) {
-            CallScreen(
-                onCallEnded = { navController.popBackStack() },
-                onOpenChat = { conversationId, partnerId, partnerName ->
-                    navController.navigate(
-                        Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName),
-                    ) {
-                        popUpTo(Screens.CallScreen.route) { inclusive = true }
-                    }
-                },
-            )
-        }
-
-        composable(
-            route = Screens.ChatUserProfileScreen.route,
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId").orEmpty()
-            ChatUserProfileScreen(
-                onBackClick = { navController.popBackStack() },
-                onCallClick = { partnerId, partnerName, partnerPhone ->
-                navController.navigate(Screens.CallScreen.createRoute(partnerId, partnerName, partnerPhone))
-            },
-            onEditClick = {
-                    navController.navigate(Screens.EditContactDataScreen.createRoute(userId))
-                },
-            )
-        }
-
-        composable(
-            route = Screens.EditContactDataScreen.route,
-            arguments = listOf(navArgument("contactId") { type = NavType.StringType })
-        ) {
-            EditContactDataScreen(onBackClick = { navController.popBackStack() })
-        }
-
-        composable(
-            route = Screens.ChatScreen.route,
-            arguments = listOf(
-                navArgument("conversationId") { type = NavType.StringType },
-                navArgument("partnerId") { type = NavType.StringType; defaultValue = "" },
-                navArgument("partnerName") { type = NavType.StringType; defaultValue = "" }
-            )
-        ) { backStackEntry ->
-            val partnerId = backStackEntry.arguments?.getString("partnerId").orEmpty()
-            val partnerName = backStackEntry.arguments?.getString("partnerName").orEmpty()
-            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
-                ChatScreenWithNav(
-                    sharedKeyPartnerId = partnerId,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onIntercultorProfileClick = {
-                        if (partnerId.isNotBlank()) {
-                            navController.navigate(
-                                Screens.ChatUserProfileScreen.createRoute(partnerId)
-                            )
-                        }
-                    },
-                    onCallClick = {
-                        navController.navigate(Screens.CallScreen.createRoute(partnerId,
-                            partnerName, ""))
-                    }
-                )
-            }
-        }
-
-        }
-        }
-        }
-        }
         }
         if (showTabBar && isSearching) {
             SearchResultsOverlay(
@@ -403,10 +446,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                         Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName)
                     )
                 },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 72.dp),
+                modifier = Modifier.fillMaxSize(),
             )
         }
         if (showTabBar) {

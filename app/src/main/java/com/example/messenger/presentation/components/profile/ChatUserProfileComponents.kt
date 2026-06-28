@@ -1,6 +1,7 @@
 package com.example.messenger.presentation.components.profile
 
 import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.sharedElementKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +45,7 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 @Composable
 fun ProfileHeader(
     state: ChatUserProfileUiState,
+    sharedKeyPartnerId: String = "",
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit,
 ) {
     val tokens = messengerTokens
@@ -51,16 +53,19 @@ fun ProfileHeader(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        val displayName = state.displayName.ifBlank { state.user?.username.orEmpty() }
         MessengerAvatar(
-            name = state.user?.username.orEmpty(),
+            name = displayName,
             size = 112.dp,
+            modifier = Modifier.sharedElementKey("avatar-$sharedKeyPartnerId"),
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = state.user?.username ?: "Unknown",
+            text = displayName.ifBlank { "Unknown" },
             color = tokens.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.sharedElementKey("name-$sharedKeyPartnerId"),
         )
         Spacer(Modifier.height(2.dp))
         Text(
