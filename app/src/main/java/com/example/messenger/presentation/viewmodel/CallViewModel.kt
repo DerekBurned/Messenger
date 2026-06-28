@@ -12,6 +12,7 @@ import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.data.remote.call.telecom.TelecomCallManager
 import com.example.messenger.data.remote.call.telecom.TelecomCallMeta
 import com.example.messenger.domain.repository.IConversationRepository
+import com.example.messenger.domain.repository.IUserRepository
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -42,6 +45,7 @@ class CallViewModel @Inject constructor(
     application: Application,
     private val auth: FirebaseAuth,
     private val conversationRepository: IConversationRepository,
+    private val userRepository: IUserRepository,
     private val telecomCallManager: TelecomCallManager,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
@@ -58,6 +62,9 @@ class CallViewModel @Inject constructor(
     private var lastCall: ActiveCallHolder.ActiveCall? = null
     private var wasAnswered = false
 
+    private var partnerAvatarUrl: String? = null
+    private var observingAvatarFor: String? = null
+
     private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
     private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
     private val pendingPartnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
@@ -69,10 +76,24 @@ class CallViewModel @Inject constructor(
 
     init {
         if (ActiveCallHolder.snapshot() == null) {
-            
+
             _uiState.update { it.copy(partnerName = pendingPartnerName, partnerPhone = pendingPartnerPhone) }
         }
+        observePartnerAvatar(pendingPartnerId)
         observeActiveCall()
+    }
+
+    private fun observePartnerAvatar(partnerId: String) {
+        if (partnerId.isBlank() || partnerId == RESUME_PARTNER_ID) return
+        if (observingAvatarFor == partnerId) return
+        observingAvatarFor = partnerId
+        userRepository.observeUser(partnerId)
+            .onEach { user ->
+                partnerAvatarUrl = user?.avatarUrl
+                _uiState.update { it.copy(partnerAvatarUrl = partnerAvatarUrl) }
+            }
+            .launchIn(viewModelScope)
+        viewModelScope.launch { userRepository.getUserById(partnerId) }
     }
 
     private fun observeActiveCall() {
@@ -86,6 +107,7 @@ class CallViewModel @Inject constructor(
                             _uiState.value = CallUiState(
                                 partnerName = ended?.partnerName.orEmpty(),
                                 partnerPhone = ended?.partnerPhone.orEmpty(),
+                                partnerAvatarUrl = partnerAvatarUrl,
                                 callEnded = true,
                             )
                             delay(CALL_ENDED_DISPLAY_MS)
@@ -101,9 +123,11 @@ class CallViewModel @Inject constructor(
                 hadActiveCall = true
                 lastCall = active
                 if (active.isActive) wasAnswered = true
+                observePartnerAvatar(if (active.isIncoming) active.callerId else active.calleeId)
                 _uiState.value = CallUiState(
                     partnerName = active.partnerName,
                     partnerPhone = active.partnerPhone,
+                    partnerAvatarUrl = partnerAvatarUrl,
                     channelName = active.channelName,
                     isIncoming = active.isIncoming,
                     isActive = active.isActive,
