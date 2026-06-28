@@ -8,8 +8,10 @@ import com.example.messenger.data.local.obx.ObxUser_
 import com.example.messenger.data.local.obx.asFlow
 import com.example.messenger.data.local.obx.toDomain
 import com.example.messenger.data.local.obx.toObx
+import android.net.Uri
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
+import com.example.messenger.data.remote.firebase.FirebaseStorageService
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.User
 import com.example.messenger.domain.repository.IUserRepository
@@ -25,7 +27,23 @@ class UserRepositoryImpl @Inject constructor(
     private val contactAliasBox: Box<ObxContactAlias>,
     private val firestoreService: FirestoreService,
     private val authService: FirebaseAuthService,
+    private val storageService: FirebaseStorageService,
 ) : IUserRepository {
+
+    override suspend fun uploadAvatar(imageUri: Uri): Result<String> {
+        return try {
+            val uid = authService.getCurrentUserId() ?: return Result.failure(Exception("Not logged in"))
+            val url = storageService.uploadProfileImage(uid, imageUri).getOrThrow()
+            updateUserProfile(mapOf("avatarUrl" to url)).getOrThrow()
+            Result.success(url)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getProfilePhotos(userId: String): Result<List<String>> {
+        return storageService.listProfileImages(userId)
+    }
 
     override suspend fun getUserById(userId: String): Result<User?> {
         return try {

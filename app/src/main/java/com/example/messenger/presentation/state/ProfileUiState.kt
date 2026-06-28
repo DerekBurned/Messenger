@@ -8,4 +8,5 @@ data class ProfileUiState(
     val user: User? = null,
     val error: UiText? = null,
     val isEditing: Boolean = false,
+    val photos: List<String> = emptyList(),
 )

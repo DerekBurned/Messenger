@@ -162,6 +162,7 @@ dependencies {
     //Coil
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.network.okhttp)
 
     // CameraX
     implementation(libs.androidx.camera.core)
