@@ -13,6 +13,7 @@ data class ConversationsUiState(
     val error: UiText? = null,
     val presenceMap: Map<String, UserPresence> = emptyMap(),
     val aliases: Map<String, String> = emptyMap(),
+    val avatars: Map<String, String?> = emptyMap(),
     val isRefreshing: Boolean = false,
     val currentUserId: String = "",
 ) : UiState

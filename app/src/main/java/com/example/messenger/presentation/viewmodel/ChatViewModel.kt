@@ -91,6 +91,7 @@ class ChatViewModel @Inject constructor(
             )
         }
         observePartnerAlias()
+        observePartnerAvatar()
         observeTransfers()
         if (conversationId.isNotBlank()) {
             loadMessages()
@@ -118,6 +119,16 @@ class ChatViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun observePartnerAvatar() {
+        if (partnerId.isBlank()) return
+        userRepository.observeUser(partnerId)
+            .onEach { user ->
+                setState { copy(partnerAvatarUrl = user?.avatarUrl) }
+            }
+            .launchIn(viewModelScope)
+        viewModelScope.launch { userRepository.getUserById(partnerId) }
     }
 
     override fun handleIntent(intent: ChatIntent) {

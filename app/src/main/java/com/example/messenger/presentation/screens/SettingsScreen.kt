@@ -1,5 +1,6 @@
 package com.example.messenger.presentation.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +49,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     SettingsScreenContent(
         user = uiState.user,
+        photoUrl = uiState.photos.firstOrNull() ?: uiState.user?.avatarUrl,
         onProfileClick = onProfileClick,
         onSwitchAccountClick = onSwitchAccountClick,
         onPrivacyClick = onPrivacyClick,
@@ -63,6 +65,7 @@ fun SettingsScreen(
 @Composable
 fun SettingsScreenContent(
     user: User?,
+    photoUrl: String? = null,
     onProfileClick: () -> Unit = {},
     onSwitchAccountClick: () -> Unit = {},
     onPrivacyClick: () -> Unit = {},
@@ -85,7 +88,9 @@ fun SettingsScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(72.dp))
-            MessengerAvatar(name = user?.username.orEmpty(), size = Dimens.avatarLarge)
+            MessengerAvatar(name = user?.username.orEmpty(),
+                photoUrl = photoUrl,
+                size = Dimens.avatarLarge)
             Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = user?.username ?: "User",

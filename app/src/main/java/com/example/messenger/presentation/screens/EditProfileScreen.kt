@@ -87,7 +87,7 @@ private fun EditProfileScreenContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            MessengerAvatar(name = state.name, size = Dimens.avatarLarge)
+            MessengerAvatar(name = state.name, photoUrl = state.avatarUrl, size = Dimens.avatarLarge)
             TextButton(onClick = {}) {
                 Text("Change photo", color = tokens.accent, fontSize = 13.sp)
             }

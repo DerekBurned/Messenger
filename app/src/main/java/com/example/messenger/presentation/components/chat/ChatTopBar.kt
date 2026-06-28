@@ -43,6 +43,7 @@ fun ChatTopBar(
     sharedKeyPartnerId: String,
     onBackClick: () -> Unit,
     onProfileClick: () -> Unit,
+    partnerAvatarUrl: String? = null,
 ) {
     val tokens = messengerTokens
     val chipFill = if (tokens.isDark) Color.Black.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
@@ -99,6 +100,7 @@ fun ChatTopBar(
             Box(contentAlignment = Alignment.BottomEnd) {
                 MessengerAvatar(
                     name = partnerName,
+                    photoUrl = partnerAvatarUrl,
                     size = 40.dp,
                     modifier = Modifier.sharedElementKey("avatar-$sharedKeyPartnerId"),
                 )

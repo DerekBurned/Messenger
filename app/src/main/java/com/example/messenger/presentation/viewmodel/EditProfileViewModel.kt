@@ -82,6 +82,7 @@ class EditProfileViewModel @Inject constructor(
                     name = name,
                     username = username,
                     phone = phone,
+                    avatarUrl = user?.avatarUrl,
                 )
             }
         }

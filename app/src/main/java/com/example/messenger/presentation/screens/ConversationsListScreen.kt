@@ -255,6 +255,8 @@ private fun ChatsList(
                         presence = uiState.presenceMap[otherUserId],
                         currentUserId = currentUserId,
                         onClick = rowOnClick,
+                        photoUrl = uiState.avatars[otherUserId]
+                            ?: conversation.participantAvatars.getOrNull(otherIdx),
                     )
                 }
             }
