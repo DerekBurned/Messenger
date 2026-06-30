@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
@@ -129,8 +130,11 @@ dependencies {
     // Required so @HiltWorker (e.g. SyncWorker) is registered in HiltWorkerFactory.
     ksp(libs.androidx.hilt.compiler)
 
-    // Navigation
-    implementation(libs.androidx.navigation.compose)
+    // Navigation 3
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.json)
 
     // DataStore - theme-mode preference
     implementation(libs.androidx.datastore.preferences)

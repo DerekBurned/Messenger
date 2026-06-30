@@ -40,3 +40,11 @@
 # Agora voice SDK is native; its C++ layer calls into these classes by name over JNI.
 -keep class io.agora.** { *; }
 -dontwarn io.agora.**
+
+# kotlinx.serialization: Navigation 3 serializes @Serializable route keys to persist the
+# back stack across process death, so the generated serializers must survive shrinking.
+-keepclassmembers @kotlinx.serialization.Serializable class com.example.messenger.presentation.navigation.** {
+    *** Companion;
+    *** serializer(...);
+}
+-keep class com.example.messenger.presentation.navigation.**$$serializer { *; }

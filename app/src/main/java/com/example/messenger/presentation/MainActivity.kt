@@ -10,13 +10,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavKey
 import com.example.messenger.data.local.prefs.ThemePreferenceStore
 import com.example.messenger.data.presence.PresenceManager
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.navigation.AppNavigation
-import com.example.messenger.presentation.navigation.Screens
+import com.example.messenger.presentation.navigation.CallRoute
+import com.example.messenger.presentation.navigation.ChatRoute
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
@@ -52,15 +53,16 @@ class MainActivity : ComponentActivity() {
             val themeMode by themePreferenceStore.themeMode
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             MessengerTheme(themeMode = themeMode) {
-                val navController = rememberNavController()
                 val deepLink = remember { pendingIntent }
-                AppNavigation(navController = navController)
+                val pendingRoute = remember { mutableStateOf<NavKey?>(null) }
                 LaunchedEffect(deepLink.value) {
-                    deepLink.value?.let { handleDeepLink(it) {
-                        navController.navigate(it)
-                    } }
+                    deepLink.value?.let { pendingRoute.value = resolveDeepLinkRoute(it) }
                     deepLink.value = null
                 }
+                AppNavigation(
+                    pendingRoute = pendingRoute.value,
+                    onRouteConsumed = { pendingRoute.value = null },
+                )
             }
         }
     }
@@ -107,14 +109,15 @@ class MainActivity : ComponentActivity() {
         idleScope.cancel()
     }
 
-    private fun handleDeepLink(intent: Intent, navigate: (String) -> Unit) {
-        when {
-            intent.getBooleanExtra(EXTRA_OPEN_INCOMING_CALL, false) -> {
-                val call = ActiveCallHolder.snapshot() ?: return
+    private fun resolveDeepLinkRoute(intent: Intent): NavKey? = when {
+        intent.getBooleanExtra(EXTRA_OPEN_INCOMING_CALL, false) -> {
+            val call = ActiveCallHolder.snapshot()
+            if (call == null) {
+                null
+            } else {
                 val accept = intent.getBooleanExtra(EXTRA_ACCEPT_CALL, false)
                 intent.removeExtra(EXTRA_OPEN_INCOMING_CALL)
                 intent.removeExtra(EXTRA_ACCEPT_CALL)
-
                 if (accept) {
                     runCatching {
                         startService(
@@ -123,26 +126,27 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                navigate(
-                    Screens.CallScreen.createRoute(
-                        partnerId = call.callerId,
-                        partnerName = call.partnerName,
-                        partnerPhone = call.partnerPhone,
-                    ),
+                CallRoute(
+                    partnerId = call.callerId,
+                    partnerName = call.partnerName,
+                    partnerPhone = call.partnerPhone,
                 )
             }
-            intent.hasExtra(EXTRA_OPEN_CONVERSATION_ID) -> {
-                val conversationId = intent.getStringExtra(EXTRA_OPEN_CONVERSATION_ID).orEmpty()
-                val partnerId = intent.getStringExtra(EXTRA_PARTNER_ID).orEmpty()
-                val partnerName = intent.getStringExtra(EXTRA_PARTNER_NAME).orEmpty()
-                intent.removeExtra(EXTRA_OPEN_CONVERSATION_ID)
-                intent.removeExtra(EXTRA_PARTNER_ID)
-                intent.removeExtra(EXTRA_PARTNER_NAME)
-                if (conversationId.isNotBlank()) {
-                    navigate(Screens.ChatScreen.createRoute(conversationId, partnerId, partnerName))
-                }
+        }
+        intent.hasExtra(EXTRA_OPEN_CONVERSATION_ID) -> {
+            val conversationId = intent.getStringExtra(EXTRA_OPEN_CONVERSATION_ID).orEmpty()
+            val partnerId = intent.getStringExtra(EXTRA_PARTNER_ID).orEmpty()
+            val partnerName = intent.getStringExtra(EXTRA_PARTNER_NAME).orEmpty()
+            intent.removeExtra(EXTRA_OPEN_CONVERSATION_ID)
+            intent.removeExtra(EXTRA_PARTNER_ID)
+            intent.removeExtra(EXTRA_PARTNER_NAME)
+            if (conversationId.isNotBlank()) {
+                ChatRoute(conversationId, partnerId, partnerName)
+            } else {
+                null
             }
         }
+        else -> null
     }
 
     companion object {
