@@ -3,12 +3,13 @@ package com.example.messenger.presentation
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.example.messenger.presentation.navigation.Screens
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import com.example.messenger.presentation.navigation.ChatRoute
+import com.example.messenger.presentation.navigation.ProvideNavArgs
 import com.example.messenger.presentation.screens.ChatScreenWithNav
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,22 +28,31 @@ class BubbleActivity : ComponentActivity() {
         }
         setContent {
             MessengerTheme {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = Screens.ChatScreen.route,
-                ) {
-                    composable(
-                        route = Screens.ChatScreen.route,
-                        arguments = listOf(
-                            navArgument("conversationId") { type = NavType.StringType; defaultValue = conversationId },
-                            navArgument("partnerId") { type = NavType.StringType; defaultValue = partnerId },
-                            navArgument("partnerName") { type = NavType.StringType; defaultValue = partnerName },
-                        ),
-                    ) {
-                        ChatScreenWithNav(inBubble = true, onBackClick = { finish() })
-                    }
-                }
+                val backStack = rememberNavBackStack(
+                    ChatRoute(conversationId, partnerId, partnerName),
+                )
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { finish() },
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
+                    entryProvider = entryProvider {
+                        entry<ChatRoute> { key ->
+                            ProvideNavArgs(
+                                "conversationId" to key.conversationId,
+                                "partnerId" to key.partnerId,
+                                "partnerName" to key.partnerName,
+                            ) {
+                                ChatScreenWithNav(
+                                    inBubble = true,
+                                    onBackClick = { finish() },
+                                )
+                            }
+                        }
+                    },
+                )
             }
         }
     }
