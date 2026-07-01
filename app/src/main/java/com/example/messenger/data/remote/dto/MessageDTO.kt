@@ -63,6 +63,16 @@ private fun parseStatus(value: String): MessageStatus {
     return runCatching { MessageStatus.valueOf(value) }.getOrDefault(MessageStatus.SENT)
 }
 
+fun RemoteMessageDto.toDomain(hasPendingWrites: Boolean): Message {
+    val base = toDomain()
+    if (!hasPendingWrites) return base
+    return when (base) {
+        is Message.Text  -> base.copy(status = MessageStatus.SENDING)
+        is Message.Media -> base.copy(status = MessageStatus.SENDING)
+        is Message.Call  -> base.copy(status = MessageStatus.SENDING)
+    }
+}
+
 fun RemoteMessageDto.toDomain(): Message {
     val parsedStatus = parseStatus(status)
     val read = isRead || parsedStatus == MessageStatus.READ

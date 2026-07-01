@@ -55,13 +55,11 @@ class MessageRepositoryImpl @Inject constructor(
             updateConversationPreview(message)
 
             val result = firestoreService.sendMessage(message.withStatus(MessageStatus.SENT))
-            if (result.isSuccess) {
-                updateMessage(message.id) { it.status = MessageStatus.SENT.name }
-            } else {
+            if (result.isFailure) {
                 updateMessage(message.id) { it.status = MessageStatus.FAILED.name }
                 enqueueRetry(message.id)
             }
-            result
+            Result.success(Unit)
         } catch (e: Exception) {
             runCatching { updateMessage(message.id) { it.status = MessageStatus.FAILED.name } }
             runCatching { enqueueRetry(message.id) }
