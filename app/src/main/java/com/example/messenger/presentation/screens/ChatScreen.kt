@@ -155,7 +155,7 @@ fun ChatScreenWithNav(
     inBubble: Boolean = false,
     onBackClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
-    onIntercultorProfileClick: (String?) -> Unit = {}
+    onIntercultorProfileClick: (avatarUrl: String?, partnerName: String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     var messageText by rememberSaveable { mutableStateOf("") }
@@ -299,7 +299,7 @@ private fun ChatScreenContent(
     onSendClick: () -> Unit,
     onBackClick: () -> Unit,
     onCallClick: () -> Unit,
-    onIntercultorProfileClick: (String?) -> Unit,
+    onIntercultorProfileClick: (avatarUrl: String?, partnerName: String) -> Unit,
     onCopy: (String) -> Unit,
     onReply: (Message) -> Unit,
     onReplyClick: (messageId: String) -> Unit,
@@ -341,7 +341,7 @@ private fun ChatScreenContent(
                     presenceState = uiState.partnerPresence.state,
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onBackClick = onBackClick,
-                    onProfileClick = { onIntercultorProfileClick(uiState.partnerAvatarUrl) },
+                    onProfileClick = { onIntercultorProfileClick(uiState.partnerAvatarUrl, uiState.partnerUsername) },
                     partnerAvatarUrl = uiState.partnerAvatarUrl,
                 )
             }
@@ -501,7 +501,7 @@ private fun ChatScreenContent(
                 .imePadding()
                 .chatNavigationSwipe(
                     onSwipeRight = onBackClick,
-                    onSwipeLeft = { onIntercultorProfileClick(uiState.partnerAvatarUrl) },
+                    onSwipeLeft = { onIntercultorProfileClick(uiState.partnerAvatarUrl, uiState.partnerUsername) },
                 )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -1030,7 +1030,7 @@ private fun ChatScreenPreview() {
             onClearReply = {},
             onAttachmentClick = {},
             onClearAttachments = {},
-            onIntercultorProfileClick = {},
+            onIntercultorProfileClick = { _, _ -> },
             onMessagesSeen = {},
             onLoadOlderMessages = {},
             onDownload = {},

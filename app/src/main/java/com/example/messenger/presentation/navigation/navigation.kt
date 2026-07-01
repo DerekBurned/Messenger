@@ -297,6 +297,7 @@ private fun MainDisplay(
                                 ProvideNavArgs(
                                     "userId" to key.userId,
                                     "avatarUrl" to (key.avatarUrl ?: ""),
+                                    "partnerName" to key.partnerName,
                                 ) {
                                     ProvideNavAnimatedScope {
                                         ChatUserProfileScreen(
@@ -328,9 +329,9 @@ private fun MainDisplay(
                                         ChatScreenWithNav(
                                             sharedKeyPartnerId = key.partnerId,
                                             onBackClick = { backStack.removeLastOrNull() },
-                                            onIntercultorProfileClick = { avatarUrl ->
+                                            onIntercultorProfileClick = { avatarUrl, partnerName ->
                                                 if (key.partnerId.isNotBlank()) {
-                                                    backStack.add(ChatUserProfileRoute(key.partnerId, avatarUrl))
+                                                    backStack.add(ChatUserProfileRoute(key.partnerId, avatarUrl, partnerName))
                                                 }
                                             },
                                             onCallClick = {
