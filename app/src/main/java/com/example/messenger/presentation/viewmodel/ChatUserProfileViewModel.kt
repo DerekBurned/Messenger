@@ -31,6 +31,10 @@ class ChatUserProfileViewModel @Inject constructor(
 
     init {
         val userId: String? = savedStateHandle["userId"]
+        val seededAvatarUrl: String? = savedStateHandle.get<String>("avatarUrl")?.takeIf { it.isNotBlank() }
+        if (seededAvatarUrl != null) {
+            _uiState.update { it.copy(seededAvatarUrl = seededAvatarUrl) }
+        }
         if (!userId.isNullOrBlank()) {
             load(userId)
             loadPhotos(userId)

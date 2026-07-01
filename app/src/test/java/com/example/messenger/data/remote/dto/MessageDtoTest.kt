@@ -1,11 +1,12 @@
 package com.example.messenger.data.remote.dto
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MessageDtoTest {
 
@@ -19,7 +20,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertEquals(MessageStatus.SENDING, dto.toDomain(hasPendingWrites = true).status)
+        assertThat(dto.toDomain(hasPendingWrites = true).status).isEqualTo(MessageStatus.SENDING)
     }
 
     @Test
@@ -32,7 +33,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertEquals(MessageStatus.SENT, dto.toDomain(hasPendingWrites = false).status)
+        assertThat(dto.toDomain(hasPendingWrites = false).status).isEqualTo(MessageStatus.SENT)
     }
 
     @Test
@@ -45,7 +46,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertEquals(MessageStatus.READ, dto.toDomain(hasPendingWrites = false).status)
+        assertThat(dto.toDomain(hasPendingWrites = false).status).isEqualTo(MessageStatus.READ)
     }
 
     @Test
@@ -59,7 +60,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 
     @Test
@@ -73,7 +74,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertFalse(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isFalse()
     }
 
     @Test
@@ -87,7 +88,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 
     @Test
@@ -100,6 +101,6 @@ class MessageDtoTest {
             isRead = false,
             type = Message.TYPE_MISSED_CALL,
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 }

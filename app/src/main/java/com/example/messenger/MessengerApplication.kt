@@ -11,7 +11,12 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.CachePolicy
+import coil3.util.DebugLogger
 import coil3.video.VideoFrameDecoder
 import com.example.messenger.data.presence.AppLifecycleObserver
 import com.example.messenger.data.remote.call.IncomingCallCoordinator
@@ -21,7 +26,9 @@ import com.example.messenger.data.sync.SyncCoordinator
 import com.example.messenger.data.sync.SyncManager
 import com.example.messenger.presentation.notification.NotificationChannels
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 @HiltAndroidApp
 class MessengerApplication : Application(), Configuration.Provider {
@@ -52,6 +59,21 @@ class MessengerApplication : Application(), Configuration.Provider {
 
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .memoryCache {
+                    MemoryCache.Builder()
+                        .maxSizePercent(context, 0.1)
+                        .strongReferencesEnabled(true)
+                        .build()
+                }
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .diskCache {
+                    DiskCache.Builder()
+                        .directory(context.filesDir.resolve("image_cache"))
+                        .maxSizeBytes(30L * 1024 * 1024)
+                        .build()
+                }
+                .apply { if (com.example.messenger.BuildConfig.DEBUG) logger(DebugLogger()) }
                 .components {
                     add(OkHttpNetworkFetcherFactory())
                     add(VideoFrameDecoder.Factory())

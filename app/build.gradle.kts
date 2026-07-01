@@ -79,6 +79,16 @@ android {
             useLegacyPackaging = true
         }
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all { test ->
+                test.useJUnitPlatform()
+                test.maxHeapSize = "512m"
+                test.maxParallelForks = 1
+            }
+        }
+    }
 }
 
 configurations.all {
@@ -175,8 +185,17 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.camera.video)
 
-    // Testing
-    testImplementation(libs.junit)
+    // Testing — JUnit5 (Jupiter) + AssertK + Turbine + MockK + coroutines-test
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.jupiter.params)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.assertk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

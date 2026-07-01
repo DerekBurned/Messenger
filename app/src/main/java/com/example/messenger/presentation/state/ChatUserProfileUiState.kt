@@ -15,5 +15,6 @@ data class ChatUserProfileUiState(
     val mediaTab: MediaTab = MediaTab.PHOTO,
     val mediaItems: List<String> = emptyList(),
     val avatarPhotos: List<String> = emptyList(),
+    val seededAvatarUrl: String? = null,
     val error: UiText? = null,
 ) : UiState

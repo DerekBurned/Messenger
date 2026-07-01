@@ -1,11 +1,12 @@
 package com.example.messenger.presentation.screens
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.presentation.state.CallUiState
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
-class  CallStatusTextTest {
+class CallStatusTextTest {
 
     @Test
     fun `incoming call shows incoming regardless of other flags`() {
@@ -14,20 +15,19 @@ class  CallStatusTextTest {
             remoteRinging = true,
             connectionState = CallConnectionState.CONNECTED,
         )
-        assertEquals("Incoming call…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Incoming call…")
     }
 
     @Test
     fun `connected but no ringing ack is still Requesting`() {
-
         val state = CallUiState(connectionState = CallConnectionState.CONNECTED)
-        assertEquals("Requesting…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Requesting…")
     }
 
     @Test
     fun `still connecting socket with no ack is Requesting`() {
         val state = CallUiState(connectionState = CallConnectionState.CONNECTING)
-        assertEquals("Requesting…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Requesting…")
     }
 
     @Test
@@ -36,7 +36,7 @@ class  CallStatusTextTest {
             remoteRinging = true,
             connectionState = CallConnectionState.CONNECTED,
         )
-        assertEquals("Ringing…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Ringing…")
     }
 
     @Test
@@ -46,7 +46,7 @@ class  CallStatusTextTest {
             remoteRinging = true,
             connectionState = CallConnectionState.CONNECTING,
         )
-        assertEquals("Connecting…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Connecting…")
     }
 
     @Test
@@ -57,7 +57,7 @@ class  CallStatusTextTest {
             seconds = 73,
             connectionState = CallConnectionState.CONNECTED,
         )
-        assertEquals("1:13", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("1:13")
     }
 
     @Test
@@ -68,7 +68,7 @@ class  CallStatusTextTest {
             seconds = 73,
             connectionState = CallConnectionState.CONNECTED,
         )
-        assertEquals("Connecting…", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Connecting…")
     }
 
     @Test
@@ -79,18 +79,18 @@ class  CallStatusTextTest {
             remotePresent = true,
             connectionState = CallConnectionState.CONNECTED,
         )
-        assertEquals("Call Ended", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Call Ended")
     }
 
     @Test
     fun `failed connection shows call failed`() {
         val state = CallUiState(connectionState = CallConnectionState.FAILED)
-        assertEquals("Call failed", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Call failed")
     }
 
     @Test
     fun `disconnected shows disconnected`() {
         val state = CallUiState(connectionState = CallConnectionState.DISCONNECTED)
-        assertEquals("Disconnected", callStatusText(state))
+        assertThat(callStatusText(state)).isEqualTo("Disconnected")
     }
 }

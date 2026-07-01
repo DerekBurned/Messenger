@@ -1,8 +1,9 @@
 package com.example.messenger.data.local.obx
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.example.messenger.domain.model.MessageStatus
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ObxMessageStatusTest {
 
@@ -16,26 +17,26 @@ class ObxMessageStatusTest {
 
     @Test
     fun `sending status is preserved when read back from local store`() {
-        assertEquals(MessageStatus.SENDING, message("SENDING").toDomain().status)
+        assertThat(message("SENDING").toDomain().status).isEqualTo(MessageStatus.SENDING)
     }
 
     @Test
     fun `read status is preserved`() {
-        assertEquals(MessageStatus.READ, message("READ").toDomain().status)
+        assertThat(message("READ").toDomain().status).isEqualTo(MessageStatus.READ)
     }
 
     @Test
     fun `failed status is preserved`() {
-        assertEquals(MessageStatus.FAILED, message("FAILED").toDomain().status)
+        assertThat(message("FAILED").toDomain().status).isEqualTo(MessageStatus.FAILED)
     }
 
     @Test
     fun `sent status stays sent`() {
-        assertEquals(MessageStatus.SENT, message("SENT").toDomain().status)
+        assertThat(message("SENT").toDomain().status).isEqualTo(MessageStatus.SENT)
     }
 
     @Test
     fun `legacy delivered maps to sent`() {
-        assertEquals(MessageStatus.SENT, message("DELIVERED").toDomain().status)
+        assertThat(message("DELIVERED").toDomain().status).isEqualTo(MessageStatus.SENT)
     }
 }

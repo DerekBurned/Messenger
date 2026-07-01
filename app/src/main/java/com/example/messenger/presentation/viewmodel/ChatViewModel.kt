@@ -62,6 +62,8 @@ class ChatViewModel @Inject constructor(
     val conversationId: String = savedStateHandle.get<String>("conversationId") ?: ""
     private val partnerId: String = savedStateHandle.get<String>("partnerId") ?: ""
     private val partnerName: String = savedStateHandle.get<String>("partnerName") ?: ""
+    private val seededAvatarUrl: String? =
+        savedStateHandle.get<String>("partnerAvatarUrl")?.takeIf { it.isNotBlank() }
 
     private var typingJob: Job? = null
     private var typingClearJob: Job? = null
@@ -87,6 +89,7 @@ class ChatViewModel @Inject constructor(
             copy(
                 currentUserId = currentUserId,
                 partnerUsername = com.example.messenger.util.resolveDisplayName(partnerName, null),
+                partnerAvatarUrl = seededAvatarUrl,
                 partnerLastSeenDisplay = DateUtils.formatLastSeen(partnerPresence.lastSeen),
             )
         }
@@ -125,7 +128,7 @@ class ChatViewModel @Inject constructor(
         if (partnerId.isBlank()) return
         userRepository.observeUser(partnerId)
             .onEach { user ->
-                setState { copy(partnerAvatarUrl = user?.avatarUrl) }
+                setState { copy(partnerAvatarUrl = user?.avatarUrl?.takeIf { it.isNotBlank() } ?: partnerAvatarUrl) }
             }
             .launchIn(viewModelScope)
         viewModelScope.launch { userRepository.getUserById(partnerId) }

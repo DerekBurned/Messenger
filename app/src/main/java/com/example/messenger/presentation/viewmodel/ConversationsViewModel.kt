@@ -43,6 +43,7 @@ class ConversationsViewModel @Inject constructor(
     val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
 
     private var presenceJob: Job? = null
+    private val fetchedUserIds = mutableSetOf<String>()
 
     init {
         loadConversations()
@@ -62,7 +63,14 @@ class ConversationsViewModel @Inject constructor(
         viewModelScope.launch {
             getConversationsUseCase()
                 .onStart { _uiState.update { it.copy(isLoading = true) } }
-                .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                        )
+                    }
+                }
                 .collect { conversations ->
                     _uiState.update {
                         it.copy(isLoading = false, conversations = conversations, error = null)
@@ -73,8 +81,11 @@ class ConversationsViewModel @Inject constructor(
         }
     }
 
-    private fun loadParticipantAvatars(conversations: List<com.example.messenger.domain.model.Conversation>) {
+    private fun loadParticipantAvatars(
+        conversations: List<com.example.messenger.domain.model.Conversation>
+    ) {
         val currentUserId = firebaseAuth.currentUser?.uid ?: return
+
         val seeded = buildMap<String, String?> {
             conversations.forEach { conversation ->
                 conversation.participantIds.forEachIndexed { index, id ->
@@ -84,15 +95,24 @@ class ConversationsViewModel @Inject constructor(
                 }
             }
         }
-        _uiState.update { it.copy(avatars = it.avatars + seeded) }
+        if (seeded.isNotEmpty()) {
+            _uiState.update { it.copy(avatars = seeded + it.avatars) }
+        }
 
-        val otherUserIds = conversations
+        val newUserIds = conversations
             .flatMap { it.participantIds }
             .filter { it != currentUserId }
             .distinct()
+            .filter { it !in fetchedUserIds }
+
+        if (newUserIds.isEmpty()) return
+        fetchedUserIds.addAll(newUserIds)
+
         viewModelScope.launch {
-            otherUserIds.forEach { id ->
-                val url = runCatching { userRepository.getUserById(id).getOrNull()?.avatarUrl }.getOrNull()
+            newUserIds.forEach { id ->
+                val url = runCatching {
+                    userRepository.getUserById(id).getOrNull()?.avatarUrl
+                }.getOrNull()
                 if (url != null) {
                     _uiState.update { it.copy(avatars = it.avatars + (id to url)) }
                 }
@@ -100,7 +120,9 @@ class ConversationsViewModel @Inject constructor(
         }
     }
 
-    private fun observeParticipantPresence(conversations: List<com.example.messenger.domain.model.Conversation>) {
+    private fun observeParticipantPresence(
+        conversations: List<com.example.messenger.domain.model.Conversation>
+    ) {
         presenceJob?.cancel()
         val currentUserId = firebaseAuth.currentUser?.uid ?: return
         val otherUserIds = conversations
@@ -112,7 +134,7 @@ class ConversationsViewModel @Inject constructor(
 
         presenceJob = viewModelScope.launch {
             observeUserPresenceUseCase.observeMultiple(otherUserIds)
-                .catch {  }
+                .catch { }
                 .collect { presenceMap ->
                     _uiState.update { it.copy(presenceMap = presenceMap) }
                 }
@@ -125,7 +147,14 @@ class ConversationsViewModel @Inject constructor(
             val result = deleteConversationUseCase(conversationId)
             result.fold(
                 onSuccess = { _uiState.update { it.copy(isLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                        )
+                    }
+                }
             )
         }
     }
@@ -150,7 +179,14 @@ class ConversationsViewModel @Inject constructor(
             val result = createConversationUseCase(participantId)
             result.fold(
                 onSuccess = { _uiState.update { it.copy(isLoading = false) } },
-                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message?.toUiText()) } }
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message?.toUiText()
+                        )
+                    }
+                }
             )
         }
     }
