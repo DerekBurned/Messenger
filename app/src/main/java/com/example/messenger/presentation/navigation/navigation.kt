@@ -201,8 +201,8 @@ private fun MainDisplay(
                             entry<ChatsRoute> {
                                 ProvideNavAnimatedScope {
                                     ChatsScreen(
-                                        onChatClick = { conversationId, partnerId, partnerName ->
-                                            backStack.add(ChatRoute(conversationId, partnerId, partnerName))
+                                        onChatClick = { conversationId, partnerId, partnerName, partnerAvatarUrl ->
+                                            backStack.add(ChatRoute(conversationId, partnerId, partnerName, partnerAvatarUrl))
                                         },
                                         onLogoutClick = { logout() },
                                     )
@@ -294,7 +294,10 @@ private fun MainDisplay(
                             }
 
                             entry<ChatUserProfileRoute> { key ->
-                                ProvideNavArgs("userId" to key.userId) {
+                                ProvideNavArgs(
+                                    "userId" to key.userId,
+                                    "avatarUrl" to (key.avatarUrl ?: ""),
+                                ) {
                                     ProvideNavAnimatedScope {
                                         ChatUserProfileScreen(
                                             sharedKeyPartnerId = key.userId,
@@ -319,14 +322,15 @@ private fun MainDisplay(
                                     "conversationId" to key.conversationId,
                                     "partnerId" to key.partnerId,
                                     "partnerName" to key.partnerName,
+                                    "partnerAvatarUrl" to (key.partnerAvatarUrl ?: ""),
                                 ) {
                                     ProvideNavAnimatedScope {
                                         ChatScreenWithNav(
                                             sharedKeyPartnerId = key.partnerId,
                                             onBackClick = { backStack.removeLastOrNull() },
-                                            onIntercultorProfileClick = {
+                                            onIntercultorProfileClick = { avatarUrl ->
                                                 if (key.partnerId.isNotBlank()) {
-                                                    backStack.add(ChatUserProfileRoute(key.partnerId))
+                                                    backStack.add(ChatUserProfileRoute(key.partnerId, avatarUrl))
                                                 }
                                             },
                                             onCallClick = {

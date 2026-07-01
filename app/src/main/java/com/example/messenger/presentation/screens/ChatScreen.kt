@@ -153,7 +153,7 @@ fun ChatScreenWithNav(
     inBubble: Boolean = false,
     onBackClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
-    onIntercultorProfileClick: () -> Unit = {}
+    onIntercultorProfileClick: (String?) -> Unit = {}
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     var messageText by rememberSaveable { mutableStateOf("") }
@@ -297,7 +297,7 @@ private fun ChatScreenContent(
     onSendClick: () -> Unit,
     onBackClick: () -> Unit,
     onCallClick: () -> Unit,
-    onIntercultorProfileClick: () -> Unit,
+    onIntercultorProfileClick: (String?) -> Unit,
     onCopy: (String) -> Unit,
     onReply: (Message) -> Unit,
     onReplyClick: (messageId: String) -> Unit,
@@ -339,7 +339,7 @@ private fun ChatScreenContent(
                     presenceState = uiState.partnerPresence.state,
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onBackClick = onBackClick,
-                    onProfileClick = onIntercultorProfileClick,
+                    onProfileClick = { onIntercultorProfileClick(uiState.partnerAvatarUrl) },
                     partnerAvatarUrl = uiState.partnerAvatarUrl,
                 )
             }

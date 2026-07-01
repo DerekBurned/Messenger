@@ -56,10 +56,11 @@ data class ChatRoute(
     val conversationId: String,
     val partnerId: String = "",
     val partnerName: String = "",
+    val partnerAvatarUrl: String? = null,
 ) : NavKey
 
 @Serializable
-data class ChatUserProfileRoute(val userId: String) : NavKey
+data class ChatUserProfileRoute(val userId: String, val avatarUrl: String? = null) : NavKey
 
 @Serializable
 data class EditContactDataRoute(val contactId: String) : NavKey

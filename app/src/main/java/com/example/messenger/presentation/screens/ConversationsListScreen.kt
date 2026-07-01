@@ -78,7 +78,7 @@ import com.example.messenger.util.resolveDisplayName
 @Composable
 fun ChatsScreen(
     viewModel: ConversationsViewModel = hiltViewModel(),
-    onChatClick: (String, String, String) -> Unit = { _, _, _ -> },
+    onChatClick: (String, String, String, String?) -> Unit = { _, _, _, _ -> },
     onLogoutClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -147,7 +147,7 @@ fun ContactsScreen(
 private fun ChatsTabContent(
     uiState: ConversationsUiState,
     onRefresh: () -> Unit,
-    onChatClick: (String, String, String) -> Unit,
+    onChatClick: (String, String, String, String?) -> Unit,
     onDeleteForMe: (String) -> Unit,
     onDeleteForEveryone: (String) -> Unit,
 ) {
@@ -199,7 +199,7 @@ private fun ChatsEmpty() {
 private fun ChatsList(
     uiState: ConversationsUiState,
     onRefresh: () -> Unit,
-    onChatClick: (String, String, String) -> Unit,
+    onChatClick: (String, String, String, String?) -> Unit,
     onDeleteForMe: (String) -> Unit,
     onDeleteForEveryone: (String) -> Unit,
 ) {
@@ -240,10 +240,12 @@ private fun ChatsList(
                 } else {
                     Modifier
                 }
+                val avatarUrl = uiState.avatars[otherUserId]
+                    ?: conversation.participantAvatars.getOrNull(otherIdx)
                 SwipeableConversationRow(
                     displayName = otherUserName,
                     isOneOnOne = conversation.participantIds.size == 2,
-                    onClick = { onChatClick(conversation.id, otherUserId, otherUserName) },
+                    onClick = { onChatClick(conversation.id, otherUserId, otherUserName, avatarUrl) },
                     onDeleteForMe = { onDeleteForMe(conversation.id) },
                     onDeleteForEveryone = { onDeleteForEveryone(conversation.id) },
                     modifier = collapseModifier.animateItem(),
@@ -255,8 +257,7 @@ private fun ChatsList(
                         presence = uiState.presenceMap[otherUserId],
                         currentUserId = currentUserId,
                         onClick = rowOnClick,
-                        photoUrl = uiState.avatars[otherUserId]
-                            ?: conversation.participantAvatars.getOrNull(otherIdx),
+                        photoUrl = avatarUrl,
                     )
                 }
             }
@@ -291,7 +292,7 @@ private fun ConversationsListPreview() {
                 isLoading = false,
             ),
             onRefresh = {},
-            onChatClick = { _, _, _ -> },
+            onChatClick = { _, _, _, _ -> },
             onDeleteForMe = {},
             onDeleteForEveryone = {},
         )

@@ -1,9 +1,10 @@
 package com.example.messenger.data.remote.dto
 
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.example.messenger.domain.model.Message
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MessageDtoTest {
 
@@ -18,7 +19,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 
     @Test
@@ -32,7 +33,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertFalse(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isFalse()
     }
 
     @Test
@@ -46,7 +47,7 @@ class MessageDtoTest {
             type = Message.TYPE_TEXT,
             text = "hi",
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 
     @Test
@@ -59,6 +60,6 @@ class MessageDtoTest {
             isRead = false,
             type = Message.TYPE_MISSED_CALL,
         )
-        assertTrue(dto.toDomain().isRead)
+        assertThat(dto.toDomain().isRead).isTrue()
     }
 }

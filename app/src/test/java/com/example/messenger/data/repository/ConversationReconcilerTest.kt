@@ -1,7 +1,9 @@
 package com.example.messenger.data.repository
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import assertk.assertThat
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
+import org.junit.jupiter.api.Test
 
 class ConversationReconcilerTest {
 
@@ -11,7 +13,7 @@ class ConversationReconcilerTest {
             local = setOf("a", "b", "c"),
             remote = RemoteConversations.Server(setOf("a", "c")),
         )
-        assertEquals(setOf("b"), stale)
+        assertThat(stale).isEqualTo(setOf("b"))
     }
 
     @Test
@@ -20,7 +22,7 @@ class ConversationReconcilerTest {
             local = setOf("a", "b"),
             remote = RemoteConversations.Server(emptySet()),
         )
-        assertEquals(setOf("a", "b"), stale)
+        assertThat(stale).isEqualTo(setOf("a", "b"))
     }
 
     @Test
@@ -29,7 +31,7 @@ class ConversationReconcilerTest {
             local = setOf("a", "b"),
             remote = RemoteConversations.Unavailable,
         )
-        assertEquals(emptySet<String>(), stale)
+        assertThat(stale).isEmpty()
     }
 
     @Test
@@ -38,7 +40,7 @@ class ConversationReconcilerTest {
             local = setOf("a"),
             remote = RemoteConversations.Server(setOf("a", "b")),
         )
-        assertEquals(emptySet<String>(), stale)
+        assertThat(stale).isEmpty()
     }
 
     @Test
@@ -47,7 +49,7 @@ class ConversationReconcilerTest {
             local = setOf("a", "b"),
             remote = RemoteConversations.Server(setOf("a", "b")),
         )
-        assertEquals(emptySet<String>(), stale)
+        assertThat(stale).isEmpty()
     }
 
     @Test
@@ -56,6 +58,6 @@ class ConversationReconcilerTest {
             local = emptySet(),
             remote = RemoteConversations.Server(setOf("a")),
         )
-        assertEquals(emptySet<String>(), stale)
+        assertThat(stale).isEmpty()
     }
 }
