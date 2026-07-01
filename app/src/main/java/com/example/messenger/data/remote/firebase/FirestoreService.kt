@@ -12,6 +12,7 @@ import com.example.messenger.domain.model.MessageStatus
 import com.example.messenger.domain.model.User
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import kotlinx.coroutines.channels.awaitClose
@@ -101,7 +102,6 @@ class FirestoreService @Inject constructor(
                 .collection("messages")
                 .document(dto.id)
                 .set(dto)
-                .await()
             conversationRef
                 .update(
                     mapOf(
@@ -110,7 +110,6 @@ class FirestoreService @Inject constructor(
                         "lastMessageTimestamp" to message.timestamp,
                     ),
                 )
-                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error sending message", e)
@@ -180,22 +179,24 @@ class FirestoreService @Inject constructor(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(limit)
 
-        val listener = messagesRef.addSnapshotListener { snapshot, error ->
+        val listener = messagesRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
             if (error != null) {
                 Log.w("FirestoreService", "Listen failed.", error)
-                close(error) 
+                close(error)
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
                 val messages = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(RemoteMessageDto::class.java)?.toDomain()?.let { msg ->
-                        when (msg) {
-                            is Message.Text  -> msg.copy(id = doc.id)
-                            is Message.Media -> msg.copy(id = doc.id)
-                            is Message.Call  -> msg.copy(id = doc.id)
+                    doc.toObject(RemoteMessageDto::class.java)
+                        ?.toDomain(doc.metadata.hasPendingWrites())
+                        ?.let { msg ->
+                            when (msg) {
+                                is Message.Text  -> msg.copy(id = doc.id)
+                                is Message.Media -> msg.copy(id = doc.id)
+                                is Message.Call  -> msg.copy(id = doc.id)
+                            }
                         }
-                    }
                 }.reversed()
                 trySend(messages)
             }
