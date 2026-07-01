@@ -124,8 +124,7 @@ fun Message.toObx(): ObxMessage = when (this) {
 }
 
 private fun parseStatus(value: String): MessageStatus {
-
-    if (value == "DELIVERED" || value == MessageStatus.SENDING.name) return MessageStatus.SENT
+    if (value == "DELIVERED") return MessageStatus.SENT
     return runCatching { MessageStatus.valueOf(value) }.getOrDefault(MessageStatus.SENT)
 }
 
