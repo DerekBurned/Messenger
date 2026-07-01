@@ -82,6 +82,7 @@ private fun ChatUserProfileScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
+                        .background(Color.Transparent)
                         .padding(start = 10.dp, top = 12.dp, bottom = 8.dp, end = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
