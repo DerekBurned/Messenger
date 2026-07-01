@@ -19,7 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -38,6 +44,7 @@ import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.ChatUserProfileUiState
 import com.example.messenger.presentation.state.MediaTab
 import com.example.messenger.presentation.viewmodel.ChatUserProfileViewModel
+import kotlinx.coroutines.flow.combine
 
 @Composable
 fun ChatUserProfileScreen(
@@ -75,12 +82,16 @@ private fun ChatUserProfileScreenContent(
     }
     val chipFill = if (tokens.isDark) Color.Black.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.06f)
     WallpaperBackground {
+        val density = LocalDensity.current
+        var composerHeightPx by remember { mutableStateOf(0) }
+        val composerHeight = with(density) { composerHeightPx.toDp() }
     Scaffold(
         topBar = {
             CallAwareTopBar {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                         .statusBarsPadding()
                         .background(Color.Transparent)
                         .padding(start = 10.dp, top = 12.dp, bottom = 8.dp, end = 10.dp),
@@ -120,10 +131,30 @@ private fun ChatUserProfileScreenContent(
         },
         containerColor = Color.Transparent,
     ) { padding ->
+        val topPaddingPx = with(density) { (padding.calculateTopPadding() + 50.dp).toPx() }
+        val bottomPaddingPx = composerHeightPx.toFloat() + with(density) { 50.dp.toPx() }
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize()
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithContent {
+                    drawContent()
+
+                    // Calculate where the gradient should become fully visible (solid black mask)
+                    val topStop = (topPaddingPx / size.height).coerceIn(0f, 1f)
+                    val bottomStop = ((size.height - bottomPaddingPx) / size.height).coerceIn(0f, 1f)
+
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.Transparent,        // Top edge: fully transparent
+                            topStop to Color.Black,         // End of top bar: fully opaque (visible)
+                            bottomStop to Color.Black,      // Start of bottom bar: fully opaque
+                            1f to Color.Transparent         // Bottom edge: fully transparent
+                        ),
+                        blendMode = BlendMode.DstIn
+                    )
+                },
+            contentPadding = padding,
         ) {
             item {
                 ProfileHeader(
