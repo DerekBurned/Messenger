@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 interface FcmEntryPoint {
     fun firestoreService(): FirestoreService
     fun telecomCallManager(): TelecomCallManager
+    fun messageRepository(): com.example.messenger.domain.repository.IMessageRepository
 }
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
@@ -81,6 +82,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             ChatNotifier.notifyFallback(this, senderName, preview)
             return
         }
+
+        persistIncomingMessage(data)
+
         if (CurrentConversationHolder.isOpen(conversationId)) {
             Log.d(TAG, "handleMessagePayload: conversation $conversationId already open, suppressing notification")
             return
@@ -96,6 +100,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             timestamp = timestamp,
             senderAvatar = senderAvatar,
         )
+    }
+
+    private fun persistIncomingMessage(data: Map<String, String>) {
+        val message = parseIncomingMessage(data) ?: return
+        val messageRepository = EntryPointAccessors.fromApplication(
+            applicationContext,
+            FcmEntryPoint::class.java,
+        ).messageRepository()
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { messageRepository.persistIncomingMessage(message) }
+                .onFailure { Log.w(TAG, "persistIncomingMessage failed", it) }
+        }
     }
 
     private fun handleCallPayload(data: Map<String, String>) {

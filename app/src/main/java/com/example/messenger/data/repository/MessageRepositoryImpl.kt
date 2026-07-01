@@ -69,6 +69,14 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun persistIncomingMessage(message: Message) {
+        val alreadyStored = messageBox.query(ObxMessage_.uid.equal(message.id)).build()
+            .use { it.findFirst() } != null
+        if (alreadyStored) return
+        messageBox.put(message.toObx())
+        updateConversationPreview(message)
+    }
+
     private fun enqueueRetry(messageId: String, action: String = SyncAction.SEND) {
         syncQueueBox.put(
             ObxSyncQueueItem(
