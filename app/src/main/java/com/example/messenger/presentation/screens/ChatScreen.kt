@@ -116,6 +116,8 @@ import com.example.messenger.presentation.components.media.MediaAlbumGrid
 import com.example.messenger.presentation.components.media.MediaSource
 import com.example.messenger.presentation.components.chat.MissedCallCard
 import com.example.messenger.presentation.components.chat.ScrollToBottomButton
+import com.example.messenger.presentation.components.chat.SwipeToReply
+import com.example.messenger.presentation.components.chat.chatNavigationSwipe
 import com.example.messenger.presentation.components.chat.UnreadMessagesDivider
 import com.example.messenger.presentation.components.chat.rememberMessageContextMenuState
 import com.example.messenger.presentation.components.common.WallpaperBackground
@@ -497,6 +499,10 @@ private fun ChatScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
+                .chatNavigationSwipe(
+                    onSwipeRight = onBackClick,
+                    onSwipeLeft = onIntercultorProfileClick,
+                )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
             when {
@@ -632,6 +638,7 @@ private fun ChatScreenContent(
                                                 MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
                                                 MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
                                             )
+                                            SwipeToReply(onReply = { onReply(msg) }) {
                                             LongPressMessage(
                                                 isMe = isMe,
                                                 messageKey = msg.id,
@@ -667,6 +674,7 @@ private fun ChatScreenContent(
                                                     onCancelDownload = { onCancelDownload(it) },
                                                 )
                                             }
+                                            }
                                         }
                                         is Message.Text -> {
                                             val chatMessage = ChatMessage(
@@ -686,6 +694,7 @@ private fun ChatScreenContent(
                                                 MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
                                                 MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
                                             )
+                                            SwipeToReply(onReply = { onReply(msg) }) {
                                             LongPressMessage(
                                                 isMe = isMe,
                                                 messageKey = msg.id,
@@ -700,6 +709,7 @@ private fun ChatScreenContent(
                                                     highlighted = msg.id == uiState.highlightedMessageId,
                                                     onReplyClick = { msg.replyToMessageId?.let(onReplyClick) },
                                                 )
+                                            }
                                             }
                                         }
                                     }
