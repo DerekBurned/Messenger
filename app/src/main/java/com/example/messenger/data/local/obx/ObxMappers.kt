@@ -33,6 +33,7 @@ fun ObxMessage.toDomain(): Message {
             isRead = isRead,
             deleted = deleted,
             callType = CallType.MISSED,
+            video = callVideo,
         )
         Message.TYPE_UNREACHED_CALL -> Message.Call(
             id = uid,
@@ -43,6 +44,7 @@ fun ObxMessage.toDomain(): Message {
             isRead = isRead,
             deleted = deleted,
             callType = CallType.UNREACHED,
+            video = callVideo,
         )
         Message.TYPE_ENDED_CALL -> Message.Call(
             id = uid,
@@ -54,6 +56,7 @@ fun ObxMessage.toDomain(): Message {
             deleted = deleted,
             callType = CallType.ENDED,
             durationSeconds = callDurationSeconds,
+            video = callVideo,
         )
         else -> Message.Text(
             id = uid,
@@ -119,6 +122,7 @@ fun Message.toObx(): ObxMessage = when (this) {
         },
         text = "",
         callDurationSeconds = durationSeconds,
+        callVideo = video,
         mediaItemsJson = emptyList(),
     )
 }

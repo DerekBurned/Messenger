@@ -3,6 +3,7 @@ package com.example.messenger.data.remote.call
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import android.view.SurfaceView
 import com.example.messenger.BuildConfig
 import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.domain.service.CallEventListener
@@ -12,6 +13,7 @@ import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
+import io.agora.rtc2.video.VideoCanvas
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +23,8 @@ class AgoraCallService @Inject constructor(
 ) : ICallService {
     private var engine: RtcEngine? = null
     private var listener: CallEventListener? = null
+    private var videoModuleEnabled = false
+    private var localVideoOn = false
 
     private val handler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
@@ -79,6 +83,18 @@ class AgoraCallService @Inject constructor(
                     }
             }
         }
+
+        override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            Log.e(TAG, "onRemoteVideoStateChanged: remote uid=$uid state=$state reason=$reason")
+            when (state) {
+                io.agora.rtc2.Constants.REMOTE_VIDEO_STATE_STARTING,
+                io.agora.rtc2.Constants.REMOTE_VIDEO_STATE_DECODING ->
+                    listener?.onRemoteVideoStateChanged(uid, true)
+                io.agora.rtc2.Constants.REMOTE_VIDEO_STATE_STOPPED,
+                io.agora.rtc2.Constants.REMOTE_VIDEO_STATE_FAILED ->
+                    listener?.onRemoteVideoStateChanged(uid, false)
+            }
+        }
     }
 
     init {
@@ -117,13 +133,22 @@ class AgoraCallService @Inject constructor(
             channelProfile = io.agora.rtc2.Constants.CHANNEL_PROFILE_COMMUNICATION
             clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
             publishMicrophoneTrack = true
+            publishCameraTrack = localVideoOn
+            autoSubscribeVideo = true
         }
-        Log.e(TAG, "joinChannel channel=$channelName uid=$uid")
+        Log.e(TAG, "joinChannel channel=$channelName uid=$uid video=$localVideoOn")
         engine.joinChannel("", channelName, uid, options)
     }
 
     override fun leaveChannel() {
-        engine?.leaveChannel()
+        engine?.let { engine ->
+            if (localVideoOn) {
+                localVideoOn = false
+                engine.stopPreview()
+                engine.enableLocalVideo(false)
+            }
+            engine.leaveChannel()
+        }
     }
 
     override fun muteLocalAudio(mute: Boolean) {
@@ -132,6 +157,45 @@ class AgoraCallService @Inject constructor(
 
     override fun setSpeakerphone(enable: Boolean) {
         engine?.setEnableSpeakerphone(enable)
+    }
+
+    override fun enableLocalVideo(enable: Boolean) {
+        val engine = engine ?: return
+        if (localVideoOn == enable) return
+        localVideoOn = enable
+        if (enable) {
+            ensureVideoModule(engine)
+            engine.enableLocalVideo(true)
+            engine.startPreview()
+        } else {
+            engine.stopPreview()
+            engine.enableLocalVideo(false)
+        }
+        engine.updateChannelMediaOptions(
+            ChannelMediaOptions().apply { publishCameraTrack = enable },
+        )
+    }
+
+    override fun switchCamera() {
+        engine?.switchCamera()
+    }
+
+    override fun bindLocalVideo(view: SurfaceView) {
+        val engine = engine ?: return
+        ensureVideoModule(engine)
+        engine.setupLocalVideo(VideoCanvas(view, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+    }
+
+    override fun bindRemoteVideo(view: SurfaceView, uid: Int) {
+        val engine = engine ?: return
+        ensureVideoModule(engine)
+        engine.setupRemoteVideo(VideoCanvas(view, VideoCanvas.RENDER_MODE_HIDDEN, uid))
+    }
+
+    private fun ensureVideoModule(engine: RtcEngine) {
+        if (videoModuleEnabled) return
+        videoModuleEnabled = true
+        engine.enableVideo()
     }
 
     override fun setEventListener(listener: CallEventListener) {

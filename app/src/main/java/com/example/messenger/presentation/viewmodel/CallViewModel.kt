@@ -7,12 +7,15 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import android.view.SurfaceView
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.data.remote.call.CallUids
 import com.example.messenger.data.remote.call.telecom.TelecomCallManager
 import com.example.messenger.data.remote.call.telecom.TelecomCallMeta
 import com.example.messenger.domain.repository.IConversationRepository
 import com.example.messenger.domain.repository.IUserRepository
+import com.example.messenger.domain.service.ICallService
 import com.example.messenger.presentation.base.toUiText
 import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -47,6 +50,7 @@ class CallViewModel @Inject constructor(
     private val conversationRepository: IConversationRepository,
     private val userRepository: IUserRepository,
     private val telecomCallManager: TelecomCallManager,
+    private val callService: ICallService,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
 
@@ -68,6 +72,7 @@ class CallViewModel @Inject constructor(
     private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
     private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
     private val pendingPartnerPhone: String = savedStateHandle["partnerPhone"] ?: ""
+    private val pendingVideo: Boolean = savedStateHandle["video"] ?: false
 
     val needsOutgoingStart: Boolean
         get() = ActiveCallHolder.snapshot() == null &&
@@ -77,7 +82,13 @@ class CallViewModel @Inject constructor(
     init {
         if (ActiveCallHolder.snapshot() == null) {
 
-            _uiState.update { it.copy(partnerName = pendingPartnerName, partnerPhone = pendingPartnerPhone) }
+            _uiState.update {
+                it.copy(
+                    partnerName = pendingPartnerName,
+                    partnerPhone = pendingPartnerPhone,
+                    isVideoCall = pendingVideo,
+                )
+            }
         }
         observePartnerAvatar(pendingPartnerId)
         observeActiveCall()
@@ -136,6 +147,10 @@ class CallViewModel @Inject constructor(
                     seconds = active.seconds,
                     muted = active.muted,
                     speakerOn = active.speakerOn,
+                    isVideoCall = active.isVideoCall,
+                    localVideoOn = active.localVideoOn,
+                    remoteVideoOn = active.remoteVideoOn,
+                    frontCamera = active.frontCamera,
                     connectionState = active.connectionState,
                     error = active.error?.toUiText(),
                 )
@@ -183,6 +198,7 @@ class CallViewModel @Inject constructor(
             partnerName = pendingPartnerName,
             partnerPhone = pendingPartnerPhone,
             isIncoming = false,
+            isVideo = pendingVideo,
         )
         val intent = CallForegroundService.outgoingIntent(
             ctx = context,
@@ -192,6 +208,7 @@ class CallViewModel @Inject constructor(
             channelName = channelName,
             partnerName = pendingPartnerName,
             partnerPhone = pendingPartnerPhone,
+            video = pendingVideo,
         )
         ContextCompat.startForegroundService(context, intent)
         runCatching { telecomCallManager.placeOutgoing(meta) }
@@ -202,6 +219,17 @@ class CallViewModel @Inject constructor(
     fun endCall() = sendAction(CallForegroundService.ACTION_END)
     fun toggleMute() = sendAction(CallForegroundService.ACTION_TOGGLE_MUTE)
     fun toggleSpeaker() = sendAction(CallForegroundService.ACTION_TOGGLE_SPEAKER)
+    fun toggleCamera() = sendAction(CallForegroundService.ACTION_TOGGLE_CAMERA)
+    fun switchCamera() = sendAction(CallForegroundService.ACTION_SWITCH_CAMERA)
+
+    fun bindLocalVideo(view: SurfaceView) = callService.bindLocalVideo(view)
+
+    fun bindRemoteVideo(view: SurfaceView) {
+        val active = ActiveCallHolder.snapshot() ?: return
+        val partnerId = if (active.wasIncoming) active.callerId else active.calleeId
+        if (partnerId.isBlank()) return
+        callService.bindRemoteVideo(view, CallUids.fromUserId(partnerId))
+    }
 
     private fun sendAction(action: String) {
         Log.d(TAG, "sendAction $action")

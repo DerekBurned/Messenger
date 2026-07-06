@@ -51,6 +51,7 @@ sealed class Message {
         override val deleted: Boolean = false,
         val callType: CallType = CallType.ENDED,
         val durationSeconds: Int = 0,
+        val video: Boolean = false,
     ) : Message()
 
     companion object {

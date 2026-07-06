@@ -40,7 +40,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.zip.CRC32
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -78,6 +77,8 @@ class CallForegroundService : Service() {
 
     private var micTypeStarted: Boolean = false
 
+    private var cameraTypeStarted: Boolean = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -99,6 +100,8 @@ class CallForegroundService : Service() {
             ACTION_TOGGLE_MUTE -> handleToggleMute()
             ACTION_TOGGLE_SPEAKER -> handleToggleSpeaker()
             ACTION_SET_SPEAKER -> handleSetSpeaker(intent.getBooleanExtra(EXTRA_SPEAKER, false))
+            ACTION_TOGGLE_CAMERA -> handleToggleCamera()
+            ACTION_SWITCH_CAMERA -> handleSwitchCamera()
             else -> Unit
         }
         return START_NOT_STICKY
@@ -108,6 +111,8 @@ class CallForegroundService : Service() {
         ringingStarted = false
         unreachedRecorded = false
         endedRecorded = false
+        val isVideo = intent.getBooleanExtra(EXTRA_VIDEO, false)
+        val videoOn = isVideo && hasCameraPermission()
         val call = ActiveCallHolder.ActiveCall(
             callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty(),
             callerId = intent.getStringExtra(EXTRA_CALLER_ID).orEmpty(),
@@ -116,9 +121,12 @@ class CallForegroundService : Service() {
             partnerName = intent.getStringExtra(EXTRA_PARTNER_NAME).orEmpty(),
             partnerPhone = intent.getStringExtra(EXTRA_PARTNER_PHONE).orEmpty(),
             isIncoming = false,
+            isVideoCall = isVideo,
+            localVideoOn = videoOn,
+            speakerOn = isVideo,
         )
         ActiveCallHolder.set(call)
-        if (!startForegroundCompat(buildOngoingNotification(call), withMicrophone = true)) return
+        if (!startForegroundCompat(buildOngoingNotification(call), withMicrophone = true, withCamera = videoOn)) return
 
         scope.launch {
             runCatching {
@@ -130,11 +138,14 @@ class CallForegroundService : Service() {
                         channelName = call.channelName,
                         status = CallStatus.RINGING,
                         timestamp = System.currentTimeMillis(),
+                        video = isVideo,
                     ),
                 )
             }
         }
         acquireAudioFocus()
+        if (videoOn) callService.enableLocalVideo(true)
+        if (isVideo) callService.setSpeakerphone(true)
         callService.joinChannel(call.channelName, uidFromUserId(call.callerId))
         observeRemoteStatus(call.calleeId, call.callId, isCaller = true)
         observeRingingAck(call.callerId, call.callId)
@@ -167,6 +178,7 @@ class CallForegroundService : Service() {
             partnerName = intent.getStringExtra(EXTRA_PARTNER_NAME).orEmpty(),
             partnerPhone = intent.getStringExtra(EXTRA_PARTNER_PHONE).orEmpty(),
             isIncoming = true,
+            isVideoCall = intent.getBooleanExtra(EXTRA_VIDEO, false),
         )
         ActiveCallHolder.set(call)
 
@@ -191,8 +203,25 @@ class CallForegroundService : Service() {
         val call = ActiveCallHolder.snapshot() ?: return
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
-        ActiveCallHolder.update { it.copy(isIncoming = false, isActive = true, seconds = 0, remotePresent = false) }
-        if (!startForegroundCompat(buildOngoingNotification(ActiveCallHolder.snapshot() ?: call), withMicrophone = true)) return
+        val videoOn = call.isVideoCall && hasCameraPermission()
+        ActiveCallHolder.update {
+            it.copy(
+                isIncoming = false,
+                isActive = true,
+                seconds = 0,
+                remotePresent = false,
+                localVideoOn = videoOn,
+                speakerOn = it.speakerOn || it.isVideoCall,
+            )
+        }
+        if (!startForegroundCompat(
+                buildOngoingNotification(ActiveCallHolder.snapshot() ?: call),
+                withMicrophone = true,
+                withCamera = videoOn,
+            )
+        ) {
+            return
+        }
         ActiveConnectionHolder.get(call.callId)?.markActive()
         scope.launch {
             runCatching {
@@ -200,6 +229,8 @@ class CallForegroundService : Service() {
             }
         }
         acquireAudioFocus()
+        if (videoOn) callService.enableLocalVideo(true)
+        if (call.isVideoCall) callService.setSpeakerphone(true)
         callService.joinChannel(call.channelName, uidFromUserId(call.calleeId))
         enterActiveState()
         reconcileConnection()
@@ -275,6 +306,35 @@ class CallForegroundService : Service() {
         refreshOngoingNotification()
     }
 
+    private fun handleToggleCamera() {
+        val call = ActiveCallHolder.snapshot() ?: return
+        val turnOn = !call.localVideoOn
+        if (turnOn && !hasCameraPermission()) {
+            Log.w(TAG, "toggle camera ignored: CAMERA permission not granted")
+            return
+        }
+        callService.enableLocalVideo(turnOn)
+        val speakerOn = call.speakerOn || turnOn
+        if (speakerOn != call.speakerOn) callService.setSpeakerphone(true)
+        ActiveCallHolder.update { it.copy(localVideoOn = turnOn, speakerOn = speakerOn) }
+        startForegroundCompat(
+            buildOngoingNotification(ActiveCallHolder.snapshot() ?: call),
+            withMicrophone = micTypeStarted,
+            withCamera = turnOn,
+        )
+    }
+
+    private fun handleSwitchCamera() {
+        val call = ActiveCallHolder.snapshot() ?: return
+        if (!call.localVideoOn) return
+        callService.switchCamera()
+        ActiveCallHolder.update { it.copy(frontCamera = !it.frontCamera) }
+    }
+
+    private fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
     private fun observeRemoteStatus(calleeId: String, callId: String, isCaller: Boolean) {
         statusObserverJob?.cancel()
         statusObserverJob = scope.launch {
@@ -317,6 +377,7 @@ class CallForegroundService : Service() {
                     callerId = call.callerId,
                     calleeId = call.calleeId,
                     callerName = call.partnerName,
+                    video = call.isVideoCall,
                 )
             }.onFailure { Log.w(TAG, "missed-call record failed", it) }
             stopSelfClean()
@@ -344,6 +405,7 @@ class CallForegroundService : Service() {
                 callerId = call.callerId,
                 calleeId = call.calleeId,
                 durationSeconds = call.seconds,
+                video = call.isVideoCall,
             )
         }.onFailure { Log.w(TAG, "ended-call record failed", it) }
     }
@@ -361,6 +423,7 @@ class CallForegroundService : Service() {
                     callerId = call.callerId,
                     calleeId = call.calleeId,
                     callerName = call.partnerName,
+                    video = call.isVideoCall,
                 )
             }.onFailure { Log.w(TAG, "missed-call record failed", it) }
             runCatching {
@@ -412,6 +475,7 @@ class CallForegroundService : Service() {
             missedCallRecorder.recordUnreached(
                 callerId = call.callerId,
                 calleeId = call.calleeId,
+                video = call.isVideoCall,
             )
         }.onFailure { Log.w(TAG, "unreached-call record failed", it) }
     }
@@ -480,6 +544,7 @@ class CallForegroundService : Service() {
         reconnectTimeoutJob = null
         ringingStarted = false
         micTypeStarted = false
+        cameraTypeStarted = false
         stopPresence()
         callService.leaveChannel()
         releaseAudioFocus()
@@ -615,6 +680,10 @@ class CallForegroundService : Service() {
             reconcileConnection()
         }
 
+        override fun onRemoteVideoStateChanged(uid: Int, on: Boolean) {
+            ActiveCallHolder.update { it.copy(remoteVideoOn = on) }
+        }
+
         override fun onError(code: Int) {
             ActiveCallHolder.update { it.copy(error = "Call error: $code") }
         }
@@ -664,16 +733,21 @@ class CallForegroundService : Service() {
     private fun startForegroundCompat(
         notification: Notification,
         withMicrophone: Boolean = micTypeStarted,
+        withCamera: Boolean = cameraTypeStarted,
     ): Boolean {
         return try {
-            Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT}, mic=$withMicrophone)")
+            Log.d(TAG, "startForeground (sdk=${Build.VERSION.SDK_INT}, mic=$withMicrophone, cam=$withCamera)")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 var serviceType = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
                 if (withMicrophone) {
                     serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
                 }
+                if (withCamera) {
+                    serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                }
                 startForeground(NOTIFICATION_ID_CALL, notification, serviceType)
                 micTypeStarted = withMicrophone
+                cameraTypeStarted = withCamera
             } else {
                 startForeground(NOTIFICATION_ID_CALL, notification)
             }
@@ -700,8 +774,18 @@ class CallForegroundService : Service() {
             .setColor(ContextCompat.getColor(this, R.color.notification_accent))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_voice_call) })
-            .setContentText(if (call.isActive) getString(R.string.notif_call_on_call) else getString(R.string.notif_call_calling))
+            .setContentTitle(
+                call.partnerName.ifBlank {
+                    getString(if (call.isVideoCall) R.string.notif_call_video_call else R.string.notif_call_voice_call)
+                },
+            )
+            .setContentText(
+                when {
+                    call.isActive && call.isVideoCall -> getString(R.string.notif_call_on_video_call)
+                    call.isActive -> getString(R.string.notif_call_on_call)
+                    else -> getString(R.string.notif_call_calling)
+                },
+            )
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openAppPi)
@@ -719,7 +803,12 @@ class CallForegroundService : Service() {
             .setColor(ContextCompat.getColor(this, R.color.notification_accent))
             .setOngoing(true)
             .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_incoming_title) })
-            .setContentText(getString(R.string.notif_call_incoming_text))
+            .setContentText(
+                getString(
+                    if (call.isVideoCall) R.string.notif_call_incoming_video_text
+                    else R.string.notif_call_incoming_text,
+                ),
+            )
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setFullScreenIntent(openPi, true)
@@ -745,7 +834,12 @@ class CallForegroundService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentTitle(call.partnerName.ifBlank { getString(R.string.notif_call_incoming_title) })
-            .setContentText(getString(R.string.notif_call_incoming_text))
+            .setContentText(
+                getString(
+                    if (call.isVideoCall) R.string.notif_call_incoming_video_text
+                    else R.string.notif_call_incoming_text,
+                ),
+            )
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(incomingCallActivityPendingIntent(accept = false))
@@ -790,12 +884,7 @@ class CallForegroundService : Service() {
         )
     }
 
-    private fun uidFromUserId(userId: String): Int {
-        if (userId.isEmpty()) return 0
-        val crc = CRC32()
-        crc.update(userId.toByteArray(Charsets.UTF_8))
-        return (crc.value and 0x7FFFFFFFL).toInt()
-    }
+    private fun uidFromUserId(userId: String): Int = CallUids.fromUserId(userId)
 
     override fun onDestroy() {
         stopTicker()
@@ -817,6 +906,8 @@ class CallForegroundService : Service() {
         const val ACTION_TOGGLE_MUTE = "com.example.messenger.call.TOGGLE_MUTE"
         const val ACTION_TOGGLE_SPEAKER = "com.example.messenger.call.TOGGLE_SPEAKER"
         const val ACTION_SET_SPEAKER = "com.example.messenger.call.SET_SPEAKER"
+        const val ACTION_TOGGLE_CAMERA = "com.example.messenger.call.TOGGLE_CAMERA"
+        const val ACTION_SWITCH_CAMERA = "com.example.messenger.call.SWITCH_CAMERA"
         const val EXTRA_SPEAKER = "extra_speaker"
 
         const val EXTRA_CALL_ID = "extra_call_id"
@@ -825,6 +916,7 @@ class CallForegroundService : Service() {
         const val EXTRA_CHANNEL_NAME = "extra_channel_name"
         const val EXTRA_PARTNER_NAME = "extra_partner_name"
         const val EXTRA_PARTNER_PHONE = "extra_partner_phone"
+        const val EXTRA_VIDEO = "extra_video"
 
         private const val NOTIFICATION_ID_CALL = 0x3CA11
         private const val REQ_OPEN_APP = 1
@@ -850,6 +942,7 @@ class CallForegroundService : Service() {
             channelName: String,
             partnerName: String,
             partnerPhone: String,
+            video: Boolean = false,
         ): Intent = Intent(ctx, CallForegroundService::class.java)
             .setAction(ACTION_START_OUTGOING)
             .putExtra(EXTRA_CALL_ID, callId)
@@ -858,6 +951,7 @@ class CallForegroundService : Service() {
             .putExtra(EXTRA_CHANNEL_NAME, channelName)
             .putExtra(EXTRA_PARTNER_NAME, partnerName)
             .putExtra(EXTRA_PARTNER_PHONE, partnerPhone)
+            .putExtra(EXTRA_VIDEO, video)
 
         fun incomingIntent(
             ctx: Context,
@@ -867,6 +961,7 @@ class CallForegroundService : Service() {
             channelName: String,
             partnerName: String,
             partnerPhone: String,
+            video: Boolean = false,
         ): Intent = Intent(ctx, CallForegroundService::class.java)
             .setAction(ACTION_START_INCOMING)
             .putExtra(EXTRA_CALL_ID, callId)
@@ -875,5 +970,6 @@ class CallForegroundService : Service() {
             .putExtra(EXTRA_CHANNEL_NAME, channelName)
             .putExtra(EXTRA_PARTNER_NAME, partnerName)
             .putExtra(EXTRA_PARTNER_PHONE, partnerPhone)
+            .putExtra(EXTRA_VIDEO, video)
     }
 }

@@ -27,7 +27,7 @@ class MissedCallRecorder @Inject constructor(
     private val messageRepository: IMessageRepository,
 ) {
 
-    suspend fun record(callerId: String, calleeId: String, callerName: String) {
+    suspend fun record(callerId: String, calleeId: String, callerName: String, video: Boolean = false) {
         if (callerId.isBlank() || calleeId.isBlank()) {
             Log.w(TAG, "record skipped: blank ids caller=$callerId callee=$calleeId")
             return
@@ -54,6 +54,7 @@ class MissedCallRecorder @Inject constructor(
             senderId = callerId,
             timestamp = now,
             callType = CallType.MISSED,
+            video = video,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "record: failed to write missed-call message", it) }
@@ -62,10 +63,11 @@ class MissedCallRecorder @Inject constructor(
             conversationId = conversation.id,
             callerId = callerId,
             callerName = displayName,
+            video = video,
         )
     }
 
-    suspend fun recordUnreached(callerId: String, calleeId: String) {
+    suspend fun recordUnreached(callerId: String, calleeId: String, video: Boolean = false) {
         if (callerId.isBlank() || calleeId.isBlank()) {
             Log.w(TAG, "recordUnreached skipped: blank ids caller=$callerId callee=$calleeId")
             return
@@ -90,6 +92,7 @@ class MissedCallRecorder @Inject constructor(
             senderId = callerId,
             timestamp = System.currentTimeMillis(),
             callType = CallType.UNREACHED,
+            video = video,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "recordUnreached: failed to write unreached-call message", it) }
@@ -100,6 +103,7 @@ class MissedCallRecorder @Inject constructor(
         callerId: String,
         calleeId: String,
         durationSeconds: Int,
+        video: Boolean = false,
     ) {
         if (callerId.isBlank() || calleeId.isBlank()) {
             Log.w(TAG, "recordEnded skipped: blank ids caller=$callerId callee=$calleeId")
@@ -126,6 +130,7 @@ class MissedCallRecorder @Inject constructor(
             timestamp = System.currentTimeMillis(),
             callType = CallType.ENDED,
             durationSeconds = durationSeconds,
+            video = video,
         )
         runCatching { messageRepository.sendMessage(message) }
             .onFailure { Log.w(TAG, "recordEnded: failed to write ended-call message", it) }
@@ -135,6 +140,7 @@ class MissedCallRecorder @Inject constructor(
         conversationId: String,
         callerId: String,
         callerName: String,
+        video: Boolean,
     ) {
         val nm = context.getSystemService<NotificationManager>() ?: return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
@@ -152,7 +158,11 @@ class MissedCallRecorder @Inject constructor(
         val notification = NotificationCompat.Builder(context, NotificationChannels.MISSED_CALLS)
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setColor(ContextCompat.getColor(context, R.color.notification_accent))
-            .setContentTitle(context.getString(R.string.notif_missed_call_title))
+            .setContentTitle(
+                context.getString(
+                    if (video) R.string.notif_missed_video_call_title else R.string.notif_missed_call_title,
+                ),
+            )
             .setContentText(context.getString(R.string.notif_missed_call_text, callerName))
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

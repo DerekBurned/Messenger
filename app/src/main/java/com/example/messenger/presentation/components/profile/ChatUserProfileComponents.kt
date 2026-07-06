@@ -48,6 +48,7 @@ fun ProfileHeader(
     sharedKeyPartnerId: String = "",
     onAvatarClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit,
+    onVideoCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
 ) {
     val tokens = messengerTokens
     val sharedAvatarModifier =
@@ -89,7 +90,14 @@ fun ProfileHeader(
                     user.phoneNumber?.getFullNumber().orEmpty(),
                 )
             }
-            ProfileActionButton(icon = Icons.Default.Videocam, contentDescription = "Video call") { }
+            ProfileActionButton(icon = Icons.Default.Videocam, contentDescription = "Video call") {
+                val user = state.user ?: return@ProfileActionButton
+                onVideoCallClick(
+                    user.id,
+                    user.username.orEmpty(),
+                    user.phoneNumber?.getFullNumber().orEmpty(),
+                )
+            }
             ProfileActionButton(icon = Icons.Default.Notifications, contentDescription = "Mute") { }
             ProfileActionButton(icon = Icons.Default.Block, contentDescription = "Block", danger = true) { }
         }

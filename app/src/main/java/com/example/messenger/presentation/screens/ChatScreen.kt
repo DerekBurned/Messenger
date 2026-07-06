@@ -155,6 +155,7 @@ fun ChatScreenWithNav(
     inBubble: Boolean = false,
     onBackClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
+    onVideoCallClick: () -> Unit = {},
     onIntercultorProfileClick: (avatarUrl: String?, partnerName: String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
@@ -241,6 +242,7 @@ fun ChatScreenWithNav(
         onClearAttachments = { viewModel.dispatch(ChatIntent.ClearAttachments) },
         onIntercultorProfileClick = onIntercultorProfileClick,
         onCallClick = onCallClick,
+        onVideoCallClick = onVideoCallClick,
         onMessagesSeen = { messages -> viewModel.dispatch(ChatIntent.MessagesSeen(messages)) },
         onLoadOlderMessages = { viewModel.dispatch(ChatIntent.LoadOlderMessages) },
         onDownload = { item -> viewModel.dispatch(ChatIntent.DownloadMedia(item)) },
@@ -299,6 +301,7 @@ private fun ChatScreenContent(
     onSendClick: () -> Unit,
     onBackClick: () -> Unit,
     onCallClick: () -> Unit,
+    onVideoCallClick: () -> Unit,
     onIntercultorProfileClick: (avatarUrl: String?, partnerName: String) -> Unit,
     onCopy: (String) -> Unit,
     onReply: (Message) -> Unit,
@@ -342,6 +345,7 @@ private fun ChatScreenContent(
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onBackClick = onBackClick,
                     onProfileClick = { onIntercultorProfileClick(uiState.partnerAvatarUrl, uiState.partnerUsername) },
+                    onVideoCallClick = onVideoCallClick,
                     partnerAvatarUrl = uiState.partnerAvatarUrl,
                 )
             }
@@ -603,25 +607,33 @@ private fun ChatScreenContent(
                                                 MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
                                             )
                                             val callCard: @Composable (live: Boolean) -> Unit = { live ->
-                                                val onCall = if (live) onCallClick else noop
+                                                val onCall = when {
+                                                    !live -> noop
+                                                    msg.video -> onVideoCallClick
+                                                    else -> onCallClick
+                                                }
                                                 when (msg.callType) {
                                                     CallType.MISSED -> MissedCallCard(
                                                         onCall = onCall,
                                                         timestamp = msg.timestamp,
                                                         isMe = isMe,
+                                                        title = if (msg.video) "Missed video call" else "Missed Call",
                                                         status = msg.status,
+                                                        video = msg.video,
                                                     )
                                                     CallType.UNREACHED -> MissedCallCard(
                                                         onCall = onCall,
                                                         timestamp = msg.timestamp,
                                                         isMe = isMe,
-                                                        title = "Unreached call",
+                                                        title = if (msg.video) "Unreached video call" else "Unreached call",
                                                         status = msg.status,
+                                                        video = msg.video,
                                                     )
                                                     CallType.ENDED -> EndedCallCard(
                                                         durationSeconds = msg.durationSeconds,
                                                         timestamp = msg.timestamp,
                                                         isMe = isMe,
+                                                        video = msg.video,
                                                     )
                                                 }
                                             }
@@ -1023,6 +1035,7 @@ private fun ChatScreenPreview() {
             onSendClick = {},
             onBackClick = {},
             onCallClick = {},
+            onVideoCallClick = {},
             onCopy = {},
             onReply = {},
             onReplyClick = {},

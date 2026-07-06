@@ -282,6 +282,7 @@ private fun MainDisplay(
                                     "partnerId" to key.partnerId,
                                     "partnerName" to key.partnerName,
                                     "partnerPhone" to key.partnerPhone,
+                                    "video" to key.video,
                                 ) {
                                     CallScreen(
                                         onCallEnded = { backStack.removeLastOrNull() },
@@ -305,6 +306,9 @@ private fun MainDisplay(
                                             onBackClick = { backStack.removeLastOrNull() },
                                             onCallClick = { partnerId, partnerName, partnerPhone ->
                                                 backStack.add(CallRoute(partnerId, partnerName, partnerPhone))
+                                            },
+                                            onVideoCallClick = { partnerId, partnerName, partnerPhone ->
+                                                backStack.add(CallRoute(partnerId, partnerName, partnerPhone, video = true))
                                             },
                                             onEditClick = { backStack.add(EditContactDataRoute(key.userId)) },
                                         )
@@ -336,6 +340,9 @@ private fun MainDisplay(
                                             },
                                             onCallClick = {
                                                 backStack.add(CallRoute(key.partnerId, key.partnerName, ""))
+                                            },
+                                            onVideoCallClick = {
+                                                backStack.add(CallRoute(key.partnerId, key.partnerName, "", video = true))
                                             },
                                         )
                                     }
@@ -400,7 +407,7 @@ private fun ProvideNavAnimatedScope(content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun ProvideNavArgs(vararg args: Pair<String, String>, content: @Composable () -> Unit) {
+internal fun ProvideNavArgs(vararg args: Pair<String, Any?>, content: @Composable () -> Unit) {
     val owner = checkNotNull(LocalViewModelStoreOwner.current) {
         "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
     }

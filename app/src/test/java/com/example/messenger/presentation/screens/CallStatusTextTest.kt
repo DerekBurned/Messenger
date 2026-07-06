@@ -19,6 +19,28 @@ class CallStatusTextTest {
     }
 
     @Test
+    fun `incoming video call shows the video label`() {
+        val state = CallUiState(
+            isIncoming = true,
+            isVideoCall = true,
+            connectionState = CallConnectionState.CONNECTED,
+        )
+        assertThat(callStatusText(state)).isEqualTo("Incoming video call…")
+    }
+
+    @Test
+    fun `active video call shows the elapsed timer like audio`() {
+        val state = CallUiState(
+            isActive = true,
+            isVideoCall = true,
+            remotePresent = true,
+            seconds = 5,
+            connectionState = CallConnectionState.CONNECTED,
+        )
+        assertThat(callStatusText(state)).isEqualTo("0:05")
+    }
+
+    @Test
     fun `connected but no ringing ack is still Requesting`() {
         val state = CallUiState(connectionState = CallConnectionState.CONNECTED)
         assertThat(callStatusText(state)).isEqualTo("Requesting…")

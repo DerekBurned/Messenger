@@ -60,6 +60,7 @@ class IncomingCallCoordinator @Inject constructor(
                     channelName = signal.channelName,
                     partnerName = partnerName,
                     partnerPhone = "",
+                    video = signal.video,
                 )
                 ContextCompat.startForegroundService(context, intent)
                 val meta = TelecomCallMeta(
@@ -70,6 +71,7 @@ class IncomingCallCoordinator @Inject constructor(
                     partnerName = partnerName,
                     partnerPhone = "",
                     isIncoming = true,
+                    isVideo = signal.video,
                 )
                 runCatching { telecomCallManager.addIncoming(meta) }
             }

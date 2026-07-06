@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallMissed
+import androidx.compose.material.icons.filled.MissedVideoCall
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ fun MissedCallCard(
     modifier: Modifier = Modifier,
     title: String = "Missed Call",
     status: MessageStatus? = null,
+    video: Boolean = false,
 ) {
 
     val titleColor = if (isMe) Color.White else BubbleReceivedText
@@ -63,7 +66,7 @@ fun MissedCallCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.CallMissed,
+                    imageVector = if (video) Icons.Default.MissedVideoCall else Icons.Default.CallMissed,
                     contentDescription = null,
                     tint = Color(0xFFE53935),
                     modifier = Modifier.size(22.dp),
@@ -96,7 +99,7 @@ fun MissedCallCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Call,
+                        imageVector = if (video) Icons.Default.Videocam else Icons.Default.Call,
                         contentDescription = "Call back",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp),
@@ -113,6 +116,7 @@ fun EndedCallCard(
     timestamp: Long,
     isMe: Boolean,
     modifier: Modifier = Modifier,
+    video: Boolean = false,
 ) {
     val titleColor = if (isMe) Color.White else BubbleReceivedText
     val subtitleColor = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
@@ -132,7 +136,7 @@ fun EndedCallCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Call,
+                    imageVector = if (video) Icons.Default.Videocam else Icons.Default.Call,
                     contentDescription = null,
                     tint = Color(0xFF34C759),
                     modifier = Modifier.size(22.dp),
@@ -140,7 +144,7 @@ fun EndedCallCard(
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Call",
+                        text = if (video) "Video call" else "Call",
                         color = titleColor,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
