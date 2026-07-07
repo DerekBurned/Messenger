@@ -3,6 +3,10 @@ package com.example.messenger.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.example.messenger.data.crypto.E2eeMessageCodec
+import com.example.messenger.data.crypto.MediaCipher
+import com.example.messenger.data.crypto.b64
+import com.example.messenger.data.crypto.unb64
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxConversation_
 import com.example.messenger.data.local.obx.ObxMessage
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -49,6 +54,7 @@ class MediaRepositoryImpl @Inject constructor(
     private val mediaCache: MediaCache,
     private val mediaMetadata: MediaMetadata,
     private val authService: FirebaseAuthService,
+    private val codec: E2eeMessageCodec,
 ) : IMediaRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -69,7 +75,18 @@ class MediaRepositoryImpl @Inject constructor(
     override fun downloadMedia(item: MediaItem) {
         scope.launch {
             val dest = mediaCache.fileFor(item.id, item.kind)
-            manager.download(item.id, item.url, dest)
+            val fileKey = item.fileKey
+            if (fileKey.isNullOrBlank()) {
+                manager.download(item.id, item.url, dest)
+            } else {
+                val encrypted = File(context.cacheDir, "${item.id}.enc.dl")
+                manager.download(item.id, item.url, encrypted)
+                if (encrypted.exists() && encrypted.length() > 0) {
+                    runCatching { MediaCipher.decrypt(unb64(fileKey), encrypted, dest) }
+                        .onFailure { Log.w(TAG, "media decrypt failed: ${item.id}", it) }
+                }
+                encrypted.delete()
+            }
             manager.clear(item.id)
         }
     }
@@ -147,6 +164,8 @@ class MediaRepositoryImpl @Inject constructor(
         val original = loadMessage(messageId) as? Message.Media ?: return
         Log.d(TAG, "uploadAndSend start: msg=$messageId items=${original.items.size}")
 
+        val encryptActive = codec.isEncryptable(original.conversationId)
+
         coroutineScope {
             val jobs = original.items
                 .filterNot { cancelledItems.contains(it.id) }
@@ -154,12 +173,25 @@ class MediaRepositoryImpl @Inject constructor(
                     launch {
                         val file = mediaCache.fileFor(item.id, item.kind)
                         val path = storagePath(original.conversationId, messageId, item)
-                        val result = manager.upload(item.id, file, path)
+                        val fileKey = if (encryptActive) MediaCipher.generateFileKey() else null
+                        val uploadFile = if (fileKey != null) {
+                            File(context.cacheDir, "${item.id}.enc").also {
+                                MediaCipher.encrypt(fileKey, file, it)
+                            }
+                        } else {
+                            file
+                        }
+                        val result = manager.upload(item.id, uploadFile, path)
+                        if (fileKey != null) uploadFile.delete()
                         if (result.isSuccess) {
                             val url = result.getOrThrow()
                             val current = loadMessage(messageId) as? Message.Media
                             putMedia(messageId, current?.items.orEmpty().map {
-                                if (it.id == item.id) it.copy(url = url, storagePath = path) else it
+                                if (it.id == item.id) {
+                                    it.copy(url = url, storagePath = path, fileKey = fileKey?.let(::b64))
+                                } else {
+                                    it
+                                }
                             })
                             manager.clear(item.id)
                         }
