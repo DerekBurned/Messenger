@@ -51,4 +51,17 @@ class IdentityKeyStoreTest {
         val raw = File(dir, "identity_v1_uid1.bin").readBytes()
         assertThat(raw.toList().containsAll(key.privateKey.toList()).not() || raw.size != 69).isTrue()
     }
+
+    @Test
+    fun `present but unreadable key file is not silently replaced`() {
+        IdentityKeyStore(dir, FakeWrapper()).getOrCreate("uid1")
+        val file = File(dir, "identity_v1_uid1.bin")
+        val corrupt = byteArrayOf(9, 9, 9)
+        file.writeBytes(corrupt)
+
+        val result = runCatching { IdentityKeyStore(dir, FakeWrapper()).getOrCreate("uid1") }
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(file.readBytes().toList()).isEqualTo(corrupt.toList())
+    }
 }

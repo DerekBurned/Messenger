@@ -129,9 +129,13 @@ service cloud.firestore {
     match /users/{userId}/keys/{epochId} {
       allow read: if isAuthenticated();
 
-      allow create, update: if isOwner(userId)
+      allow create: if isOwner(userId)
           && isValidString(request.resource.data.pub, 100)
           && request.resource.data.epoch is int;
+
+      allow update: if isOwner(userId)
+          && request.resource.data.pub == resource.data.pub
+          && request.resource.data.epoch == resource.data.epoch;
 
       allow delete: if false;
     }

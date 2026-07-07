@@ -94,6 +94,6 @@ class PeerKeyRegistry @Inject constructor(
     private fun ObxPeerKey.toPeerKey() = PeerKey(uid, unb64(publicKey), epoch, verified)
 
     companion object {
-        private const val REFRESH_MS = 6 * 60 * 60 * 1000L
+        private const val REFRESH_MS = 30 * 60 * 1000L
     }
 }

@@ -15,9 +15,21 @@ interface KeyWrapper {
 
 class KeystoreKeyWrapper : KeyWrapper {
 
+    private val generationLock = Any()
+
     private fun masterKey(): SecretKey {
+        existingMasterKey()?.let { return it }
+        return synchronized(generationLock) {
+            existingMasterKey() ?: generateMasterKey()
+        }
+    }
+
+    private fun existingMasterKey(): SecretKey? {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (store.getKey(ALIAS, null) as? SecretKey)?.let { return it }
+        return store.getKey(ALIAS, null) as? SecretKey
+    }
+
+    private fun generateMasterKey(): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
             KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)

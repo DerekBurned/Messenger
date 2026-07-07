@@ -5,8 +5,10 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotEmpty
+import assertk.assertions.isTrue
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.domain.model.CallType
+import com.example.messenger.domain.model.MediaItem
 import com.example.messenger.domain.model.Message
 import io.mockk.coEvery
 import io.mockk.every
@@ -115,5 +117,47 @@ class E2eeMessageCodecTest {
         val dto = codec.encode(original)
         assertThat(dto.enc).isEqualTo(0)
         assertThat(dto.text).isEqualTo("secret text")
+    }
+
+    @Test
+    fun `plaintext media with no peer key still falls back to plaintext`() = runTest {
+        val identityStore = mockk<IdentityKeyStore> {
+            every { getOrCreate("alice") } returns aliceIdentity
+        }
+        val registry = mockk<PeerKeyRegistry> {
+            coEvery { ensurePeerKey("bob") } returns null
+        }
+        val auth = mockk<FirebaseAuthService> {
+            every { getCurrentUserId() } returns "alice"
+        }
+        val codec = E2eeMessageCodec(identityStore, registry, auth, { _, _ -> "bob" })
+        val media = Message.Media(
+            id = "m3", conversationId = "c1", senderId = "alice", timestamp = 1L,
+            items = listOf(MediaItem(id = "i1")),
+            caption = "hi",
+        )
+        val dto = codec.encode(media)
+        assertThat(dto.enc).isEqualTo(0)
+    }
+
+    @Test
+    fun `already-encrypted media with no peer key fails instead of stranding plaintext`() = runTest {
+        val identityStore = mockk<IdentityKeyStore> {
+            every { getOrCreate("alice") } returns aliceIdentity
+        }
+        val registry = mockk<PeerKeyRegistry> {
+            coEvery { ensurePeerKey("bob") } returns null
+        }
+        val auth = mockk<FirebaseAuthService> {
+            every { getCurrentUserId() } returns "alice"
+        }
+        val codec = E2eeMessageCodec(identityStore, registry, auth, { _, _ -> "bob" })
+        val media = Message.Media(
+            id = "m4", conversationId = "c1", senderId = "alice", timestamp = 1L,
+            items = listOf(MediaItem(id = "i1", fileKey = "AAAAAAAAAAAAAAAAAAAAAA==")),
+            caption = "hi",
+        )
+        val result = runCatching { codec.encode(media) }
+        assertThat(result.isFailure).isTrue()
     }
 }

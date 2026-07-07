@@ -14,7 +14,7 @@ class IdentityKeyStore(
     private val cache = ConcurrentHashMap<String, IdentityKey>()
 
     fun getOrCreate(uid: String): IdentityKey = cache.computeIfAbsent(uid) {
-        load(uid) ?: generateAndPersist(uid, epoch = 1)
+        if (keyFile(uid).exists()) load(uid) else generateAndPersist(uid, epoch = 1)
     }
 
     fun rotate(uid: String): IdentityKey {
@@ -23,10 +23,9 @@ class IdentityKeyStore(
         return next
     }
 
-    private fun load(uid: String): IdentityKey? {
-        val file = keyFile(uid)
-        if (!file.exists()) return null
-        return runCatching { decode(keyWrapper.unwrap(file.readBytes())) }.getOrNull()
+    private fun load(uid: String): IdentityKey {
+        val bytes = keyWrapper.unwrap(keyFile(uid).readBytes())
+        return decode(bytes) ?: error("identity key file for $uid is present but unreadable")
     }
 
     private fun generateAndPersist(uid: String, epoch: Int): IdentityKey {

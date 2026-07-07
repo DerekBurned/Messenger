@@ -29,9 +29,12 @@ class E2eeMessageCodec @Inject constructor(
     suspend fun encode(message: Message): RemoteMessageDto {
         val plain = message.toRemoteDto()
         if (message is Message.Call) return plain
-        val myUid = authService.getCurrentUserId() ?: return plain
-        val partnerId = participantResolver.partnerOf(message.conversationId, myUid) ?: return plain
-        val peer = peerKeyRegistry.ensurePeerKey(partnerId) ?: return plain
+        val hasEncryptedMedia = message is Message.Media &&
+            message.items.any { !it.fileKey.isNullOrBlank() }
+        val myUid = authService.getCurrentUserId() ?: return plainOrFail(hasEncryptedMedia, plain)
+        val partnerId = participantResolver.partnerOf(message.conversationId, myUid)
+            ?: return plainOrFail(hasEncryptedMedia, plain)
+        val peer = peerKeyRegistry.ensurePeerKey(partnerId) ?: return plainOrFail(hasEncryptedMedia, plain)
         val identity = identityKeyStore.getOrCreate(myUid)
         val payload = when (message) {
             is Message.Text -> MessagePayload(text = message.text, replyToText = message.replyToText)
@@ -62,6 +65,13 @@ class E2eeMessageCodec @Inject constructor(
             recipientEpoch = peer.epoch,
             recipientId = partnerId,
         )
+    }
+
+    private fun plainOrFail(hasEncryptedMedia: Boolean, plain: RemoteMessageDto): RemoteMessageDto {
+        check(!hasEncryptedMedia) {
+            "media already encrypted but no peer key resolvable; refusing to send stranded plaintext"
+        }
+        return plain
     }
 
     suspend fun decode(dto: RemoteMessageDto, hasPendingWrites: Boolean = false): Message {
