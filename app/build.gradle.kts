@@ -166,6 +166,9 @@ dependencies {
     // Gson
     implementation(libs.google.gson)
 
+    // Tink (E2EE crypto primitives)
+    implementation(libs.tink.android)
+
     //AgoraRTC
     implementation("io.agora.rtc:voice-sdk:4.6.3")
 
