@@ -6,6 +6,7 @@ import com.example.messenger.data.local.obx.MyObjectBox
 import com.example.messenger.data.local.obx.ObxContactAlias
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxMessage
+import com.example.messenger.data.local.obx.ObxPeerKey
 import com.example.messenger.data.local.obx.ObxProfile
 import com.example.messenger.data.local.obx.ObxSyncQueueItem
 import com.example.messenger.data.local.obx.ObxUser
@@ -58,4 +59,7 @@ object ObjectBoxModule {
     @Provides @Singleton
     fun provideContactAliasBox(store: BoxStore): Box<ObxContactAlias> =
         store.boxFor(ObxContactAlias::class.java)
+
+    @Provides @Singleton
+    fun providePeerKeyBox(store: BoxStore): Box<ObxPeerKey> = store.boxFor(ObxPeerKey::class.java)
 }
