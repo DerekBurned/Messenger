@@ -38,6 +38,11 @@ class E2eeMessageCodec @Inject constructor(
             is Message.Media -> MessagePayload(
                 text = message.caption,
                 replyToText = message.replyToText,
+                media = message.items.mapNotNull { item ->
+                    item.fileKey?.takeIf { it.isNotBlank() }?.let { key ->
+                        MediaSecret(itemId = item.id, key = key, blurHash = item.blurHash)
+                    }
+                },
             )
             is Message.Call -> return plain
         }
@@ -65,7 +70,15 @@ class E2eeMessageCodec @Inject constructor(
             ?: return undecryptable(dto, hasPendingWrites)
         val message = dto.copy(text = payload.text, replyToText = payload.replyToText)
             .toDomain(hasPendingWrites)
-        return message
+        if (message !is Message.Media || payload.media.isEmpty()) return message
+        val secrets = payload.media.associateBy { it.itemId }
+        return message.copy(
+            items = message.items.map { item ->
+                secrets[item.id]?.let { secret ->
+                    item.copy(fileKey = secret.key, blurHash = secret.blurHash)
+                } ?: item
+            },
+        )
     }
 
     private suspend fun decryptPayload(dto: RemoteMessageDto): MessagePayload {

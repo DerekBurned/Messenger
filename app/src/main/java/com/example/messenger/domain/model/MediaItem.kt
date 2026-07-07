@@ -12,6 +12,7 @@ data class MediaItem(
     val height: Int = 0,
     val durationMs: Long = 0L,
     val sizeBytes: Long = 0L,
+    val fileKey: String? = null,
 ) {
     companion object {
         const val IMAGE = "IMAGE"
