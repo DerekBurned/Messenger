@@ -1,9 +1,8 @@
 package com.example.messenger.data.remote.firebase
 
 import android.util.Log
+import com.example.messenger.data.crypto.E2eeMessageCodec
 import com.example.messenger.data.remote.dto.RemoteMessageDto
-import com.example.messenger.data.remote.dto.toDomain
-import com.example.messenger.data.remote.dto.toRemoteDto
 import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.domain.model.MediaItem
@@ -18,13 +17,15 @@ import com.google.firebase.firestore.Source
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FirestoreService @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val codec: E2eeMessageCodec,
 ) {
     private val usersCollection = firestore.collection("users")
     private val conversationsCollection = firestore.collection("conversations")
@@ -92,10 +93,8 @@ class FirestoreService @Inject constructor(
     }
     suspend fun sendMessage(message: Message): Result<Unit> {
         return try {
-            val dto = when {
-                message.status == MessageStatus.SENDING ->
-                    message.toRemoteDto().copy(status = MessageStatus.SENT.name)
-                else -> message.toRemoteDto()
+            val dto = codec.encode(message).let {
+                if (message.status == MessageStatus.SENDING) it.copy(status = MessageStatus.SENT.name) else it
             }
             val conversationRef = conversationsCollection.document(message.conversationId)
             conversationRef
@@ -105,7 +104,7 @@ class FirestoreService @Inject constructor(
             conversationRef
                 .update(
                     mapOf(
-                        "lastMessage" to previewLabel(message),
+                        "lastMessage" to if (dto.enc == 1) encryptedPreview(message) else previewLabel(message),
                         "lastMessageSenderId" to message.senderId,
                         "lastMessageTimestamp" to message.timestamp,
                     ),
@@ -115,6 +114,12 @@ class FirestoreService @Inject constructor(
             Log.e("FirestoreService", "Error sending message", e)
             Result.failure(e)
         }
+    }
+
+    private fun encryptedPreview(message: Message): String = when (message) {
+        is Message.Text -> "Message"
+        is Message.Media -> previewLabel(message.copy(caption = ""))
+        is Message.Call -> previewLabel(message)
     }
 
     private fun previewLabel(message: Message): String = when (message) {
@@ -171,38 +176,33 @@ class FirestoreService @Inject constructor(
         conversationId: String,
         limit: Long = 100,
         cutoff: Long = 0,
-    ): Flow<List<Message>> = callbackFlow {
-        val messagesRef = conversationsCollection
-            .document(conversationId)
-            .collection("messages")
-            .whereGreaterThan("timestamp", cutoff)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(limit)
+    ): Flow<List<Message>> {
+        val raw: Flow<List<Pair<RemoteMessageDto, Boolean>>> = callbackFlow {
+            val messagesRef = conversationsCollection
+                .document(conversationId)
+                .collection("messages")
+                .whereGreaterThan("timestamp", cutoff)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(limit)
 
-        val listener = messagesRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
-            if (error != null) {
-                Log.w("FirestoreService", "Listen failed.", error)
-                close(error)
-                return@addSnapshotListener
+            val listener = messagesRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                if (error != null) {
+                    Log.w("FirestoreService", "Listen failed.", error)
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val rows = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(RemoteMessageDto::class.java)
+                            ?.copy(id = doc.id)
+                            ?.let { it to doc.metadata.hasPendingWrites() }
+                    }.reversed()
+                    trySend(rows)
+                }
             }
-
-            if (snapshot != null) {
-                val messages = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(RemoteMessageDto::class.java)
-                        ?.toDomain(doc.metadata.hasPendingWrites())
-                        ?.let { msg ->
-                            when (msg) {
-                                is Message.Text  -> msg.copy(id = doc.id)
-                                is Message.Media -> msg.copy(id = doc.id)
-                                is Message.Call  -> msg.copy(id = doc.id)
-                            }
-                        }
-                }.reversed()
-                trySend(messages)
-            }
+            awaitClose { listener.remove() }
         }
-
-        awaitClose { listener.remove() }
+        return raw.map { rows -> rows.map { (dto, pending) -> codec.decode(dto, pending) } }
     }
 
     suspend fun fetchOlderMessages(
@@ -227,20 +227,28 @@ class FirestoreService @Inject constructor(
                 .get()
                 .await()
             val messages = snapshot.documents.mapNotNull { doc ->
-                doc.toObject(RemoteMessageDto::class.java)?.toDomain()?.let { msg ->
-                    when (msg) {
-                        is Message.Text  -> msg.copy(id = doc.id)
-                        is Message.Media -> msg.copy(id = doc.id)
-                        is Message.Call  -> msg.copy(id = doc.id)
-                    }
-                }
-            }.reversed()
+                doc.toObject(RemoteMessageDto::class.java)?.copy(id = doc.id)
+            }.map { dto -> codec.decode(dto) }.reversed()
             Result.success(messages)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error fetching older messages", e)
             Result.failure(e)
         }
     }
+    suspend fun getMessageOnce(conversationId: String, messageId: String): Result<RemoteMessageDto> {
+        return try {
+            val doc = conversationsCollection.document(conversationId)
+                .collection("messages")
+                .document(messageId)
+                .get()
+                .await()
+            val dto = doc.toObject(RemoteMessageDto::class.java)?.copy(id = doc.id)
+            if (dto != null) Result.success(dto) else Result.failure(Exception("Message not found"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
             val prefix = query.trim().lowercase()
