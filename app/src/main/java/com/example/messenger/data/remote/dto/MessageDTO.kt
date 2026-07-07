@@ -20,6 +20,12 @@ data class RemoteMessageDto(
     val replyToSenderId: String? = null,
     val mediaItems: List<RemoteMediaItemDto> = emptyList(),
     val callDurationSeconds: Int = 0,
+    val enc: Int = 0,
+    val ciphertext: String = "",
+    val nonce: String = "",
+    val senderEpoch: Int = 0,
+    val recipientEpoch: Int = 0,
+    val recipientId: String = "",
 )
 
 data class RemoteMediaItemDto(
