@@ -1,19 +1,24 @@
 package com.example.messenger.data.remote.firebase
 
-import com.example.messenger.domain.model.Message
-import com.example.messenger.domain.model.MessageStatus
+import com.example.messenger.data.remote.dto.RemoteMessageDto
 
-fun parseIncomingMessage(data: Map<String, String>): Message.Text? {
+fun parseIncomingDto(data: Map<String, String>): RemoteMessageDto? {
     val conversationId = data["conversationId"].orEmpty()
     val messageId = data["messageId"].orEmpty()
     if (conversationId.isBlank() || messageId.isBlank()) return null
-    return Message.Text(
+    return RemoteMessageDto(
         id = messageId,
         conversationId = conversationId,
         senderId = data["senderId"].orEmpty(),
-        text = data["preview"].orEmpty(),
         timestamp = data["timestamp"]?.toLongOrNull() ?: System.currentTimeMillis(),
-        status = MessageStatus.SENT,
-        isRead = false,
+        status = "SENT",
+        type = data["msgType"] ?: "TEXT",
+        text = data["preview"].orEmpty(),
+        enc = data["enc"]?.toIntOrNull() ?: 0,
+        ciphertext = data["ciphertext"].orEmpty(),
+        nonce = data["nonce"].orEmpty(),
+        senderEpoch = data["senderEpoch"]?.toIntOrNull() ?: 0,
+        recipientEpoch = data["recipientEpoch"]?.toIntOrNull() ?: 0,
+        recipientId = data["recipientId"].orEmpty(),
     )
 }

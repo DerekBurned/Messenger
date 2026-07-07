@@ -2,10 +2,8 @@ package com.example.messenger.data.remote.firebase
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
-import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNull
-import com.example.messenger.domain.model.MessageStatus
 import org.junit.jupiter.api.Test
 
 class IncomingMessagePayloadTest {
@@ -20,30 +18,30 @@ class IncomingMessagePayloadTest {
     )
 
     @Test
-    fun `valid payload maps to a delivered incoming text message`() {
-        val message = parseIncomingMessage(base)!!
-        assertThat(message.id).isEqualTo("m1")
-        assertThat(message.conversationId).isEqualTo("c1")
-        assertThat(message.senderId).isEqualTo("s1")
-        assertThat(message.text).isEqualTo("hello")
-        assertThat(message.timestamp).isEqualTo(1234L)
-        assertThat(message.status).isEqualTo(MessageStatus.SENT)
-        assertThat(message.isRead).isFalse()
+    fun `valid payload maps to a delivered incoming text dto`() {
+        val dto = parseIncomingDto(base)!!
+        assertThat(dto.id).isEqualTo("m1")
+        assertThat(dto.conversationId).isEqualTo("c1")
+        assertThat(dto.senderId).isEqualTo("s1")
+        assertThat(dto.text).isEqualTo("hello")
+        assertThat(dto.timestamp).isEqualTo(1234L)
+        assertThat(dto.status).isEqualTo("SENT")
+        assertThat(dto.enc).isEqualTo(0)
     }
 
     @Test
     fun `blank conversationId yields null`() {
-        assertThat(parseIncomingMessage(base - "conversationId")).isNull()
+        assertThat(parseIncomingDto(base - "conversationId")).isNull()
     }
 
     @Test
     fun `blank messageId yields null`() {
-        assertThat(parseIncomingMessage(base - "messageId")).isNull()
+        assertThat(parseIncomingDto(base - "messageId")).isNull()
     }
 
     @Test
     fun `missing timestamp falls back to a positive value`() {
-        val message = parseIncomingMessage(base - "timestamp")!!
-        assertThat(message.timestamp).isGreaterThan(0L)
+        val dto = parseIncomingDto(base - "timestamp")!!
+        assertThat(dto.timestamp).isGreaterThan(0L)
     }
 }
