@@ -35,7 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.messenger.R
 import com.example.messenger.data.remote.call.ActiveCallHolder
 
 private val AcceptGreen = Color(0xFF34C759)
@@ -93,7 +95,9 @@ fun IncomingCallBar(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "Incoming voice call",
+                        text = stringResource(
+                            if (c.isVideoCall) R.string.call_incoming_video_subtitle else R.string.call_incoming_subtitle,
+                        ),
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         maxLines = 1,
