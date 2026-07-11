@@ -877,6 +877,7 @@ class CallForegroundService : Service() {
     private fun openAppPendingIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(MainActivity.EXTRA_OPEN_INCOMING_CALL, true)
         }
         return PendingIntent.getActivity(
             this,

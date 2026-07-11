@@ -48,6 +48,7 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.presentation.components.call.ActiveCallBar
 import com.example.messenger.presentation.components.call.IncomingCallBar
 import com.example.messenger.presentation.components.call.LocalOpenActiveCall
 import com.example.messenger.presentation.components.common.FloatingTabBar
@@ -210,7 +211,12 @@ private fun MainDisplay(
                             }
 
                             entry<CallsRoute> {
-                                CallsScreen(onLogoutClick = { logout() })
+                                CallsScreen(
+                                    onLogoutClick = { logout() },
+                                    onCallBack = { partnerId, partnerName, video ->
+                                        backStack.add(CallRoute(partnerId, partnerName, "", video = video))
+                                    },
+                                )
                             }
 
                             entry<SettingsRoute> {
@@ -391,15 +397,17 @@ private fun MainDisplay(
                     .statusBarsPadding()
                     .padding(top = 76.dp),
                 onAccept = { openActiveCall(accept = true) },
-                onDecline = {
-                    val action = if (ActiveCallHolder.snapshot()?.isActive == true) {
-                        CallForegroundService.ACTION_END
-                    } else {
-                        CallForegroundService.ACTION_DECLINE
-                    }
-                    sendCallAction(context, action)
-                },
+                onDecline = { sendCallAction(context, CallForegroundService.ACTION_DECLINE) },
                 onOpen = { openActiveCall(accept = false) },
+            )
+        }
+        if (isTabRoute) {
+            ActiveCallBar(
+                onClick = { openActiveCall(accept = false) },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 68.dp),
             )
         }
     }

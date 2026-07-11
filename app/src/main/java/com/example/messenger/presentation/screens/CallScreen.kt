@@ -3,7 +3,6 @@ package com.example.messenger.presentation.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.view.SurfaceView
-import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -139,7 +138,7 @@ fun CallScreen(
         }
     }
 
-    val mainActivity = LocalActivity.current as? MainActivity
+    val mainActivity = remember(context) { context.findMainActivity() }
     val videoMode = !state.callEnded && (state.localVideoOn || state.remoteVideoOn)
     DisposableEffect(mainActivity, state.callEnded, videoMode) {
         mainActivity?.updateCallPipParams(wanted = !state.callEnded, video = videoMode)
@@ -218,6 +217,15 @@ private fun CallScreenContent(
             onToggleCamera = onToggleCamera,
         )
     }
+}
+
+private fun android.content.Context.findMainActivity(): MainActivity? {
+    var ctx: android.content.Context? = this
+    while (ctx is android.content.ContextWrapper) {
+        if (ctx is MainActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }
 
 @Composable
@@ -429,6 +437,7 @@ private fun VideoCallContent(
             DraggableLocalPreview(
                 parentSize = parentSize,
                 bindLocalVideo = bindLocalVideo,
+                modifier = Modifier.align(Alignment.TopEnd),
             )
         }
 
@@ -456,6 +465,7 @@ private fun VideoCallContent(
 private fun DraggableLocalPreview(
     parentSize: IntSize,
     bindLocalVideo: (SurfaceView) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
     val tileWidth = 110.dp
@@ -472,8 +482,9 @@ private fun DraggableLocalPreview(
     VideoSurface(
         bind = bindLocalVideo,
         overlay = true,
-        modifier = Modifier
+        modifier = modifier
             .statusBarsPadding()
+            .padding(top = 72.dp)
             .padding(margin)
             .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
             .size(tileWidth, tileHeight)

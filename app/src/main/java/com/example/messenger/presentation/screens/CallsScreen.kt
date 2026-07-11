@@ -1,31 +1,49 @@
 package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallMissed
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.messenger.domain.model.CallHistoryEntry
+import com.example.messenger.domain.model.CallType
+import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.SegmentedToggle
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
-import com.example.messenger.presentation.components.common.SegmentedToggle
+import com.example.messenger.util.DateUtils
 
 enum class CallsFilter { ALL, MISSED }
 
 @Composable
 fun CallsScreenContent(
+    calls: List<CallHistoryEntry>,
     modifier: Modifier = Modifier,
+    onCallBack: (partnerId: String, partnerName: String, video: Boolean) -> Unit = { _, _, _ -> },
 ) {
     var filter by remember { mutableStateOf(CallsFilter.ALL) }
     val tokens = messengerTokens
+
+    val visible = remember(calls, filter) {
+        if (filter == CallsFilter.MISSED) calls.filter { it.missed } else calls
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         SegmentedToggle(
@@ -38,35 +56,118 @@ fun CallsScreenContent(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         )
 
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (visible.isEmpty()) {
+            CallsEmptyState(missed = filter == CallsFilter.MISSED)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                items(visible, key = { it.id }) { entry ->
+                    CallHistoryRow(entry = entry, onCallBack = onCallBack)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CallHistoryRow(
+    entry: CallHistoryEntry,
+    onCallBack: (partnerId: String, partnerName: String, video: Boolean) -> Unit,
+) {
+    val tokens = messengerTokens
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable { onCallBack(entry.partnerId, entry.partnerName, entry.video) }
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MessengerAvatar(name = entry.partnerName, photoUrl = entry.partnerAvatarUrl, size = 46.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = entry.partnerName.ifBlank { "Unknown" },
+                color = if (entry.missed) tokens.danger else tokens.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = if (filter == CallsFilter.MISSED) {
-                        Icons.Filled.CallMissed
-                    } else {
-                        Icons.Filled.Call
-                    },
+                    imageVector = directionIcon(entry),
                     contentDescription = null,
-                    tint = tokens.textPrimary.copy(alpha = 0.4f),
-                    modifier = Modifier.size(72.dp),
+                    tint = if (entry.missed) tokens.danger else tokens.textPrimary.copy(0.6f),
+                    modifier = Modifier.size(15.dp),
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.width(5.dp))
                 Text(
-                    text = if (filter == CallsFilter.MISSED) "No missed calls" else "No calls yet",
-                    color = tokens.textPrimary.copy(alpha = 0.8f),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Voice / video calls coming soon",
-                    color = tokens.textPrimary.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
+                    text = subtitle(entry),
+                    color = tokens.textPrimary.copy(0.6f),
+                    fontSize = 13.sp,
                 )
             }
+        }
+        if (entry.video) {
+            Icon(
+                imageVector = Icons.Filled.Videocam,
+                contentDescription = "Video call back",
+                tint = tokens.textPrimary.copy(0.8f),
+                modifier = Modifier.size(22.dp),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Call,
+                contentDescription = "Call back",
+                tint = tokens.textPrimary.copy(0.8f),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+private fun directionIcon(entry: CallHistoryEntry) = when {
+    entry.missed -> Icons.Filled.CallMissed
+    entry.outgoing -> Icons.AutoMirrored.Filled.CallMade
+    else -> Icons.AutoMirrored.Filled.CallReceived
+}
+
+private fun subtitle(entry: CallHistoryEntry): String {
+    val whenText = "${DateUtils.formatDayDivider(entry.timestamp)}, ${DateUtils.formatMessageTime(entry.timestamp)}"
+    val label = when {
+        entry.missed -> "Missed"
+        entry.callType == CallType.UNREACHED -> "No answer"
+        entry.callType == CallType.ENDED && entry.durationSeconds > 0 ->
+            DateUtils.formatDuration(entry.durationSeconds)
+        entry.outgoing -> "Outgoing"
+        else -> "Incoming"
+    }
+    return "$label · $whenText"
+}
+
+@Composable
+private fun ColumnScope.CallsEmptyState(missed: Boolean) {
+    val tokens = messengerTokens
+    Box(
+        modifier = Modifier.fillMaxSize().weight(1f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (missed) Icons.Filled.CallMissed else Icons.Filled.Call,
+                contentDescription = null,
+                tint = tokens.textPrimary.copy(alpha = 0.4f),
+                modifier = Modifier.size(72.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = if (missed) "No missed calls" else "No calls yet",
+                color = tokens.textPrimary.copy(alpha = 0.8f),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+            )
         }
     }
 }
@@ -75,6 +176,6 @@ fun CallsScreenContent(
 @Composable
 fun CallsScreenContentPreview() {
     MessengerTheme {
-        CallsScreenContent()
+        CallsScreenContent(calls = emptyList())
     }
 }

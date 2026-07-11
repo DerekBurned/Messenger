@@ -108,7 +108,10 @@ fun ChatsScreen(
 @Composable
 fun CallsScreen(
     onLogoutClick: () -> Unit = {},
+    onCallBack: (partnerId: String, partnerName: String, video: Boolean) -> Unit = { _, _, _ -> },
+    viewModel: com.example.messenger.presentation.viewmodel.CallsViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel(),
 ) {
+    val calls by viewModel.calls.collectAsStateWithLifecycle()
     WallpaperBackground {
         Column(
             modifier = Modifier
@@ -116,7 +119,11 @@ fun CallsScreen(
                 .statusBarsPadding(),
         ) {
             Spacer(modifier = Modifier.height(64.dp))
-            CallsScreenContent(modifier = Modifier.weight(1f))
+            CallsScreenContent(
+                calls = calls,
+                onCallBack = onCallBack,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

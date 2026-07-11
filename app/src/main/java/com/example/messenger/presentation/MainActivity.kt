@@ -141,7 +141,7 @@ class MainActivity : ComponentActivity() {
     @Suppress("OVERRIDE_DEPRECATION")
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (pipWanted && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        if (pipWanted && !isInPictureInPictureMode) {
             runCatching { enterPictureInPictureMode(pipParams(true, pipVideo)) }
         }
     }

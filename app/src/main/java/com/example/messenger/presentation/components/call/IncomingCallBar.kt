@@ -53,9 +53,7 @@ fun IncomingCallBar(
 ) {
     val active by ActiveCallHolder.state.collectAsStateWithLifecycle()
     val call = active
-    val ringing = call != null && call.isIncoming && !call.isActive
-    val ongoing = call != null && call.isActive
-    val visible = ringing || ongoing
+    val visible = call != null && call.isIncoming && !call.isActive
 
     var shown by remember { mutableStateOf<ActiveCallHolder.ActiveCall?>(null) }
     if (visible) shown = call
@@ -89,7 +87,7 @@ fun IncomingCallBar(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = c.partnerName.ifBlank { if (c.isActive) "Ongoing call" else "Incoming call" },
+                        text = c.partnerName.ifBlank { "Incoming call" },
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
@@ -98,12 +96,7 @@ fun IncomingCallBar(
                     )
                     Text(
                         text = stringResource(
-                            when {
-                                c.isActive && c.isVideoCall -> R.string.call_ongoing_video_subtitle
-                                c.isActive -> R.string.call_ongoing_subtitle
-                                c.isVideoCall -> R.string.call_incoming_video_subtitle
-                                else -> R.string.call_incoming_subtitle
-                            },
+                            if (c.isVideoCall) R.string.call_incoming_video_subtitle else R.string.call_incoming_subtitle,
                         ),
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
@@ -120,9 +113,9 @@ fun IncomingCallBar(
                         contentColor = Color.White,
                     ),
                 ) {
-                    Icon(Icons.Default.CallEnd, contentDescription = if (c.isActive) "End call" else "Decline")
+                    Icon(Icons.Default.CallEnd, contentDescription = "Decline")
                 }
-                if (!c.isActive) {
+                run {
                     Spacer(Modifier.width(10.dp))
                     FilledIconButton(
                         onClick = onAccept,
