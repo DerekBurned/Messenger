@@ -102,3 +102,14 @@ data class ObxProfile(
     var phoneVisibility: PhoneVisibility = PhoneVisibility.HIDDEN,
     var fcmToken: String? = null,
 )
+
+@Entity
+data class ObxPeerKey(
+    @Id var boxId: Long = 0,
+    @Unique(onConflict = ConflictStrategy.REPLACE) var uidEpoch: String = "",
+    @Index var uid: String = "",
+    var epoch: Int = 0,
+    var publicKey: String = "",
+    var verified: Boolean = false,
+    var seenAt: Long = 0,
+)

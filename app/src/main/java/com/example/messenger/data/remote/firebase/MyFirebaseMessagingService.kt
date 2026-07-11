@@ -26,6 +26,7 @@ interface FcmEntryPoint {
     fun firestoreService(): FirestoreService
     fun telecomCallManager(): TelecomCallManager
     fun messageRepository(): com.example.messenger.domain.repository.IMessageRepository
+    fun e2eeCodec(): com.example.messenger.data.crypto.E2eeMessageCodec
 }
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
@@ -74,43 +75,50 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val conversationId = data["conversationId"].orEmpty()
         val senderId = data["senderId"].orEmpty()
         val senderName = data["senderName"].orEmpty().ifBlank { getString(R.string.notif_message_fallback_sender) }
-        val preview = data["preview"].orEmpty()
         val senderAvatar = data["senderAvatar"].orEmpty()
         val timestamp = data["timestamp"]?.toLongOrNull() ?: System.currentTimeMillis()
 
-        if (conversationId.isBlank()) {
-            ChatNotifier.notifyFallback(this, senderName, preview)
+        val dto = parseIncomingDto(data)
+        if (dto == null) {
+            ChatNotifier.notifyFallback(this, senderName, data["preview"].orEmpty())
             return
         }
 
-        persistIncomingMessage(data)
+        val entryPoint = EntryPointAccessors.fromApplication(applicationContext, FcmEntryPoint::class.java)
+        val messageRepository = entryPoint.messageRepository()
+        val codec = entryPoint.e2eeCodec()
+        val firestoreService = entryPoint.firestoreService()
 
-        if (CurrentConversationHolder.isOpen(conversationId)) {
-            Log.d(TAG, "handleMessagePayload: conversation $conversationId already open, suppressing notification")
-            return
-        }
-        Log.d(TAG, "handleMessagePayload: posting notification for conv=$conversationId sender=$senderName")
-
-        ChatNotifier.notifyIncoming(
-            context = this,
-            conversationId = conversationId,
-            senderId = senderId,
-            senderName = senderName,
-            text = preview,
-            timestamp = timestamp,
-            senderAvatar = senderAvatar,
-        )
-    }
-
-    private fun persistIncomingMessage(data: Map<String, String>) {
-        val message = parseIncomingMessage(data) ?: return
-        val messageRepository = EntryPointAccessors.fromApplication(
-            applicationContext,
-            FcmEntryPoint::class.java,
-        ).messageRepository()
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching { messageRepository.persistIncomingMessage(message) }
-                .onFailure { Log.w(TAG, "persistIncomingMessage failed", it) }
+            val resolved = if (dto.enc == 1 && dto.ciphertext.isBlank()) {
+                firestoreService.getMessageOnce(dto.conversationId, dto.id).getOrNull() ?: dto
+            } else {
+                dto
+            }
+            val message = runCatching { codec.decode(resolved) }.getOrNull()
+            if (message != null && resolved.type == com.example.messenger.domain.model.Message.TYPE_TEXT) {
+                runCatching { messageRepository.persistIncomingMessage(message) }
+                    .onFailure { Log.w(TAG, "persistIncomingMessage failed", it) }
+            }
+            if (CurrentConversationHolder.isOpen(conversationId)) return@launch
+            val body = when {
+                message is com.example.messenger.domain.model.Message.Text &&
+                    message.text != com.example.messenger.data.crypto.E2eeMessageCodec.UNDECRYPTABLE_TEXT ->
+                    message.text
+                message is com.example.messenger.domain.model.Message.Media ->
+                    message.caption.ifBlank { "Media" }
+                dto.enc == 1 -> "New message"
+                else -> data["preview"].orEmpty()
+            }
+            ChatNotifier.notifyIncoming(
+                context = this@MyFirebaseMessagingService,
+                conversationId = conversationId,
+                senderId = senderId,
+                senderName = senderName,
+                text = body,
+                timestamp = timestamp,
+                senderAvatar = senderAvatar,
+            )
         }
     }
 

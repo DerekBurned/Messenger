@@ -36,6 +36,7 @@ import com.example.messenger.presentation.components.profile.MediaTabsRow
 import com.example.messenger.presentation.components.profile.ProfileHeader
 import com.example.messenger.presentation.components.profile.ProfileInfoCard
 import com.example.messenger.presentation.components.profile.ProfileMediaGrid
+import com.example.messenger.presentation.components.profile.SafetyNumberSection
 import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.domain.model.PhoneNumber
 import com.example.messenger.domain.model.User
@@ -169,6 +170,9 @@ private fun ChatUserProfileScreenContent(
                 )
             }
             item { ProfileInfoCard(state) }
+            state.user?.id?.let { partnerId ->
+                item { SafetyNumberSection(partnerId = partnerId) }
+            }
             item { MediaTabsRow(state.mediaTab, onMediaTabChange) }
             item { ProfileMediaGrid() }
         }

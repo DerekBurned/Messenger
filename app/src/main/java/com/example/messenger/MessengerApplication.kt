@@ -18,6 +18,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.util.DebugLogger
 import coil3.video.VideoFrameDecoder
+import com.example.messenger.data.crypto.E2eeBootstrap
 import com.example.messenger.data.presence.AppLifecycleObserver
 import com.example.messenger.data.remote.call.IncomingCallCoordinator
 import com.example.messenger.data.remote.call.telecom.TelecomCallManager
@@ -53,6 +54,9 @@ class MessengerApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var telecomCallManager: TelecomCallManager
+
+    @Inject
+    lateinit var e2eeBootstrap: E2eeBootstrap
 
     override fun onCreate() {
         super.onCreate()
@@ -95,6 +99,7 @@ class MessengerApplication : Application(), Configuration.Provider {
         incomingCallCoordinator.start()
         telecomCallManager.registerPhoneAccount()
         registerMemoryProfiling()
+        e2eeBootstrap.publishKeys()
     }
 
     override fun onTrimMemory(level: Int) {

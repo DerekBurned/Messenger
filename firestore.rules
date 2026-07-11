@@ -26,13 +26,22 @@ service cloud.firestore {
       return t in ['MISSED_CALL', 'UNREACHED_CALL', 'ENDED_CALL'];
     }
 
+    // An E2EE-encrypted body carries ciphertext/nonce instead of plaintext text.
+    function isEncryptedBody(data) {
+      return data.get('enc', 0) == 1
+             && isValidString(data.ciphertext, 20000)
+             && isValidString(data.nonce, 64)
+             && data.get('text', '') == '';
+    }
+
     // A message's body is valid when it is a text message with non-empty text,
-    // a media message carrying at least one item (caption may be empty), or a
-    // call event (which has no text body).
+    // a media message carrying at least one item (caption may be empty), a
+    // call event (which has no text body), or an E2EE-encrypted envelope.
     function hasValidMessageBody(data) {
       return isValidString(data.text, 5000)
              || (data.get('type', 'TEXT') == 'MEDIA' && data.get('mediaItems', []).size() > 0)
-             || isCallType(data.get('type', 'TEXT'));
+             || isCallType(data.get('type', 'TEXT'))
+             || isEncryptedBody(data);
     }
 
     // When text/caption is present it must stay within the length cap (empty allowed).
@@ -113,6 +122,22 @@ service cloud.firestore {
           && isValidString(request.resource.data.name, 50);
 
       allow delete: if isOwner(userId);
+    }
+
+    // ── /users/{userId}/keys/{epochId} ─────────────────────────────────────────
+
+    match /users/{userId}/keys/{epochId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId)
+          && isValidString(request.resource.data.pub, 100)
+          && request.resource.data.epoch is int;
+
+      allow update: if isOwner(userId)
+          && request.resource.data.pub == resource.data.pub
+          && request.resource.data.epoch == resource.data.epoch;
+
+      allow delete: if false;
     }
 
     // ── /conversations/{conversationId} ───────────────────────────

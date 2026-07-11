@@ -1,6 +1,7 @@
 package com.example.messenger.data.repository
 
 import android.util.Log
+import com.example.messenger.data.crypto.E2eeBootstrap
 import com.example.messenger.data.remote.auth.FirebaseAuthService
 import com.example.messenger.data.remote.firebase.FirestoreService
 import com.example.messenger.domain.model.DomainUser
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.map
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuthService,
     private val firestore: FirestoreService,
+    private val e2eeBootstrap: E2eeBootstrap,
 ) : IAuthRepository {
 
     override suspend fun loginWithPhone(
@@ -45,6 +47,7 @@ class AuthRepositoryImpl @Inject constructor(
                         )
                     }
                 }
+                e2eeBootstrap.publishKeys()
                 return Resource.Success(existing)
             }
 
@@ -71,6 +74,7 @@ class AuthRepositoryImpl @Inject constructor(
                 Log.d(TAG, "loginWithPhone: REGISTER creating Firestore profile for ${it.id}")
                 firestore.createUserProfile(it).getOrThrow()
                 Log.d(TAG, "loginWithPhone: profile created")
+                e2eeBootstrap.publishKeys()
             }
             Resource.Success(user)
         } catch (e: Exception) {

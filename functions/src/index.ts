@@ -22,6 +22,13 @@ interface MessageDoc {
   senderId?: string;
   text?: string;
   timestamp?: number;
+  type?: string;
+  enc?: number;
+  ciphertext?: string;
+  nonce?: string;
+  senderEpoch?: number;
+  recipientEpoch?: number;
+  recipientId?: string;
 }
 
 interface UserDoc {
@@ -76,21 +83,36 @@ export const onMessageCreated = onDocumentCreated(
       return;
     }
 
-    const preview = (message.text ?? "").slice(0, 200);
+    const encrypted = message.enc === 1;
+    const preview = encrypted ? "" : (message.text ?? "").slice(0, 200);
     const timestamp = (message.timestamp ?? Date.now()).toString();
+
+    const data: {[key: string]: string} = {
+      type: "message",
+      conversationId,
+      messageId,
+      senderId,
+      senderName,
+      senderAvatar,
+      preview,
+      timestamp,
+      msgType: message.type ?? "TEXT",
+    };
+    if (encrypted) {
+      data.enc = "1";
+      data.senderEpoch = String(message.senderEpoch ?? 0);
+      data.recipientEpoch = String(message.recipientEpoch ?? 0);
+      data.recipientId = message.recipientId ?? "";
+      const ciphertext = message.ciphertext ?? "";
+      if (ciphertext.length > 0 && ciphertext.length <= 2800) {
+        data.ciphertext = ciphertext;
+        data.nonce = message.nonce ?? "";
+      }
+    }
 
     const response = await messaging.sendEachForMulticast({
       tokens,
-      data: {
-        type: "message",
-        conversationId,
-        messageId,
-        senderId,
-        senderName,
-        senderAvatar,
-        preview,
-        timestamp,
-      },
+      data,
       android: {priority: "high"},
     });
 
