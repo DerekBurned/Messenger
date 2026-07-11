@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import com.example.messenger.presentation.MainActivity
-import com.example.messenger.presentation.components.common.LocalInPipMode
 import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.call.CallControlButton
@@ -31,7 +29,6 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -138,22 +135,6 @@ fun CallScreen(
         }
     }
 
-    val mainActivity = remember(context) { context.findMainActivity() }
-    val videoMode = !state.callEnded && (state.localVideoOn || state.remoteVideoOn)
-    DisposableEffect(mainActivity, state.callEnded, videoMode) {
-        mainActivity?.updateCallPipParams(wanted = !state.callEnded, video = videoMode)
-        onDispose { mainActivity?.updateCallPipParams(wanted = false, video = false) }
-    }
-
-    if (LocalInPipMode.current) {
-        PipCallContent(
-            state = state,
-            bindLocalVideo = viewModel::bindLocalVideo,
-            bindRemoteVideo = viewModel::bindRemoteVideo,
-        )
-        return
-    }
-
     CallScreenContent(
         state = state,
         micDenied = micDenied,
@@ -216,39 +197,6 @@ private fun CallScreenContent(
             onToggleMute = onToggleMute,
             onToggleCamera = onToggleCamera,
         )
-    }
-}
-
-private fun android.content.Context.findMainActivity(): MainActivity? {
-    var ctx: android.content.Context? = this
-    while (ctx is android.content.ContextWrapper) {
-        if (ctx is MainActivity) return ctx
-        ctx = ctx.baseContext
-    }
-    return null
-}
-
-@Composable
-private fun PipCallContent(
-    state: CallUiState,
-    bindLocalVideo: (SurfaceView) -> Unit,
-    bindRemoteVideo: (SurfaceView) -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center,
-    ) {
-        when {
-            state.remoteVideoOn -> VideoSurface(bind = bindRemoteVideo, modifier = Modifier.fillMaxSize())
-            state.localVideoOn -> VideoSurface(bind = bindLocalVideo, modifier = Modifier.fillMaxSize())
-            else -> MessengerAvatar(
-                name = state.partnerName,
-                photoUrl = state.partnerAvatarUrl,
-                size = 64.dp,
-            )
-        }
     }
 }
 

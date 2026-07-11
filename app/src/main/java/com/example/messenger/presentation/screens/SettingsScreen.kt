@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.domain.model.User
+import com.example.messenger.presentation.components.call.LocalCallBarInset
 import com.example.messenger.presentation.components.common.CardDivider
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.common.PillButton
@@ -87,7 +88,7 @@ fun SettingsScreenContent(
                 .padding(bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
             MessengerAvatar(name = user?.username.orEmpty(),
                 photoUrl = photoUrl,
                 size = Dimens.avatarLarge)

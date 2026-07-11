@@ -9,12 +9,11 @@ import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.CompositionLocalProvider
+import com.example.messenger.presentation.components.call.PipCallSurface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import com.example.messenger.presentation.components.common.LocalInPipMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import com.example.messenger.data.local.prefs.ThemePreferenceStore
@@ -45,6 +44,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var themePreferenceStore: ThemePreferenceStore
 
+    @Inject
+    lateinit var callService: com.example.messenger.domain.service.ICallService
+
     private val idleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var idleJob: Job? = null
     private var isIdle = false
@@ -69,7 +71,22 @@ class MainActivity : ComponentActivity() {
                     deepLink.value?.let { pendingRoute.value = resolveDeepLinkRoute(it) }
                     deepLink.value = null
                 }
-                CompositionLocalProvider(LocalInPipMode provides inPipMode.value) {
+                val activeCall by ActiveCallHolder.state.collectAsStateWithLifecycle()
+                LaunchedEffect(
+                    activeCall == null,
+                    activeCall?.callEnded,
+                    activeCall?.localVideoOn,
+                    activeCall?.remoteVideoOn,
+                ) {
+                    val call = activeCall
+                    updateCallPipParams(
+                        wanted = call != null && !call.callEnded,
+                        video = call != null && (call.localVideoOn || call.remoteVideoOn),
+                    )
+                }
+                if (inPipMode.value && activeCall != null) {
+                    PipCallSurface(callService)
+                } else {
                     AppNavigation(
                         pendingRoute = pendingRoute.value,
                         onRouteConsumed = { pendingRoute.value = null },

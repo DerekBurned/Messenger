@@ -52,6 +52,8 @@ private val EndRed = Color(0xFFE53935)
 
 val LocalOpenActiveCall = staticCompositionLocalOf<() -> Unit> { {} }
 
+val LocalCallBarInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
 @Composable
 fun CallAwareTopBar(topBar: @Composable () -> Unit) {
     Column(modifier = Modifier.background(Color.Transparent)) {

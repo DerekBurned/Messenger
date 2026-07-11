@@ -50,6 +50,7 @@ import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.components.call.ActiveCallBar
 import com.example.messenger.presentation.components.call.IncomingCallBar
+import com.example.messenger.presentation.components.call.LocalCallBarInset
 import com.example.messenger.presentation.components.call.LocalOpenActiveCall
 import com.example.messenger.presentation.components.common.FloatingTabBar
 import com.example.messenger.presentation.components.common.LocalNavAnimatedVisibilityScope
@@ -135,6 +136,8 @@ private fun MainDisplay(
     val currentRoute = backStack.lastOrNull()
     val isTabRoute = currentRoute is ChatsRoute || currentRoute is CallsRoute || currentRoute is SettingsRoute
     val showCallBar = currentRoute !is CallRoute && currentRoute !is AuthRoute
+    val activeCall by ActiveCallHolder.state.collectAsStateWithLifecycle()
+    val callBarActive = activeCall?.isActive == true
     val selectedTab = when (currentRoute) {
         is CallsRoute -> MainTab.CALLS
         is SettingsRoute -> MainTab.SETTINGS
@@ -180,7 +183,10 @@ private fun MainDisplay(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalOpenActiveCall provides { openActiveCall(accept = false) }) {
+        CompositionLocalProvider(
+            LocalOpenActiveCall provides { openActiveCall(accept = false) },
+            LocalCallBarInset provides if (isTabRoute && callBarActive) 76.dp else 0.dp,
+        ) {
             SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
                     NavDisplay(

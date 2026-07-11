@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
+import com.example.messenger.presentation.components.call.LocalCallBarInset
 import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.list.ConversationListItem
@@ -90,7 +91,7 @@ fun ChatsScreen(
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
             Box(modifier = Modifier.weight(1f)) {
                 ChatsTabContent(
                     uiState = uiState,
@@ -118,7 +119,7 @@ fun CallsScreen(
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(64.dp + LocalCallBarInset.current))
             CallsScreenContent(
                 calls = calls,
                 onCallBack = onCallBack,
