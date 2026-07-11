@@ -48,6 +48,7 @@ class CallForegroundService : Service() {
     @Inject lateinit var callService: ICallService
     @Inject lateinit var signalingService: ICallSignalingService
     @Inject lateinit var missedCallRecorder: MissedCallRecorder
+    @Inject lateinit var tokenProvider: AgoraTokenProvider
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tickerJob: Job? = null
@@ -146,7 +147,7 @@ class CallForegroundService : Service() {
         acquireAudioFocus()
         if (videoOn) callService.enableLocalVideo(true)
         if (isVideo) callService.setSpeakerphone(true)
-        callService.joinChannel(call.channelName, uidFromUserId(call.callerId))
+        joinWithToken(call.channelName, uidFromUserId(call.callerId))
         observeRemoteStatus(call.calleeId, call.callId, isCaller = true)
         observeRingingAck(call.callerId, call.callId)
         startRequestingTimeout()
@@ -231,7 +232,7 @@ class CallForegroundService : Service() {
         acquireAudioFocus()
         if (videoOn) callService.enableLocalVideo(true)
         if (call.isVideoCall) callService.setSpeakerphone(true)
-        callService.joinChannel(call.channelName, uidFromUserId(call.calleeId))
+        joinWithToken(call.channelName, uidFromUserId(call.calleeId))
         enterActiveState()
         reconcileConnection()
     }
@@ -691,6 +692,20 @@ class CallForegroundService : Service() {
         override fun onConnectionStateChanged(state: CallConnectionState) {
             ActiveCallHolder.update { it.copy(connectionState = state) }
             reconcileConnection()
+        }
+
+        override fun onTokenPrivilegeWillExpire() {
+            val channel = ActiveCallHolder.snapshot()?.channelName ?: return
+            scope.launch {
+                tokenProvider.fetchToken(channel)?.let { callService.renewToken(it) }
+            }
+        }
+    }
+
+    private fun joinWithToken(channelName: String, uid: Int) {
+        scope.launch {
+            val token = tokenProvider.fetchToken(channelName)
+            callService.joinChannel(channelName, uid, token)
         }
     }
 

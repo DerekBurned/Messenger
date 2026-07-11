@@ -95,6 +95,11 @@ class AgoraCallService @Inject constructor(
                     listener?.onRemoteVideoStateChanged(uid, false)
             }
         }
+
+        override fun onTokenPrivilegeWillExpire(token: String?) {
+            Log.w(TAG, "onTokenPrivilegeWillExpire")
+            listener?.onTokenPrivilegeWillExpire()
+        }
     }
 
     init {
@@ -121,7 +126,7 @@ class AgoraCallService @Inject constructor(
         }
     }
 
-    override fun joinChannel(channelName: String, uid: Int) {
+    override fun joinChannel(channelName: String, uid: Int, token: String?) {
         val engine = engine
         if (engine == null) {
 
@@ -136,8 +141,12 @@ class AgoraCallService @Inject constructor(
             publishCameraTrack = localVideoOn
             autoSubscribeVideo = true
         }
-        Log.e(TAG, "joinChannel channel=$channelName uid=$uid video=$localVideoOn")
-        engine.joinChannel("", channelName, uid, options)
+        Log.e(TAG, "joinChannel channel=$channelName uid=$uid video=$localVideoOn tokenized=${!token.isNullOrBlank()}")
+        engine.joinChannel(token.orEmpty(), channelName, uid, options)
+    }
+
+    override fun renewToken(token: String) {
+        engine?.renewToken(token)
     }
 
     override fun leaveChannel() {

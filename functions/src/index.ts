@@ -5,6 +5,9 @@ import {logger} from "firebase-functions";
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {onValueCreated} from "firebase-functions/v2/database";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {defineSecret} from "firebase-functions/params";
+import {RtcTokenBuilder, RtcRole} from "agora-token";
 
 admin.initializeApp();
 
@@ -168,5 +171,63 @@ export const onCallSignalCreated = onValueCreated(
       },
       android: {priority: "high"},
     });
+  },
+);
+
+const agoraAppId = defineSecret("AGORA_APP_ID");
+const agoraAppCertificate = defineSecret("AGORA_APP_CERTIFICATE");
+
+const RTC_TOKEN_TTL_SECONDS = 3600;
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function agoraUidFromUserId(userId: string): number {
+  const bytes = Buffer.from(userId, "utf8");
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  crc = (crc ^ 0xffffffff) >>> 0;
+  return crc & 0x7fffffff;
+}
+
+export const getRtcToken = onCall(
+  {secrets: [agoraAppId, agoraAppCertificate]},
+  (request) => {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError("unauthenticated", "Sign-in required.");
+    }
+    const channel = request.data?.channel;
+    if (typeof channel !== "string" || !/^call-[0-9a-fA-F-]{36}$/.test(channel)) {
+      throw new HttpsError("invalid-argument", "Bad channel name.");
+    }
+    const appId = agoraAppId.value();
+    const certificate = agoraAppCertificate.value();
+    if (!appId || !certificate) {
+      throw new HttpsError("failed-precondition", "RTC token service not configured.");
+    }
+    const uid = agoraUidFromUserId(userId);
+    const token = RtcTokenBuilder.buildTokenWithUid(
+      appId,
+      certificate,
+      channel,
+      uid,
+      RtcRole.PUBLISHER,
+      RTC_TOKEN_TTL_SECONDS,
+      RTC_TOKEN_TTL_SECONDS,
+    );
+    logger.info("getRtcToken issued", {channel, uid});
+    return {token, uid, expiresInSeconds: RTC_TOKEN_TTL_SECONDS};
   },
 );
