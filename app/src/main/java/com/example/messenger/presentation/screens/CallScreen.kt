@@ -3,20 +3,25 @@ package com.example.messenger.presentation.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.view.SurfaceView
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import com.example.messenger.presentation.MainActivity
+import com.example.messenger.presentation.components.common.LocalInPipMode
 import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.call.CallControlButton
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.screens.ui.theme.MessengerShapes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Cameraswitch
@@ -24,8 +29,10 @@ import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +67,7 @@ import kotlin.math.roundToInt
 fun CallScreen(
     viewModel: CallViewModel = hiltViewModel(),
     onCallEnded: () -> Unit = {},
+    onBack: () -> Unit = {},
     onOpenChat: (conversationId: String, partnerId: String, partnerName: String) -> Unit = { _, _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -131,9 +139,26 @@ fun CallScreen(
         }
     }
 
+    val mainActivity = LocalActivity.current as? MainActivity
+    val videoMode = !state.callEnded && (state.localVideoOn || state.remoteVideoOn)
+    DisposableEffect(mainActivity, state.callEnded, videoMode) {
+        mainActivity?.updateCallPipParams(wanted = !state.callEnded, video = videoMode)
+        onDispose { mainActivity?.updateCallPipParams(wanted = false, video = false) }
+    }
+
+    if (LocalInPipMode.current) {
+        PipCallContent(
+            state = state,
+            bindLocalVideo = viewModel::bindLocalVideo,
+            bindRemoteVideo = viewModel::bindRemoteVideo,
+        )
+        return
+    }
+
     CallScreenContent(
         state = state,
         micDenied = micDenied,
+        onBack = onBack,
         onAccept = { withCallPerms(video = state.isVideoCall) { viewModel.acceptCall() } },
         onDecline = { viewModel.declineCall() },
         onEnd = { viewModel.endCall() },
@@ -153,6 +178,7 @@ fun CallScreen(
 private fun CallScreenContent(
     state: CallUiState,
     micDenied: Boolean = false,
+    onBack: () -> Unit = {},
     onAccept: () -> Unit = {},
     onDecline: () -> Unit = {},
     onEnd: () -> Unit = {},
@@ -168,6 +194,7 @@ private fun CallScreenContent(
         VideoCallContent(
             state = state,
             micDenied = micDenied,
+            onBack = onBack,
             onAccept = onAccept,
             onDecline = onDecline,
             onEnd = onEnd,
@@ -182,6 +209,7 @@ private fun CallScreenContent(
         AudioCallContent(
             state = state,
             micDenied = micDenied,
+            onBack = onBack,
             onAccept = onAccept,
             onDecline = onDecline,
             onEnd = onEnd,
@@ -193,9 +221,56 @@ private fun CallScreenContent(
 }
 
 @Composable
+private fun PipCallContent(
+    state: CallUiState,
+    bindLocalVideo: (SurfaceView) -> Unit,
+    bindRemoteVideo: (SurfaceView) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            state.remoteVideoOn -> VideoSurface(bind = bindRemoteVideo, modifier = Modifier.fillMaxSize())
+            state.localVideoOn -> VideoSurface(bind = bindLocalVideo, modifier = Modifier.fillMaxSize())
+            else -> MessengerAvatar(
+                name = state.partnerName,
+                photoUrl = state.partnerAvatarUrl,
+                size = 64.dp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CallBackButton(
+    onBack: () -> Unit,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.35f))
+            .clickable(onClick = onBack),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            tint = tint,
+        )
+    }
+}
+
+@Composable
 private fun AudioCallContent(
     state: CallUiState,
     micDenied: Boolean,
+    onBack: () -> Unit,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onEnd: () -> Unit,
@@ -205,6 +280,15 @@ private fun AudioCallContent(
 ) {
     val tokens = messengerTokens
     WallpaperBackground {
+        Box(modifier = Modifier.fillMaxSize()) {
+        CallBackButton(
+            onBack = onBack,
+            tint = tokens.textPrimary,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 10.dp, top = 12.dp),
+        )
         Column(
             modifier = Modifier.fillMaxSize().statusBarsPadding().padding(vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -251,6 +335,7 @@ private fun AudioCallContent(
                 onSwitchCamera = {},
             )
         }
+        }
     }
 }
 
@@ -258,6 +343,7 @@ private fun AudioCallContent(
 private fun VideoCallContent(
     state: CallUiState,
     micDenied: Boolean,
+    onBack: () -> Unit,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onEnd: () -> Unit,
@@ -299,6 +385,15 @@ private fun VideoCallContent(
                 CallAvatar(name = state.partnerName, photoUrl = state.partnerAvatarUrl)
             }
         }
+
+        CallBackButton(
+            onBack = onBack,
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 10.dp, top = 12.dp),
+        )
 
         Column(
             modifier = Modifier

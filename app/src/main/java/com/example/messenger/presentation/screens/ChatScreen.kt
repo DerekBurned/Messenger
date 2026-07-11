@@ -345,6 +345,7 @@ private fun ChatScreenContent(
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onBackClick = onBackClick,
                     onProfileClick = { onIntercultorProfileClick(uiState.partnerAvatarUrl, uiState.partnerUsername) },
+                    onCallClick = onCallClick,
                     onVideoCallClick = onVideoCallClick,
                     partnerAvatarUrl = uiState.partnerAvatarUrl,
                 )

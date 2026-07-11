@@ -43,6 +43,8 @@
             android:label="@string/title_activity_main"
             android:theme="@style/Theme.Messenger"
             android:screenOrientation="portrait"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:windowSoftInputMode="adjustResize" >
 
             <intent-filter>

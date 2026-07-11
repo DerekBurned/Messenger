@@ -1,14 +1,20 @@
 package com.example.messenger.presentation
 
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.example.messenger.presentation.components.common.LocalInPipMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import com.example.messenger.data.local.prefs.ThemePreferenceStore
@@ -45,6 +51,10 @@ class MainActivity : ComponentActivity() {
 
     private val pendingIntent = mutableStateOf<Intent?>(null)
 
+    private val inPipMode = mutableStateOf(false)
+    private var pipWanted = false
+    private var pipVideo = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -59,10 +69,12 @@ class MainActivity : ComponentActivity() {
                     deepLink.value?.let { pendingRoute.value = resolveDeepLinkRoute(it) }
                     deepLink.value = null
                 }
-                AppNavigation(
-                    pendingRoute = pendingRoute.value,
-                    onRouteConsumed = { pendingRoute.value = null },
-                )
+                CompositionLocalProvider(LocalInPipMode provides inPipMode.value) {
+                    AppNavigation(
+                        pendingRoute = pendingRoute.value,
+                        onRouteConsumed = { pendingRoute.value = null },
+                    )
+                }
             }
         }
     }
@@ -107,6 +119,39 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         idleScope.cancel()
+    }
+
+    fun updateCallPipParams(wanted: Boolean, video: Boolean) {
+        pipWanted = wanted
+        pipVideo = video
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { setPictureInPictureParams(pipParams(wanted, video)) }
+        }
+    }
+
+    private fun pipParams(autoEnter: Boolean, video: Boolean): PictureInPictureParams {
+        val builder = PictureInPictureParams.Builder()
+            .setAspectRatio(if (video) Rational(9, 16) else Rational(1, 1))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(autoEnter)
+        }
+        return builder.build()
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (pipWanted && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            runCatching { enterPictureInPictureMode(pipParams(true, pipVideo)) }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPipMode.value = isInPictureInPictureMode
     }
 
     private fun resolveDeepLinkRoute(intent: Intent): NavKey? = when {

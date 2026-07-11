@@ -286,6 +286,7 @@ private fun MainDisplay(
                                 ) {
                                     CallScreen(
                                         onCallEnded = { backStack.removeLastOrNull() },
+                                        onBack = { backStack.removeLastOrNull() },
                                         onOpenChat = { conversationId, partnerId, partnerName ->
                                             backStack.removeLastOrNull()
                                             backStack.add(ChatRoute(conversationId, partnerId, partnerName))
@@ -390,7 +391,14 @@ private fun MainDisplay(
                     .statusBarsPadding()
                     .padding(top = 76.dp),
                 onAccept = { openActiveCall(accept = true) },
-                onDecline = { sendCallAction(context, CallForegroundService.ACTION_DECLINE) },
+                onDecline = {
+                    val action = if (ActiveCallHolder.snapshot()?.isActive == true) {
+                        CallForegroundService.ACTION_END
+                    } else {
+                        CallForegroundService.ACTION_DECLINE
+                    }
+                    sendCallAction(context, action)
+                },
                 onOpen = { openActiveCall(accept = false) },
             )
         }

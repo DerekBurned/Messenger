@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +45,7 @@ fun ChatTopBar(
     sharedKeyPartnerId: String,
     onBackClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onCallClick: () -> Unit = {},
     onVideoCallClick: () -> Unit = {},
     partnerAvatarUrl: String? = null,
 ) {
@@ -99,6 +101,19 @@ fun ChatTopBar(
                 )
             }
             Spacer(Modifier.width(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onCallClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = "Voice call",
+                    tint = tokens.textPrimary,
+                )
+            }
             Box(
                 modifier = Modifier
                     .size(40.dp)
