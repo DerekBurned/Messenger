@@ -54,9 +54,12 @@
     <!-- Call notifications -->
     <string name="notif_call_incoming_title">Incoming call</string>
     <string name="notif_call_incoming_text">Incoming voice call</string>
+    <string name="notif_call_incoming_video_text">Incoming video call</string>
     <string name="notif_call_caller_fallback">Caller</string>
     <string name="notif_call_voice_call">Voice call</string>
+    <string name="notif_call_video_call">Video call</string>
     <string name="notif_call_on_call">On call</string>
+    <string name="notif_call_on_video_call">On video call</string>
     <string name="notif_call_calling">Calling…</string>
     <string name="notif_call_action_accept">Accept</string>
     <string name="notif_call_action_decline">Decline</string>
@@ -64,6 +67,7 @@
 
     <!-- Missed call notifications -->
     <string name="notif_missed_call_title">Missed call</string>
+    <string name="notif_missed_video_call_title">Missed video call</string>
     <string name="notif_missed_call_text">Missed call from %1$s</string>
     <string name="notif_unknown_caller">Unknown</string>
 
@@ -90,6 +94,7 @@
 
     <!-- Incoming call screen -->
     <string name="call_incoming_subtitle">Incoming voice call</string>
+    <string name="call_incoming_video_subtitle">Incoming video call</string>
     <string name="call_action_accept">Accept</string>
     <string name="call_action_decline">Decline</string>
 </resources>

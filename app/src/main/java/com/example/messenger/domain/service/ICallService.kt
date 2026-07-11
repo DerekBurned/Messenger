@@ -1,10 +1,16 @@
 package com.example.messenger.domain.service
 
+import android.view.SurfaceView
+
 interface ICallService {
     fun joinChannel(channelName: String, uid: Int)
     fun leaveChannel()
     fun muteLocalAudio(mute: Boolean)
     fun setSpeakerphone(enable: Boolean)
+    fun enableLocalVideo(enable: Boolean)
+    fun switchCamera()
+    fun bindLocalVideo(view: SurfaceView)
+    fun bindRemoteVideo(view: SurfaceView, uid: Int)
     fun setEventListener(listener: CallEventListener)
 
     fun clearEventListener(listener: CallEventListener)
@@ -17,6 +23,7 @@ interface CallEventListener {
     fun onRemoteUserLeft(uid: Int)
     fun onRemoteConnectionLost(uid: Int) {}
     fun onRemoteConnectionRestored(uid: Int) {}
+    fun onRemoteVideoStateChanged(uid: Int, on: Boolean) {}
     fun onError(code: Int)
 
     fun onConnectionStateChanged(state: CallConnectionState) {}

@@ -74,4 +74,5 @@ data class CallRoute(
     val partnerId: String,
     val partnerName: String,
     val partnerPhone: String,
+    val video: Boolean = false,
 ) : NavKey

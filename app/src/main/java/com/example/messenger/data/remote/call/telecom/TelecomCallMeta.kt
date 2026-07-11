@@ -10,6 +10,7 @@ data class TelecomCallMeta(
     val partnerName: String,
     val partnerPhone: String,
     val isIncoming: Boolean,
+    val isVideo: Boolean = false,
 ) {
     fun toBundle(): Bundle = Bundle().apply {
         putString(KEY_CALL_ID, callId)
@@ -19,6 +20,7 @@ data class TelecomCallMeta(
         putString(KEY_PARTNER_NAME, partnerName)
         putString(KEY_PARTNER_PHONE, partnerPhone)
         putBoolean(KEY_IS_INCOMING, isIncoming)
+        putBoolean(KEY_IS_VIDEO, isVideo)
     }
 
     companion object {
@@ -29,6 +31,7 @@ data class TelecomCallMeta(
         private const val KEY_PARTNER_NAME = "telecom_partner_name"
         private const val KEY_PARTNER_PHONE = "telecom_partner_phone"
         private const val KEY_IS_INCOMING = "telecom_is_incoming"
+        private const val KEY_IS_VIDEO = "telecom_is_video"
 
         fun fromBundle(bundle: Bundle?, isIncoming: Boolean): TelecomCallMeta? {
             bundle ?: return null
@@ -42,6 +45,7 @@ data class TelecomCallMeta(
                 partnerName = bundle.getString(KEY_PARTNER_NAME).orEmpty(),
                 partnerPhone = bundle.getString(KEY_PARTNER_PHONE).orEmpty(),
                 isIncoming = bundle.getBoolean(KEY_IS_INCOMING, isIncoming),
+                isVideo = bundle.getBoolean(KEY_IS_VIDEO, false),
             )
         }
     }

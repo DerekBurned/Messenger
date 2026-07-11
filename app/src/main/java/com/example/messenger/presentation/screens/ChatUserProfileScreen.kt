@@ -52,6 +52,7 @@ fun ChatUserProfileScreen(
     sharedKeyPartnerId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
+    onVideoCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onEditClick: () -> Unit = {}
     ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -60,6 +61,7 @@ fun ChatUserProfileScreen(
         sharedKeyPartnerId = sharedKeyPartnerId,
         onBackClick = onBackClick,
         onCallClick = onCallClick,
+        onVideoCallClick = onVideoCallClick,
         onEditClick = onEditClick,
         onMediaTabChange = viewModel::onMediaTabChange,
     )
@@ -72,6 +74,7 @@ private fun ChatUserProfileScreenContent(
     sharedKeyPartnerId: String = "",
     onBackClick: () -> Unit = {},
     onCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
+    onVideoCallClick: (partnerId: String, partnerName: String, partnerPhone: String) -> Unit = { _, _, _ -> },
     onMediaTabChange: (MediaTab) -> Unit = {},
     onEditClick: () -> Unit = {},
 ) {
@@ -162,6 +165,7 @@ private fun ChatUserProfileScreenContent(
                     sharedKeyPartnerId = sharedKeyPartnerId,
                     onAvatarClick = { if (viewerPhotos.isNotEmpty()) showViewer = true },
                     onCallClick = onCallClick,
+                    onVideoCallClick = onVideoCallClick,
                 )
             }
             item { ProfileInfoCard(state) }

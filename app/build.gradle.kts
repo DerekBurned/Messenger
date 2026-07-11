@@ -167,7 +167,7 @@ dependencies {
     implementation(libs.google.gson)
 
     //AgoraRTC
-    implementation("io.agora.rtc:voice-sdk:4.6.3")
+    implementation("io.agora.rtc:full-sdk:4.6.3")
 
     // Media3 - ExoPlayer
     implementation(libs.media3.exoplayer)

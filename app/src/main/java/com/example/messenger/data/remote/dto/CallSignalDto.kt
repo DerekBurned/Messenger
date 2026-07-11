@@ -10,6 +10,7 @@ data class CallSignalDto(
     val channelName: String = "",
     val status: String = "RINGING",
     val timestamp: Long = 0L,
+    val video: Boolean = false,
 )
 
 fun CallSignalDto.toCallSignal() = CallSignal(
@@ -19,6 +20,7 @@ fun CallSignalDto.toCallSignal() = CallSignal(
     channelName = channelName,
     status = runCatching { CallStatus.valueOf(status) }.getOrDefault(CallStatus.RINGING),
     timestamp = timestamp,
+    video = video,
 )
 
 fun CallSignal.toDto() = CallSignalDto(
@@ -28,4 +30,5 @@ fun CallSignal.toDto() = CallSignalDto(
     channelName = channelName,
     status = status.name,
     timestamp = timestamp,
+    video = video,
 )

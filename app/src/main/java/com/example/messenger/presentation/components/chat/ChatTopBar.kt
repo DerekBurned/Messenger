@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ fun ChatTopBar(
     sharedKeyPartnerId: String,
     onBackClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onVideoCallClick: () -> Unit = {},
     partnerAvatarUrl: String? = null,
 ) {
     val tokens = messengerTokens
@@ -96,7 +98,21 @@ fun ChatTopBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onVideoCallClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Videocam,
+                    contentDescription = "Video call",
+                    tint = tokens.textPrimary,
+                )
+            }
+            Spacer(Modifier.width(4.dp))
             Box(contentAlignment = Alignment.BottomEnd) {
                 MessengerAvatar(
                     name = partnerName,

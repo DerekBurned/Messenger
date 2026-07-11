@@ -29,6 +29,7 @@ data class ObxMessage(
     var replyToText: String? = null,
     var replyToSenderId: String? = null,
     var callDurationSeconds: Int = 0,
+    var callVideo: Boolean = false,
 
     @Convert(converter = MediaItemListConverter::class, dbType = String::class)
     var mediaItemsJson: List<MediaItem> = emptyList(),

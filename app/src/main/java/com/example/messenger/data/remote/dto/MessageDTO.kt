@@ -20,6 +20,7 @@ data class RemoteMessageDto(
     val replyToSenderId: String? = null,
     val mediaItems: List<RemoteMediaItemDto> = emptyList(),
     val callDurationSeconds: Int = 0,
+    val callVideo: Boolean = false,
 )
 
 data class RemoteMediaItemDto(
@@ -100,6 +101,7 @@ fun RemoteMessageDto.toDomain(): Message {
             isRead = read,
             deleted = deleted,
             callType = CallType.MISSED,
+            video = callVideo,
         )
         Message.TYPE_UNREACHED_CALL -> Message.Call(
             id = id,
@@ -110,6 +112,7 @@ fun RemoteMessageDto.toDomain(): Message {
             isRead = read,
             deleted = deleted,
             callType = CallType.UNREACHED,
+            video = callVideo,
         )
         Message.TYPE_ENDED_CALL -> Message.Call(
             id = id,
@@ -121,6 +124,7 @@ fun RemoteMessageDto.toDomain(): Message {
             deleted = deleted,
             callType = CallType.ENDED,
             durationSeconds = callDurationSeconds,
+            video = callVideo,
         )
         else -> Message.Text(
             id = id,
@@ -182,5 +186,6 @@ fun Message.toRemoteDto(): RemoteMessageDto = when (this) {
             CallType.ENDED     -> Message.TYPE_ENDED_CALL
         },
         callDurationSeconds = durationSeconds,
+        callVideo = video,
     )
 }

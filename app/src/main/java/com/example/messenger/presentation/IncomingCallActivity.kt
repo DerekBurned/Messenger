@@ -73,6 +73,7 @@ class IncomingCallActivity : ComponentActivity() {
                 if (current != null && !current.isActive) {
                     IncomingCallUi(
                         partnerName = current.partnerName,
+                        isVideo = current.isVideoCall,
                         onAccept = ::accept,
                         onDecline = ::decline,
                     )
@@ -109,6 +110,7 @@ class IncomingCallActivity : ComponentActivity() {
 @Composable
 private fun IncomingCallUi(
     partnerName: String,
+    isVideo: Boolean,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
 ) {
@@ -144,7 +146,9 @@ private fun IncomingCallUi(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = androidx.compose.ui.res.stringResource(R.string.call_incoming_subtitle),
+            text = androidx.compose.ui.res.stringResource(
+                if (isVideo) R.string.call_incoming_video_subtitle else R.string.call_incoming_subtitle,
+            ),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
