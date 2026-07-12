@@ -42,7 +42,6 @@ import com.example.messenger.data.remote.call.ActiveCallHolder
 
 private val AcceptGreen = Color(0xFF34C759)
 private val DeclineRed = Color(0xFFE53935)
-private val BarBackground = Color(0xFF1F2A37)
 
 @Composable
 fun IncomingCallBar(

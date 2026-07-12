@@ -49,9 +49,13 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
 import com.example.messenger.presentation.components.call.ActiveCallBar
+import com.example.messenger.presentation.components.call.CallBarMode
+import com.example.messenger.presentation.components.call.CallBarOverlay
+import com.example.messenger.presentation.components.call.CallBarPresenter
 import com.example.messenger.presentation.components.call.IncomingCallBar
 import com.example.messenger.presentation.components.call.LocalCallBarInset
 import com.example.messenger.presentation.components.call.LocalOpenActiveCall
+import com.example.messenger.presentation.components.call.isCallBarVisible
 import com.example.messenger.presentation.components.common.FloatingTabBar
 import com.example.messenger.presentation.components.common.LocalNavAnimatedVisibilityScope
 import com.example.messenger.presentation.components.common.LocalSharedTransitionScope
@@ -137,7 +141,16 @@ private fun MainDisplay(
     val isTabRoute = currentRoute is ChatsRoute || currentRoute is CallsRoute || currentRoute is SettingsRoute
     val showCallBar = currentRoute !is CallRoute && currentRoute !is AuthRoute
     val activeCall by ActiveCallHolder.state.collectAsStateWithLifecycle()
-    val callBarActive = activeCall?.isActive == true
+    val callBarMode by CallBarPresenter.mode.collectAsStateWithLifecycle()
+    val callBarVisible = activeCall?.let { isCallBarVisible(it) } == true
+    val callBarDocked = callBarVisible && callBarMode == CallBarMode.BAR
+
+    LaunchedEffect(activeCall == null) {
+        if (activeCall == null) CallBarPresenter.reset()
+    }
+    LaunchedEffect(currentRoute is CallRoute) {
+        if (currentRoute is CallRoute) CallBarPresenter.showBar()
+    }
     val selectedTab = when (currentRoute) {
         is CallsRoute -> MainTab.CALLS
         is SettingsRoute -> MainTab.SETTINGS
@@ -185,7 +198,7 @@ private fun MainDisplay(
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalOpenActiveCall provides { openActiveCall(accept = false) },
-            LocalCallBarInset provides if (isTabRoute && callBarActive) 76.dp else 0.dp,
+            LocalCallBarInset provides if (isTabRoute && callBarDocked) 76.dp else 0.dp,
         ) {
             SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
@@ -414,6 +427,12 @@ private fun MainDisplay(
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
                     .padding(top = 68.dp),
+            )
+        }
+        if (currentRoute !is CallRoute && currentRoute !is AuthRoute) {
+            CallBarOverlay(
+                onOpenCall = { openActiveCall(accept = false) },
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }

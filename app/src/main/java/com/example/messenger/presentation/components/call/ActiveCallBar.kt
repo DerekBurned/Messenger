@@ -2,6 +2,7 @@ package com.example.messenger.presentation.components.call
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -10,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +33,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,15 +51,30 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.data.remote.call.CallForegroundService
+import com.example.messenger.domain.service.CallConnectionState
 import com.example.messenger.presentation.components.common.MessengerAvatar
+import kotlinx.coroutines.launch
 
-private val BarBackground = Color(0xFF1F2A37)
-private val RingGreen = Color(0xFF34C759)
+internal val BarBackground = Color(0xFF1F2A37)
+internal val RingGreen = Color(0xFF34C759)
 private val EndRed = Color(0xFFE53935)
 
 val LocalOpenActiveCall = staticCompositionLocalOf<() -> Unit> { {} }
 
 val LocalCallBarInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
+internal fun isCallBarVisible(call: ActiveCallHolder.ActiveCall): Boolean =
+    call.isActive || (!call.isIncoming && !call.callEnded)
+
+internal fun isCallConnected(call: ActiveCallHolder.ActiveCall): Boolean =
+    call.isActive && call.remotePresent && call.connectionState == CallConnectionState.CONNECTED
+
+internal fun callBarStatus(call: ActiveCallHolder.ActiveCall): String = when {
+    call.callEnded -> "Call ended"
+    call.isActive -> "Connecting…"
+    call.remoteRinging -> "Ringing…"
+    else -> "Requesting…"
+}
 
 @Composable
 fun CallAwareTopBar(topBar: @Composable () -> Unit) {
@@ -69,9 +91,57 @@ fun ActiveCallBar(
 ) {
     val active by ActiveCallHolder.state.collectAsStateWithLifecycle()
     val call = active ?: return
-    if (!call.isActive) return
-    val context = LocalContext.current
+    if (!isCallBarVisible(call)) return
+    val mode by CallBarPresenter.mode.collectAsStateWithLifecycle()
+    if (mode != CallBarMode.BAR) return
 
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val dragY = remember { Animatable(0f) }
+    val hideThresholdPx = with(density) { 40.dp.toPx() }
+    val bubbleThresholdPx = with(density) { 40.dp.toPx() }
+    val hideTargetPx = with(density) { 120.dp.toPx() }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer { translationY = dragY.value }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, delta ->
+                        change.consume()
+                        scope.launch { dragY.snapTo(dragY.value + delta) }
+                    },
+                    onDragEnd = {
+                        val offset = dragY.value
+                        when {
+                            offset <= -hideThresholdPx -> scope.launch {
+                                dragY.animateTo(-hideTargetPx, tween(160))
+                                CallBarPresenter.hide()
+                            }
+                            offset >= bubbleThresholdPx -> {
+                                CallBarPresenter.bubbleOffset = null
+                                CallBarPresenter.minimizeToBubble()
+                            }
+                            else -> scope.launch { dragY.animateTo(0f, tween(180)) }
+                        }
+                    },
+                    onDragCancel = { scope.launch { dragY.animateTo(0f, tween(180)) } },
+                )
+            },
+    ) {
+        CallBarRow(call = call, context = context, onClick = onClick)
+    }
+}
+
+@Composable
+internal fun CallBarRow(
+    call: ActiveCallHolder.ActiveCall,
+    context: Context,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -105,14 +175,23 @@ fun ActiveCallBar(
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CallWave(active = call.remotePresent)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = formatHms(call.seconds),
-                    color = RingGreen,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+                if (isCallConnected(call)) {
+                    CallWave(active = call.remotePresent)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = formatHms(call.seconds),
+                        color = RingGreen,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                } else {
+                    Text(
+                        text = callBarStatus(call),
+                        color = RingGreen,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
         Spacer(Modifier.width(8.dp))
@@ -158,7 +237,7 @@ private fun CircleActionButton(
 }
 
 @Composable
-private fun CallWave(active: Boolean) {
+internal fun CallWave(active: Boolean) {
     val transition = rememberInfiniteTransition(label = "wave")
     val heights = (0 until 4).map { index ->
         transition.animateFloat(
@@ -189,7 +268,7 @@ private fun CallWave(active: Boolean) {
     }
 }
 
-private fun sendCallAction(context: Context, action: String) {
+internal fun sendCallAction(context: Context, action: String) {
     runCatching {
         context.startService(
             Intent(context, CallForegroundService::class.java).setAction(action),
@@ -197,7 +276,7 @@ private fun sendCallAction(context: Context, action: String) {
     }
 }
 
-private fun formatHms(s: Int): String {
+internal fun formatHms(s: Int): String {
     val h = s / 3600
     val m = (s % 3600) / 60
     val sec = s % 60
