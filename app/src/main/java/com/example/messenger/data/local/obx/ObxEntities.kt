@@ -23,7 +23,7 @@ data class ObxMessage(
     var isRead: Boolean = false,
     var deleted: Boolean = false,
 
-    var type: String = com.example.messenger.domain.model.Message.TYPE_TEXT,
+    @Index var type: String = com.example.messenger.domain.model.Message.TYPE_TEXT,
 
     var replyToMessageId: String? = null,
     var replyToText: String? = null,
