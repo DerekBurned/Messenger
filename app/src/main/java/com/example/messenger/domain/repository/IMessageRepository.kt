@@ -7,7 +7,8 @@ interface IMessageRepository {
     fun getMessagesStream(conversationId: String): Flow<List<Message>>
     suspend fun sendMessage(message: Message): Result<Unit>
     suspend fun persistIncomingMessage(message: Message)
-    suspend fun deleteMessage(message: Message): Result<Unit>
+    suspend fun deleteMessageForEveryone(message: Message): Result<Unit>
+    suspend fun deleteMessageForMe(message: Message): Result<Unit>
     suspend fun markMessageAsRead(message: Message): Result<Unit>
 
     suspend fun observeRecentMessages(conversationId: String, limit: Long = 100): Flow<Result<Unit>>

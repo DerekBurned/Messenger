@@ -28,6 +28,7 @@ class MessageRepositoryImpl @Inject constructor(
     private val conversationBox: Box<ObxConversation>,
     private val syncQueueBox: Box<ObxSyncQueueItem>,
     private val firestoreService: FirestoreService,
+    private val authService: com.example.messenger.data.remote.auth.FirebaseAuthService,
 ) : IMessageRepository {
 
     override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
@@ -86,7 +87,11 @@ class MessageRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun deleteMessage(message: Message): Result<Unit> {
+    override suspend fun deleteMessageForEveryone(message: Message): Result<Unit> {
+        val currentUserId = authService.getCurrentUserId()
+        if (currentUserId == null || message.senderId != currentUserId) {
+            return Result.failure(SecurityException("Only own messages can be deleted for everyone"))
+        }
         return try {
             updateMessage(message.id) { it.deleted = true }
             val result = firestoreService.deleteMessage(message)
@@ -97,6 +102,21 @@ class MessageRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             runCatching { updateMessage(message.id) { it.deleted = true } }
             runCatching { enqueueRetry(message.id, SyncAction.DELETE) }
+            Result.success(Unit)
+        }
+    }
+
+    override suspend fun deleteMessageForMe(message: Message): Result<Unit> {
+        return try {
+            updateMessage(message.id) { it.deleted = true }
+            val result = firestoreService.deleteMessageForMe(message)
+            if (result.isFailure) {
+                enqueueRetry(message.id, SyncAction.DELETE_FOR_ME)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            runCatching { updateMessage(message.id) { it.deleted = true } }
+            runCatching { enqueueRetry(message.id, SyncAction.DELETE_FOR_ME) }
             Result.success(Unit)
         }
     }

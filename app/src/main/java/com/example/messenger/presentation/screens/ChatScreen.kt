@@ -222,9 +222,9 @@ fun ChatScreenWithNav(
         },
         onReply = { message -> viewModel.dispatch(ChatIntent.SetReplyTo(message)) },
         onReplyClick = { messageId -> viewModel.dispatch(ChatIntent.JumpToMessage(messageId)) },
-        onDelete = { message ->
-            if (message.senderId == uiState.currentUserId) {
-                viewModel.dispatch(ChatIntent.DeleteMessage(message))
+        onDelete = { message, forEveryone ->
+            if (!forEveryone || message.senderId == uiState.currentUserId) {
+                viewModel.dispatch(ChatIntent.DeleteMessage(message, forEveryone))
             }
         },
         onClearReply = { viewModel.dispatch(ChatIntent.ClearReply) },
@@ -306,7 +306,7 @@ private fun ChatScreenContent(
     onCopy: (String) -> Unit,
     onReply: (Message) -> Unit,
     onReplyClick: (messageId: String) -> Unit,
-    onDelete: (Message) -> Unit,
+    onDelete: (Message, Boolean) -> Unit,
     onClearReply: () -> Unit,
     onAttachmentClick: () -> Unit,
     onClearAttachments: () -> Unit,
@@ -357,12 +357,12 @@ private fun ChatScreenContent(
         val coroutineScope = rememberCoroutineScope()
         val animatedIds = remember { mutableSetOf<String>() }
         val exitingIds = remember { mutableStateListOf<String>() }
-        val requestDelete: (Message) -> Unit = { message ->
+        val requestDelete: (Message, Boolean) -> Unit = { message, forEveryone ->
             if (message.id !in exitingIds) {
                 exitingIds.add(message.id)
                 coroutineScope.launch {
                     delay(220L)
-                    onDelete(message)
+                    onDelete(message, forEveryone)
                 }
             }
         }
@@ -604,9 +604,10 @@ private fun ChatScreenContent(
                                         when (msg) {
                                         is Message.Call -> {
                                             val noop: () -> Unit = {}
-                                            val callActions = listOf(
-                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
-                                            )
+                                            val callActions = buildList {
+                                                if (isMe) add(MessageAction("Delete for everyone", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, true) })
+                                                add(MessageAction("Delete for me", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, false) })
+                                            }
                                             val callCard: @Composable (live: Boolean) -> Unit = { live ->
                                                 val onCall = when {
                                                     !live -> noop
@@ -647,10 +648,11 @@ private fun ChatScreenContent(
                                             ) { callCard(true) }
                                         }
                                         is Message.Media -> {
-                                            val mediaActions = listOf(
-                                                MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
-                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
-                                            )
+                                            val mediaActions = buildList {
+                                                add(MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) })
+                                                if (isMe) add(MessageAction("Delete for everyone", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, true) })
+                                                add(MessageAction("Delete for me", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, false) })
+                                            }
                                             SwipeToReply(onReply = { onReply(msg) }) {
                                             LongPressMessage(
                                                 isMe = isMe,
@@ -702,11 +704,12 @@ private fun ChatScreenContent(
                                                     else uiState.partnerUsername.ifBlank { "User" }
                                                 },
                                             )
-                                            val textActions = listOf(
-                                                MessageAction("Copy", Icons.Default.ContentCopy, color = tokens.textPrimary) { onCopy(msg.text) },
-                                                MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) },
-                                                MessageAction("Delete", Icons.Default.Delete, color = Color.Red) { requestDelete(msg) },
-                                            )
+                                            val textActions = buildList {
+                                                add(MessageAction("Copy", Icons.Default.ContentCopy, color = tokens.textPrimary) { onCopy(msg.text) })
+                                                add(MessageAction("Reply", Icons.AutoMirrored.Filled.Reply, color = tokens.textPrimary) { onReply(msg) })
+                                                if (isMe) add(MessageAction("Delete for everyone", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, true) })
+                                                add(MessageAction("Delete for me", Icons.Default.Delete, color = Color.Red) { requestDelete(msg, false) })
+                                            }
                                             SwipeToReply(onReply = { onReply(msg) }) {
                                             LongPressMessage(
                                                 isMe = isMe,
@@ -1040,7 +1043,7 @@ private fun ChatScreenPreview() {
             onCopy = {},
             onReply = {},
             onReplyClick = {},
-            onDelete = {},
+            onDelete = { _, _ -> },
             onClearReply = {},
             onAttachmentClick = {},
             onClearAttachments = {},

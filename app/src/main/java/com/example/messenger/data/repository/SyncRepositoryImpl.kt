@@ -73,6 +73,7 @@ class SyncRepositoryImpl @Inject constructor(
         when (item.action) {
             SyncAction.SEND -> retrySend(item)
             SyncAction.DELETE -> retryDelete(item)
+            SyncAction.DELETE_FOR_ME -> retryDelete(item, forMe = true)
             else -> {
                 Log.w(TAG, "Dropping message item with unknown action: ${item.action}")
                 syncQueueBox.remove(item)
@@ -80,14 +81,18 @@ class SyncRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun retryDelete(item: ObxSyncQueueItem) {
+    private suspend fun retryDelete(item: ObxSyncQueueItem, forMe: Boolean = false) {
         val entity = messageBox.query(ObxMessage_.uid.equal(item.entityId)).build()
             .use { it.findFirst() }
         if (entity == null) {
             syncQueueBox.remove(item)
             return
         }
-        val result = firestoreService.deleteMessage(entity.toDomain())
+        val result = if (forMe) {
+            firestoreService.deleteMessageForMe(entity.toDomain())
+        } else {
+            firestoreService.deleteMessage(entity.toDomain())
+        }
         if (result.isSuccess) {
             syncQueueBox.remove(item)
         } else {
