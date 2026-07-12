@@ -7,5 +7,8 @@ import kotlinx.coroutines.flow.callbackFlow
 
 fun <T> Query<T>.asFlow(): Flow<List<T>> = callbackFlow {
     val subscription = subscribe().observer { data -> trySend(data) }
-    awaitClose { subscription.cancel() }
+    awaitClose {
+        subscription.cancel()
+        close()
+    }
 }
