@@ -10,10 +10,14 @@ import javax.inject.Inject
 class DeleteMessageUseCase @Inject constructor(
     private val messageRepository: IMessageRepository
 ) {
-    suspend operator fun invoke(message: Message): Flow<Resource<Unit>> = flow  {
+    suspend operator fun invoke(message: Message, forEveryone: Boolean): Flow<Resource<Unit>> = flow  {
        try {
            emit(Resource.Loading)
-            val result = messageRepository.deleteMessage(message)
+            val result = if (forEveryone) {
+                messageRepository.deleteMessageForEveryone(message)
+            } else {
+                messageRepository.deleteMessageForMe(message)
+            }
            result.fold(
                 onSuccess = {
                     emit(Resource.Success(Unit))

@@ -26,6 +26,7 @@ import javax.inject.Singleton
 class FirestoreService @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val codec: E2eeMessageCodec,
+    private val authService: com.example.messenger.data.remote.auth.FirebaseAuthService,
 ) {
     private val usersCollection = firestore.collection("users")
     private val conversationsCollection = firestore.collection("conversations")
@@ -141,6 +142,34 @@ class FirestoreService @Inject constructor(
         }
     }
 
+    suspend fun deleteMessageForMe(message: Message): Result<Unit> {
+        return try {
+            val uid = authService.getCurrentUserId()
+                ?: return Result.failure(Exception("Not signed in"))
+            conversationsCollection
+                .document(message.conversationId)
+                .collection("messages")
+                .document(message.id)
+                .update("deletedFor", com.google.firebase.firestore.FieldValue.arrayUnion(uid))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error deleting message for me", e)
+            Result.failure(e)
+        }
+    }
+
+    private fun Message.markDeleted(): Message = when (this) {
+        is Message.Text  -> copy(deleted = true)
+        is Message.Media -> copy(deleted = true)
+        is Message.Call  -> copy(deleted = true)
+    }
+
+    private fun applyDeletedFor(dto: RemoteMessageDto, message: Message): Message {
+        val uid = authService.getCurrentUserId()
+        return if (uid != null && dto.deletedFor.contains(uid)) message.markDeleted() else message
+    }
+
     suspend fun deleteMessage(message: Message): Result<Unit>{
         return try {
             conversationsCollection
@@ -202,7 +231,7 @@ class FirestoreService @Inject constructor(
             }
             awaitClose { listener.remove() }
         }
-        return raw.map { rows -> rows.map { (dto, pending) -> codec.decode(dto, pending) } }
+        return raw.map { rows -> rows.map { (dto, pending) -> applyDeletedFor(dto, codec.decode(dto, pending)) } }
     }
 
     suspend fun fetchOlderMessages(
@@ -228,7 +257,7 @@ class FirestoreService @Inject constructor(
                 .await()
             val messages = snapshot.documents.mapNotNull { doc ->
                 doc.toObject(RemoteMessageDto::class.java)?.copy(id = doc.id)
-            }.map { dto -> codec.decode(dto) }.reversed()
+            }.map { dto -> applyDeletedFor(dto, codec.decode(dto)) }.reversed()
             Result.success(messages)
         } catch (e: Exception) {
             Log.e("FirestoreService", "Error fetching older messages", e)

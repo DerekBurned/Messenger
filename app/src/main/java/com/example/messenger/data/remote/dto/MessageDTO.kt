@@ -13,6 +13,7 @@ data class RemoteMessageDto(
     val status: String = "SENT",
     val isRead: Boolean = false,
     val deleted: Boolean = false,
+    val deletedFor: List<String> = emptyList(),
     val type: String = "TEXT",
     val text: String = "",
     val replyToMessageId: String? = null,

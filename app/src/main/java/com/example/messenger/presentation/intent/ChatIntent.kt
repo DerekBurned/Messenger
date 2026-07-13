@@ -10,7 +10,7 @@ sealed interface ChatIntent : UiIntent {
     data class SendMessage(val text: String) : ChatIntent
     data class MessagesSeen(val messages: List<Message>) : ChatIntent
     data object LoadOlderMessages : ChatIntent
-    data class DeleteMessage(val message: Message) : ChatIntent
+    data class DeleteMessage(val message: Message, val forEveryone: Boolean) : ChatIntent
     data class SetReplyTo(val message: Message) : ChatIntent
     
     data class JumpToMessage(val messageId: String) : ChatIntent

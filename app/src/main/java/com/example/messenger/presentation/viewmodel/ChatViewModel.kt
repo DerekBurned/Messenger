@@ -140,7 +140,7 @@ class ChatViewModel @Inject constructor(
             is ChatIntent.SendMessage -> sendMessage(intent.text)
             is ChatIntent.MessagesSeen -> onMessagesSeen(intent.messages)
             ChatIntent.LoadOlderMessages -> loadOlder()
-            is ChatIntent.DeleteMessage -> deleteMessage(intent.message)
+            is ChatIntent.DeleteMessage -> deleteMessage(intent.message, intent.forEveryone)
             is ChatIntent.SetReplyTo -> setState { copy(replyingTo = intent.message) }
             ChatIntent.ClearReply -> setState { copy(replyingTo = null) }
             is ChatIntent.JumpToMessage -> jumpToMessage(intent.messageId)
@@ -410,9 +410,9 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun deleteMessage(message: Message) {
+    private fun deleteMessage(message: Message, forEveryone: Boolean) {
         viewModelScope.launch {
-            deleteMessageUseCase(message).collect { resource ->
+            deleteMessageUseCase(message, forEveryone).collect { resource ->
                 when (resource) {
                     is Resource.Error -> emitEffect(
                         ChatEffect.ShowError(resource.message.toUiText()),
