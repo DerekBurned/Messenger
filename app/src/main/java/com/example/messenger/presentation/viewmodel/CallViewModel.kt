@@ -21,6 +21,7 @@ import com.example.messenger.presentation.state.CallUiState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,6 +69,7 @@ class CallViewModel @Inject constructor(
 
     private var partnerAvatarUrl: String? = null
     private var observingAvatarFor: String? = null
+    private var avatarObserverJob: Job? = null
 
     private val pendingPartnerId: String = savedStateHandle["partnerId"] ?: ""
     private val pendingPartnerName: String = savedStateHandle["partnerName"] ?: ""
@@ -98,7 +100,8 @@ class CallViewModel @Inject constructor(
         if (partnerId.isBlank() || partnerId == RESUME_PARTNER_ID) return
         if (observingAvatarFor == partnerId) return
         observingAvatarFor = partnerId
-        userRepository.observeUser(partnerId)
+        avatarObserverJob?.cancel()
+        avatarObserverJob = userRepository.observeUser(partnerId)
             .onEach { user ->
                 partnerAvatarUrl = user?.avatarUrl
                 _uiState.update { it.copy(partnerAvatarUrl = partnerAvatarUrl) }

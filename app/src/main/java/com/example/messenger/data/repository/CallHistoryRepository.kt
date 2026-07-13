@@ -1,6 +1,7 @@
 package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.obx.ObxConversation
+import com.example.messenger.data.local.obx.ObxConversation_
 import com.example.messenger.data.local.obx.ObxMessage
 import com.example.messenger.data.local.obx.ObxMessage_
 import com.example.messenger.data.local.obx.asFlow
@@ -27,17 +28,22 @@ class CallHistoryRepository @Inject constructor(
             .orderDesc(ObxMessage_.timestamp)
             .build()
         return query.asFlow().map { rows ->
-            rows.mapNotNull { it.toEntry(currentUserId) }
+            val liveRows = rows.filterNot { it.deleted }
+            val conversationIds = liveRows.map { it.conversationId }.distinct().toTypedArray()
+            val conversationsById = if (conversationIds.isEmpty()) {
+                emptyMap()
+            } else {
+                conversationBox.query(ObxConversation_.uid.oneOf(conversationIds))
+                    .build()
+                    .use { it.find() }
+                    .associateBy { it.uid }
+            }
+            liveRows.mapNotNull { it.toEntry(currentUserId, conversationsById[it.conversationId]) }
         }
     }
 
-    private fun ObxMessage.toEntry(currentUserId: String): CallHistoryEntry? {
-        if (deleted) return null
-        val conversation = conversationBox
-            .query(com.example.messenger.data.local.obx.ObxConversation_.uid.equal(conversationId))
-            .build()
-            .use { it.findFirst() }
-            ?: return null
+    private fun ObxMessage.toEntry(currentUserId: String, conversation: ObxConversation?): CallHistoryEntry? {
+        conversation ?: return null
         val partnerIndex = conversation.participantIds.indexOfFirst { it != currentUserId }
         val partnerId = conversation.participantIds.getOrNull(partnerIndex)
             ?: conversation.participantIds.firstOrNull { it != currentUserId }
