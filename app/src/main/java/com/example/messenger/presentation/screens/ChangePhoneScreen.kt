@@ -1,17 +1,11 @@
 package com.example.messenger.presentation.screens
 
 import android.app.Activity
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -22,13 +16,13 @@ import com.example.messenger.presentation.components.auth.ConfirmCurrentStep
 import com.example.messenger.presentation.components.auth.EnterNewStep
 import com.example.messenger.presentation.components.auth.OtpStep
 import com.example.messenger.presentation.components.auth.StepIndicator
+import com.example.messenger.presentation.components.common.NavHeaderPill
 import com.example.messenger.presentation.effect.ChangePhoneEffect
 import com.example.messenger.presentation.intent.ChangePhoneIntent
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.ChangePhoneStep
 import com.example.messenger.presentation.viewmodel.ChangePhoneViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePhoneScreen(
     viewModel: ChangePhoneViewModel = hiltViewModel(),
@@ -38,6 +32,7 @@ fun ChangePhoneScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity
+    val tokens = messengerTokens
 
     ObserveAsEvents(viewModel.effect) { effect ->
         when (effect) {
@@ -45,49 +40,33 @@ fun ChangePhoneScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = {
-                        Text(
-                            text = when (state.step) {
-                                ChangePhoneStep.CONFIRM_CURRENT,
-                                ChangePhoneStep.VERIFY_CURRENT,
-                                -> "Verify current number"
-                                ChangePhoneStep.ENTER_NEW,
-                                ChangePhoneStep.VERIFY_NEW,
-                                -> "Set new number"
-                            },
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (state.step == ChangePhoneStep.CONFIRM_CURRENT) onBackClick()
-                            else viewModel.dispatch(ChangePhoneIntent.GoBack)
-                        }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-                )
-            }
-        },
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .imePadding(),
+    ) {
+        CallAwareTopBar {
+            NavHeaderPill(
+                title = when (state.step) {
+                    ChangePhoneStep.CONFIRM_CURRENT,
+                    ChangePhoneStep.VERIFY_CURRENT,
+                    -> "Verify current number"
+                    ChangePhoneStep.ENTER_NEW,
+                    ChangePhoneStep.VERIFY_NEW,
+                    -> "Set new number"
+                },
+                onBack = {
+                    if (state.step == ChangePhoneStep.CONFIRM_CURRENT) onBackClick()
+                    else viewModel.dispatch(ChangePhoneIntent.GoBack)
+                },
+            )
+        }
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-                .imePadding()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .weight(1f)
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp, bottom = 28.dp),
         ) {
             StepIndicator(step = state.step)
             Spacer(modifier = Modifier.height(20.dp))
@@ -128,9 +107,8 @@ fun ChangePhoneScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             state.error?.let { err ->
-                Text(err.asString(), color = Color.Red, fontSize = 13.sp)
+                Text(err.asString(), color = tokens.danger, fontSize = 13.sp)
             }
         }
     }
 }
-

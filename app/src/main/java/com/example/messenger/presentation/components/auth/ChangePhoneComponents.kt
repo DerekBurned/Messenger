@@ -8,24 +8,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.messenger.presentation.screens.ui.theme.OnSurface
-import com.example.messenger.presentation.screens.ui.theme.OnSurfaceMuted
+import com.example.messenger.presentation.components.common.PillButton
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.ChangePhoneStep
 import com.example.messenger.presentation.state.ChangePhoneUiState
 import androidx.compose.material3.Surface
@@ -43,7 +37,7 @@ fun StepIndicator(step: ChangePhoneStep) {
     Column {
         Text(
             text = "Step ${currentIndex + 1} of 3 · ${labels[currentIndex]}",
-            color = OnSurfaceMuted,
+            color = messengerTokens.textMuted,
             fontSize = 12.sp,
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -74,18 +68,18 @@ fun ConfirmCurrentStep(
 ) {
     Text(
         text = "To change your phone number we first need to verify it's still you.",
-        color = OnSurfaceMuted,
+        color = messengerTokens.textMuted,
         fontSize = 14.sp,
     )
     Spacer(modifier = Modifier.height(16.dp))
     Text(
         text = "Current number",
-        color = OnSurfaceMuted,
+        color = messengerTokens.textMuted,
         fontSize = 12.sp,
     )
     Text(
         text = currentPhone.ifBlank { "(none on file)" },
-        color = OnSurface,
+        color = messengerTokens.textPrimary,
         fontSize = 18.sp,
         fontWeight = FontWeight.SemiBold,
     )
@@ -107,7 +101,7 @@ fun EnterNewStep(
 ) {
     Text(
         text = "Enter your new phone number. We'll send a code to confirm it.",
-        color = OnSurfaceMuted,
+        color = messengerTokens.textMuted,
         fontSize = 14.sp,
     )
     Spacer(modifier = Modifier.height(20.dp))
@@ -146,7 +140,7 @@ fun OtpStep(
     isLoading: Boolean,
     onVerify: () -> Unit,
 ) {
-    Text(label, color = OnSurfaceMuted, fontSize = 14.sp)
+    Text(label, color = messengerTokens.textMuted, fontSize = 14.sp)
     Spacer(modifier = Modifier.height(20.dp))
     AuthInputTextField(
         value = otp,
@@ -170,23 +164,12 @@ private fun PrimaryActionButton(
     isLoading: Boolean,
     onClick: () -> Unit,
 ) {
-    Button(
+    PillButton(
+        text = text,
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(52.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
         enabled = enabled,
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                color = Color.White,
-                strokeWidth = 2.dp,
-            )
-        } else {
-            Text(text, color = Color.White, fontWeight = FontWeight.SemiBold)
-        }
-    }
+        loading = isLoading,
+    )
 }
 
 @Preview
