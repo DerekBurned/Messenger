@@ -235,8 +235,7 @@ private fun AudioCallContent(
     onToggleCamera: () -> Unit,
 ) {
     val tokens = messengerTokens
-    WallpaperBackground {
-        Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         CallBackButton(
             onBack = onBack,
             tint = tokens.textPrimary,
@@ -290,7 +289,6 @@ private fun AudioCallContent(
                 onToggleCamera = onToggleCamera,
                 onSwitchCamera = {},
             )
-        }
         }
     }
 }
@@ -565,13 +563,15 @@ private fun formatSeconds(s: Int): String {
 @Composable
 fun CallScreenIncomingPreview() {
     MessengerTheme {
-        CallScreenContent(
-            state = CallUiState(
-                partnerName = "Alice",
-                partnerPhone = "+1 555 0100",
-                isIncoming = true,
-            ),
-        )
+        WallpaperBackground {
+            CallScreenContent(
+                state = CallUiState(
+                    partnerName = "Alice",
+                    partnerPhone = "+1 555 0100",
+                    isIncoming = true,
+                ),
+            )
+        }
     }
 }
 
@@ -579,14 +579,16 @@ fun CallScreenIncomingPreview() {
 @Composable
 fun CallScreenIncomingVideoPreview() {
     MessengerTheme {
-        CallScreenContent(
-            state = CallUiState(
-                partnerName = "Alice",
-                partnerPhone = "+1 555 0100",
-                isIncoming = true,
-                isVideoCall = true,
-            ),
-        )
+        WallpaperBackground {
+            CallScreenContent(
+                state = CallUiState(
+                    partnerName = "Alice",
+                    partnerPhone = "+1 555 0100",
+                    isIncoming = true,
+                    isVideoCall = true,
+                ),
+            )
+        }
     }
 }
 
@@ -594,15 +596,17 @@ fun CallScreenIncomingVideoPreview() {
 @Composable
 fun CallScreenActivePreview() {
     MessengerTheme {
-        CallScreenContent(
-            state = CallUiState(
-                partnerName = "Alice",
-                partnerPhone = "+1 555 0100",
-                isActive = true,
-                seconds = 73,
-                connectionState = CallConnectionState.CONNECTED,
-            ),
-        )
+        WallpaperBackground {
+            CallScreenContent(
+                state = CallUiState(
+                    partnerName = "Alice",
+                    partnerPhone = "+1 555 0100",
+                    isActive = true,
+                    seconds = 73,
+                    connectionState = CallConnectionState.CONNECTED,
+                ),
+            )
+        }
     }
 }
 
@@ -610,14 +614,16 @@ fun CallScreenActivePreview() {
 @Composable
 fun CallScreenRingingPreview() {
     MessengerTheme {
-        CallScreenContent(
-            state = CallUiState(
-                partnerName = "Alice",
-                partnerPhone = "+1 555 0100",
-                remoteRinging = true,
-                connectionState = CallConnectionState.CONNECTED,
-            ),
-        )
+        WallpaperBackground {
+            CallScreenContent(
+                state = CallUiState(
+                    partnerName = "Alice",
+                    partnerPhone = "+1 555 0100",
+                    remoteRinging = true,
+                    connectionState = CallConnectionState.CONNECTED,
+                ),
+            )
+        }
     }
 }
 
@@ -625,12 +631,14 @@ fun CallScreenRingingPreview() {
 @Composable
 fun CallScreenRequestingPreview() {
     MessengerTheme {
-        CallScreenContent(
-            state = CallUiState(
-                partnerName = "Alice",
-                partnerPhone = "+1 555 0100",
-                connectionState = CallConnectionState.CONNECTED,
-            ),
-        )
+        WallpaperBackground {
+            CallScreenContent(
+                state = CallUiState(
+                    partnerName = "Alice",
+                    partnerPhone = "+1 555 0100",
+                    connectionState = CallConnectionState.CONNECTED,
+                ),
+            )
+        }
     }
 }

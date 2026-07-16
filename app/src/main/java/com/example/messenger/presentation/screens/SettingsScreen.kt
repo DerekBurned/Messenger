@@ -78,56 +78,54 @@ fun SettingsScreenContent(
     onLogoutClick: () -> Unit = {},
 ) {
     val tokens = messengerTokens
-    WallpaperBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Dimens.screenPadding)
-                .padding(bottom = 40.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
-            MessengerAvatar(name = user?.username.orEmpty(),
-                photoUrl = photoUrl,
-                size = Dimens.avatarLarge)
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = user?.username ?: "User",
-                color = tokens.textPrimary,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = "@${user?.username ?: "user"}",
-                color = tokens.textPrimary.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(modifier = Modifier.height(22.dp))
-            RoundedCard {
-                SettingsRow(title = "My profile", onClick = onProfileClick)
-                CardDivider()
-                SettingsRow(title = "Switch account", onClick = onSwitchAccountClick)
-                CardDivider()
-                SettingsRow(title = "Privacy", onClick = onPrivacyClick)
-                CardDivider()
-                SettingsRow(title = "Notifications & Sounds", onClick = onNotificationsClick)
-                CardDivider()
-                SettingsRow(title = "Appearance", onClick = onAppearanceClick)
-                CardDivider()
-                SettingsRow(title = "Security", onClick = onSecurityClick)
-                CardDivider()
-                SettingsRow(title = "Data & Storage", onClick = onDataStorageClick)
-                CardDivider()
-                SettingsRow(title = "Language", onClick = onLanguageClick)
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            PillButton(
-                text = "Log out",
-                onClick = onLogoutClick,
-                style = PillButtonStyle.Danger,
-            )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Dimens.screenPadding)
+            .padding(bottom = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
+        MessengerAvatar(name = user?.username.orEmpty(),
+            photoUrl = photoUrl,
+            size = Dimens.avatarLarge)
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            text = user?.username ?: "User",
+            color = tokens.textPrimary,
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = "@${user?.username ?: "user"}",
+            color = tokens.textPrimary.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(modifier = Modifier.height(22.dp))
+        RoundedCard {
+            SettingsRow(title = "My profile", onClick = onProfileClick)
+            CardDivider()
+            SettingsRow(title = "Switch account", onClick = onSwitchAccountClick)
+            CardDivider()
+            SettingsRow(title = "Privacy", onClick = onPrivacyClick)
+            CardDivider()
+            SettingsRow(title = "Notifications & Sounds", onClick = onNotificationsClick)
+            CardDivider()
+            SettingsRow(title = "Appearance", onClick = onAppearanceClick)
+            CardDivider()
+            SettingsRow(title = "Security", onClick = onSecurityClick)
+            CardDivider()
+            SettingsRow(title = "Data & Storage", onClick = onDataStorageClick)
+            CardDivider()
+            SettingsRow(title = "Language", onClick = onLanguageClick)
         }
+        Spacer(modifier = Modifier.height(24.dp))
+        PillButton(
+            text = "Log out",
+            onClick = onLogoutClick,
+            style = PillButtonStyle.Danger,
+        )
     }
 }
 
@@ -135,12 +133,14 @@ fun SettingsScreenContent(
 @Composable
 fun SettingsScreenPreview() {
     MessengerTheme {
-        SettingsScreenContent(
-            user = User(
-                id = "preview-uid",
-                username = "Jane Doe",
-                email = "jane@example.com",
-            ),
-        )
+        WallpaperBackground {
+            SettingsScreenContent(
+                user = User(
+                    id = "preview-uid",
+                    username = "Jane Doe",
+                    email = "jane@example.com",
+                ),
+            )
+        }
     }
 }

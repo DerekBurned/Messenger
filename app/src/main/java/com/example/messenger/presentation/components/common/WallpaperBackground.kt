@@ -25,11 +25,12 @@ import androidx.compose.ui.res.painterResource
 import com.example.messenger.R
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 
+/**
+ * The single app-wide wallpaper. Drawn once as a static layer behind the
+ * navigation host so screen transitions animate only screen content over it.
+ */
 @Composable
-fun WallpaperBackground(
-    modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit,
-) {
+fun WallpaperBackdrop(modifier: Modifier = Modifier) {
     val tokens = messengerTokens
     Box(modifier = modifier.fillMaxSize()) {
         if (tokens.isDark) {
@@ -62,6 +63,20 @@ fun WallpaperBackground(
                     ),
             )
         }
+    }
+}
+
+/**
+ * Wallpaper with content on top, for surfaces rendered outside the main
+ * navigation host (overlays, bubble activity, previews) that must be opaque.
+ */
+@Composable
+fun WallpaperBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        WallpaperBackdrop()
         content()
     }
 }

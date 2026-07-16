@@ -184,49 +184,47 @@ private fun ProfileScreenContent(
 ) {
     val tokens = messengerTokens
     val user = uiState.user
-    WallpaperBackground {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        NavHeaderPill(title = "Profile", onBack = onBackClick)
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Dimens.screenPadding)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NavHeaderPill(title = "Profile", onBack = onBackClick)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Dimens.screenPadding)
-                    .padding(bottom = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-                MessengerAvatar(
-                    name = user?.username.orEmpty(),
-                    photoUrl = uiState.photos.firstOrNull() ?: user?.avatarUrl,
-                    size = Dimens.avatarLarge,
-                    modifier = Modifier.clickable(onClick = onAvatarClick),
+            Spacer(modifier = Modifier.height(8.dp))
+            MessengerAvatar(
+                name = user?.username.orEmpty(),
+                photoUrl = uiState.photos.firstOrNull() ?: user?.avatarUrl,
+                size = Dimens.avatarLarge,
+                modifier = Modifier.clickable(onClick = onAvatarClick),
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            RoundedCard {
+                ProfileDisplayRow(
+                    label = "Phone number",
+                    value = user?.phoneNumber?.getFullNumber().orEmpty(),
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                RoundedCard {
-                    ProfileDisplayRow(
-                        label = "Phone number",
-                        value = user?.phoneNumber?.getFullNumber().orEmpty(),
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                RoundedCard {
-                    ProfileDisplayRow(label = "Name", value = user?.username.orEmpty())
-                    CardDivider()
-                    ProfileDisplayRow(
-                        label = "Username",
-                        value = user?.username?.let { "@$it" }.orEmpty(),
-                    )
-                    CardDivider()
-                    ProfileDisplayRow(label = "Email", value = user?.email.orEmpty())
-                }
-                Spacer(modifier = Modifier.height(28.dp))
-                PillButton(text = "Edit profile", onClick = onEditClick)
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            RoundedCard {
+                ProfileDisplayRow(label = "Name", value = user?.username.orEmpty())
+                CardDivider()
+                ProfileDisplayRow(
+                    label = "Username",
+                    value = user?.username?.let { "@$it" }.orEmpty(),
+                )
+                CardDivider()
+                ProfileDisplayRow(label = "Email", value = user?.email.orEmpty())
+            }
+            Spacer(modifier = Modifier.height(28.dp))
+            PillButton(text = "Edit profile", onClick = onEditClick)
         }
     }
 }
@@ -257,16 +255,18 @@ private fun ProfileDisplayRow(label: String, value: String) {
 @Composable
 private fun ProfileScreenPreview() {
     MessengerTheme {
-        ProfileScreenContent(
-            uiState = ProfileUiState(
-                user = User(
-                    id = "preview-uid",
-                    username = "Jane Doe",
-                    email = "jane@example.com",
+        WallpaperBackground {
+            ProfileScreenContent(
+                uiState = ProfileUiState(
+                    user = User(
+                        id = "preview-uid",
+                        username = "Jane Doe",
+                        email = "jane@example.com",
+                    ),
                 ),
-            ),
-            onBackClick = {},
-            onEditClick = {},
-        )
+                onBackClick = {},
+                onEditClick = {},
+            )
+        }
     }
 }

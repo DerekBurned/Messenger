@@ -8,6 +8,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.navigation.ChatRoute
 import com.example.messenger.presentation.navigation.ProvideNavArgs
 import com.example.messenger.presentation.screens.ChatScreenWithNav
@@ -31,28 +32,30 @@ class BubbleActivity : ComponentActivity() {
                 val backStack = rememberNavBackStack(
                     ChatRoute(conversationId, partnerId, partnerName),
                 )
-                NavDisplay(
-                    backStack = backStack,
-                    onBack = { finish() },
-                    entryDecorators = listOf(
-                        rememberSaveableStateHolderNavEntryDecorator(),
-                        rememberViewModelStoreNavEntryDecorator(),
-                    ),
-                    entryProvider = entryProvider {
-                        entry<ChatRoute> { key ->
-                            ProvideNavArgs(
-                                "conversationId" to key.conversationId,
-                                "partnerId" to key.partnerId,
-                                "partnerName" to key.partnerName,
-                            ) {
-                                ChatScreenWithNav(
-                                    inBubble = true,
-                                    onBackClick = { finish() },
-                                )
+                WallpaperBackground {
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = { finish() },
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator(),
+                        ),
+                        entryProvider = entryProvider {
+                            entry<ChatRoute> { key ->
+                                ProvideNavArgs(
+                                    "conversationId" to key.conversationId,
+                                    "partnerId" to key.partnerId,
+                                    "partnerName" to key.partnerName,
+                                ) {
+                                    ChatScreenWithNav(
+                                        inBubble = true,
+                                        onBackClick = { finish() },
+                                    )
+                                }
                             }
-                        }
-                    },
-                )
+                        },
+                    )
+                }
             }
         }
     }
