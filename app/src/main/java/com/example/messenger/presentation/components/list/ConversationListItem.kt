@@ -2,9 +2,12 @@ package com.example.messenger.presentation.components.list
 
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.common.PresenceIndicator
+import com.example.messenger.presentation.components.common.pressScale
 import com.example.messenger.presentation.components.common.sharedElementKey
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,13 +55,18 @@ fun ConversationListItem(
     photoUrl: String? = null,
 ) {
     val tokens = messengerTokens
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 3.dp)
+            .pressScale(interaction, pressedScale = 0.98f)
             .clip(RoundedCornerShape(50.dp))
             .background(tokens.pillFill)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+            ) { onClick() }
             .height(76.dp)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

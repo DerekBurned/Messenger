@@ -9,7 +9,7 @@ import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,8 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.messenger.presentation.components.common.pressScale
 
 enum class AuthMode { LOGIN, REGISTER }
 
@@ -47,7 +49,7 @@ fun AuthModeToggle(
 ) {
     val pillOffset by animateDpAsState(
         targetValue = if (mode == AuthMode.LOGIN) 0.dp else HalfWidth,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
         label = "auth-toggle-pill",
     )
 
@@ -61,7 +63,7 @@ fun AuthModeToggle(
     ) {
         Box(
             modifier = Modifier
-                .offset(x = pillOffset)
+                .offset { IntOffset(pillOffset.roundToPx(), 0) }
                 .width(HalfWidth)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(20.dp))
@@ -90,16 +92,18 @@ private fun ToggleHalf(
 ) {
     val textColor by animateColorAsState(
         targetValue = if (selected) Color(0xFF5B8DEE) else Color.White,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = spring(stiffness = 700f),
         label = "auth-toggle-text",
     )
+    val interaction = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
             .width(HalfWidth)
             .fillMaxHeight()
+            .pressScale(interaction, pressedScale = 0.94f)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = null,
                 onClick = onClick,
             ),

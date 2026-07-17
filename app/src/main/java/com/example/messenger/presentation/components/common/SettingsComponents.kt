@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Surface
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -28,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,13 +54,18 @@ fun NavHeaderPill(
             .padding(horizontal = Dimens.screenPadding),
         contentAlignment = Alignment.Center,
     ) {
+        val backInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .size(Dimens.iconButton)
+                .pressScale(backInteraction, pressedScale = 0.88f)
                 .clip(CircleShape)
                 .background(tokens.pillFill)
-                .clickable { onBack() },
+                .clickable(
+                    interactionSource = backInteraction,
+                    indication = LocalIndication.current,
+                ) { onBack() },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -121,11 +129,16 @@ fun SettingsRow(
     showChevron: Boolean = true,
 ) {
     val tokens = messengerTokens
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = Dimens.rowHeight)
-            .clickable { onClick() }
+            .pressScale(interaction, pressedScale = 0.98f)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+            ) { onClick() }
             .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
