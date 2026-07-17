@@ -85,10 +85,9 @@ private fun ChatUserProfileScreenContent(
         listOfNotNull(state.user?.avatarUrl).filter { it.isNotBlank() }
     }
     val chipFill = if (tokens.isDark) Color.Black.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.06f)
-    WallpaperBackground {
-        val density = LocalDensity.current
-        var composerHeightPx by remember { mutableStateOf(0) }
-        val composerHeight = with(density) { composerHeightPx.toDp() }
+    val density = LocalDensity.current
+    var composerHeightPx by remember { mutableStateOf(0) }
+    val composerHeight = with(density) { composerHeightPx.toDp() }
     Scaffold(
         topBar = {
             CallAwareTopBar {
@@ -177,7 +176,6 @@ private fun ChatUserProfileScreenContent(
             item { ProfileMediaGrid() }
         }
     }
-    }
     if (showViewer && viewerPhotos.isNotEmpty()) {
         AvatarPhotoViewer(
             photos = viewerPhotos,
@@ -190,17 +188,19 @@ private fun ChatUserProfileScreenContent(
 @Composable
 fun ChatUserProfileScreenPreview() {
     MessengerTheme {
-        ChatUserProfileScreenContent(
-            state = ChatUserProfileUiState(
-                user = User(
-                    id = "u1",
-                    username = "Alice",
-                    email = "alice@example.com",
-                    phoneNumber = PhoneNumber(countryCode = "+1", number = "5550100"),
+        WallpaperBackground {
+            ChatUserProfileScreenContent(
+                state = ChatUserProfileUiState(
+                    user = User(
+                        id = "u1",
+                        username = "Alice",
+                        email = "alice@example.com",
+                        phoneNumber = PhoneNumber(countryCode = "+1", number = "5550100"),
+                    ),
+                    isOnline = true,
                 ),
-                isOnline = true,
-            ),
-            onCallClick = { _, _, _ -> },
-        )
+                onCallClick = { _, _, _ -> },
+            )
+        }
     }
 }

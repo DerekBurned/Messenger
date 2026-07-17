@@ -2,11 +2,12 @@ package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -25,11 +25,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.components.call.CallAwareTopBar
 import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.components.common.MessengerInputField
+import com.example.messenger.presentation.components.common.NavHeaderPill
+import com.example.messenger.presentation.components.common.PillButton
+import com.example.messenger.presentation.components.common.PillButtonStyle
+import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.effect.EditContactDataEffect
-import com.example.messenger.presentation.screens.ui.theme.DangerRed
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.EditContactDataUiState
 import com.example.messenger.presentation.viewmodel.EditContactDataViewModel
 
@@ -57,7 +62,6 @@ fun EditContactDataScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditContactDataScreenContent(
     state: EditContactDataUiState,
@@ -68,28 +72,22 @@ private fun EditContactDataScreenContent(
     onDismissDeleteConfirm: () -> Unit = {},
     onConfirmDelete: () -> Unit = {},
 ) {
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = { Text("Edit Contact", color = Color.White, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-                )
-            }
-        },
-    ) { padding ->
+    val tokens = messengerTokens
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .imePadding(),
+    ) {
+        CallAwareTopBar {
+            NavHeaderPill(title = "Edit Contact", onBack = onBackClick)
+        }
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = 24.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -108,66 +106,38 @@ private fun EditContactDataScreenContent(
                 }
                 Spacer(Modifier.height(8.dp))
                 if (state.username.isNotBlank()) {
-                    Text("@${state.username}", color = MaterialTheme.colorScheme.onBackground.copy(0.6f), fontSize = 13.sp)
+                    Text("@${state.username}", color = tokens.textPrimary.copy(alpha = 0.6f), fontSize = 13.sp)
                 }
                 TextButton(onClick = {}) {
-                    Text("Change photo", color = PrimaryBlue, fontSize = 13.sp)
+                    Text("Change photo", color = tokens.accent, fontSize = 13.sp)
                 }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            TextField(
+            MessengerInputField(
                 value = state.name,
                 onValueChange = onNameChange,
-                placeholder = { Text("Profile name", color = Color.White.copy(0.6f)) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedContainerColor = PrimaryBlue,
-                    unfocusedContainerColor = PrimaryBlue,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = Color.White,
-                ),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
+                placeholder = "Profile name",
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             )
 
             Spacer(Modifier.height(28.dp))
 
-            Button(
+            PillButton(
+                text = "Confirm changes",
                 onClick = onSave,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                shape = RoundedCornerShape(12.dp),
                 enabled = !state.isSaving,
-            ) {
-                Text(
-                    "Confirm changes",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                )
-            }
+                loading = state.isSaving,
+            )
 
             Spacer(Modifier.height(10.dp))
 
-            OutlinedButton(
+            PillButton(
+                text = "Delete contact",
                 onClick = onShowDeleteConfirm,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, DangerRed),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text(
-                    "Delete contact",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+                style = PillButtonStyle.Danger,
+            )
         }
     }
 
@@ -191,6 +161,8 @@ private fun EditContactDataScreenContent(
 @Composable
 fun EditContactDataScreenPreview() {
     MessengerTheme {
-        EditContactDataScreenContent(state = EditContactDataUiState(name = "Alice", initialName = "Alice"))
+        WallpaperBackground {
+            EditContactDataScreenContent(state = EditContactDataUiState(name = "Alice", initialName = "Alice"))
+        }
     }
 }

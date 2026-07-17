@@ -168,139 +168,137 @@ private fun AuthScreenContent(
         (mode == AuthMode.LOGIN || username.isNotBlank())
     val buttonEnabled = if (codeSent) !isLoading && otp.isNotBlank() else sendEnabled
 
-    WallpaperBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AnimatedVisibility(
+            visible = !codeSent,
+            enter = expandVertically(tween(Motion.durationMedium, easing = Motion.emphasized)) +
+                fadeIn(tween(Motion.durationMedium)),
+            exit = shrinkVertically(tween(Motion.durationMedium, easing = Motion.emphasized)) +
+                fadeOut(tween(Motion.durationMedium)),
         ) {
-            AnimatedVisibility(
-                visible = !codeSent,
-                enter = expandVertically(tween(Motion.durationMedium, easing = Motion.emphasized)) +
-                    fadeIn(tween(Motion.durationMedium)),
-                exit = shrinkVertically(tween(Motion.durationMedium, easing = Motion.emphasized)) +
-                    fadeOut(tween(Motion.durationMedium)),
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    SegmentedToggle(
-                        options = listOf("Register", "Login"),
-                        selectedIndex = if (mode == AuthMode.REGISTER) 0 else 1,
-                        onSelect = { onModeChange(if (it == 0) AuthMode.REGISTER else AuthMode.LOGIN) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(28.dp))
-                }
-            }
-
-            AnimatedVisibility(
-                visible = mode == AuthMode.REGISTER && !codeSent,
-                enter = expandVertically(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    expandFrom = Alignment.Bottom,
-                ) + fadeIn(tween(Motion.durationMedium)) + scaleIn(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    initialScale = 0.85f,
-                    transformOrigin = TransformOrigin(0.5f, 1f),
-                ),
-                exit = shrinkVertically(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    shrinkTowards = Alignment.Bottom,
-                ) + fadeOut(tween(Motion.durationMedium)) + scaleOut(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    targetScale = 0.85f,
-                    transformOrigin = TransformOrigin(0.5f, 1f),
-                ),
-            ) {
-                Column {
-                    MessengerInputField(
-                        value = username,
-                        onValueChange = onUsernameChange,
-                        placeholder = "Enter your username",
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CountryCodePicker(
-                    selected = selectedCountry,
-                    onCountrySelected = onCountryChange,
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                SegmentedToggle(
+                    options = listOf("Register", "Login"),
+                    selectedIndex = if (mode == AuthMode.REGISTER) 0 else 1,
+                    onSelect = { onModeChange(if (it == 0) AuthMode.REGISTER else AuthMode.LOGIN) },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Box(modifier = Modifier.weight(1f)) {
-                    MessengerInputField(
-                        value = nationalNumber,
-                        onValueChange = onNationalNumberChange,
-                        placeholder = "Enter phone number",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    )
-                }
+                Spacer(modifier = Modifier.height(28.dp))
             }
+        }
 
-            AnimatedVisibility(
-                visible = codeSent,
-                enter = expandVertically(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    expandFrom = Alignment.Top,
-                ) + fadeIn(tween(Motion.durationMedium)) + scaleIn(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    initialScale = 0.85f,
-                    transformOrigin = TransformOrigin(0.5f, 0f),
-                ),
-                exit = shrinkVertically(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    shrinkTowards = Alignment.Top,
-                ) + fadeOut(tween(Motion.durationMedium)) + scaleOut(
-                    animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
-                    targetScale = 0.85f,
-                    transformOrigin = TransformOrigin(0.5f, 0f),
-                ),
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    OtpCodeField(
-                        value = otp,
-                        onValueChange = onOtpChange,
-                        ringProgress = ringProgress,
-                        expired = expired,
-                        onRetry = onResendCode,
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Code sent to ${selectedCountry.dialCode} $nationalNumber",
-                        color = tokens.textPrimary.copy(alpha = 0.6f),
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    )
-                }
+        AnimatedVisibility(
+            visible = mode == AuthMode.REGISTER && !codeSent,
+            enter = expandVertically(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                expandFrom = Alignment.Bottom,
+            ) + fadeIn(tween(Motion.durationMedium)) + scaleIn(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                initialScale = 0.85f,
+                transformOrigin = TransformOrigin(0.5f, 1f),
+            ),
+            exit = shrinkVertically(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                shrinkTowards = Alignment.Bottom,
+            ) + fadeOut(tween(Motion.durationMedium)) + scaleOut(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                targetScale = 0.85f,
+                transformOrigin = TransformOrigin(0.5f, 1f),
+            ),
+        ) {
+            Column {
+                MessengerInputField(
+                    value = username,
+                    onValueChange = onUsernameChange,
+                    placeholder = "Enter your username",
+                )
+                Spacer(modifier = Modifier.height(14.dp))
             }
+        }
 
-            if (error != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CountryCodePicker(
+                selected = selectedCountry,
+                onCountrySelected = onCountryChange,
+            )
+            Box(modifier = Modifier.weight(1f)) {
+                MessengerInputField(
+                    value = nationalNumber,
+                    onValueChange = onNationalNumberChange,
+                    placeholder = "Enter phone number",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = codeSent,
+            enter = expandVertically(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                expandFrom = Alignment.Top,
+            ) + fadeIn(tween(Motion.durationMedium)) + scaleIn(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                initialScale = 0.85f,
+                transformOrigin = TransformOrigin(0.5f, 0f),
+            ),
+            exit = shrinkVertically(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                shrinkTowards = Alignment.Top,
+            ) + fadeOut(tween(Motion.durationMedium)) + scaleOut(
+                animationSpec = tween(Motion.durationMedium, easing = Motion.emphasized),
+                targetScale = 0.85f,
+                transformOrigin = TransformOrigin(0.5f, 0f),
+            ),
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(14.dp))
+                OtpCodeField(
+                    value = otp,
+                    onValueChange = onOtpChange,
+                    ringProgress = ringProgress,
+                    expired = expired,
+                    onRetry = onResendCode,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = error,
-                    color = tokens.danger,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                    text = "Code sent to ${selectedCountry.dialCode} $nationalNumber",
+                    color = tokens.textPrimary.copy(alpha = 0.6f),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.height(28.dp))
-            PillButton(
-                text = when {
-                    codeSent -> "Verify code"
-                    mode == AuthMode.LOGIN -> "Log in"
-                    else -> "Sign in"
-                },
-                onClick = { if (codeSent) onVerifyOtp() else onSendOtp() },
-                style = PillButtonStyle.Neutral,
-                enabled = buttonEnabled,
-                loading = isLoading,
+        if (error != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = error,
+                color = tokens.danger,
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
             )
         }
+
+        Spacer(modifier = Modifier.height(28.dp))
+        PillButton(
+            text = when {
+                codeSent -> "Verify code"
+                mode == AuthMode.LOGIN -> "Log in"
+                else -> "Sign in"
+            },
+            onClick = { if (codeSent) onVerifyOtp() else onSendOtp() },
+            style = PillButtonStyle.Neutral,
+            enabled = buttonEnabled,
+            loading = isLoading,
+        )
     }
 }
 
@@ -308,23 +306,25 @@ private fun AuthScreenContent(
 @Composable
 private fun AuthScreenLoginPreview() {
     MessengerTheme {
-        AuthScreenContent(
-            mode = AuthMode.LOGIN,
-            selectedCountry = Countries.all.first { it.isoCode == "US" },
-            nationalNumber = "",
-            username = "",
-            otp = "",
-            isLoading = false,
-            error = null,
-            codeSent = false,
-            onModeChange = {},
-            onCountryChange = {},
-            onNationalNumberChange = {},
-            onUsernameChange = {},
-            onOtpChange = {},
-            onSendOtp = {},
-            onVerifyOtp = {},
-        )
+        WallpaperBackground {
+            AuthScreenContent(
+                mode = AuthMode.LOGIN,
+                selectedCountry = Countries.all.first { it.isoCode == "US" },
+                nationalNumber = "",
+                username = "",
+                otp = "",
+                isLoading = false,
+                error = null,
+                codeSent = false,
+                onModeChange = {},
+                onCountryChange = {},
+                onNationalNumberChange = {},
+                onUsernameChange = {},
+                onOtpChange = {},
+                onSendOtp = {},
+                onVerifyOtp = {},
+            )
+        }
     }
 }
 
@@ -332,23 +332,25 @@ private fun AuthScreenLoginPreview() {
 @Composable
 private fun AuthScreenRegisterPreview() {
     MessengerTheme {
-        AuthScreenContent(
-            mode = AuthMode.REGISTER,
-            selectedCountry = Countries.all.first { it.isoCode == "PL" },
-            nationalNumber = "123456789",
-            username = "derek",
-            otp = "",
-            isLoading = false,
-            error = null,
-            codeSent = false,
-            onModeChange = {},
-            onCountryChange = {},
-            onNationalNumberChange = {},
-            onUsernameChange = {},
-            onOtpChange = {},
-            onSendOtp = {},
-            onVerifyOtp = {},
-        )
+        WallpaperBackground {
+            AuthScreenContent(
+                mode = AuthMode.REGISTER,
+                selectedCountry = Countries.all.first { it.isoCode == "PL" },
+                nationalNumber = "123456789",
+                username = "derek",
+                otp = "",
+                isLoading = false,
+                error = null,
+                codeSent = false,
+                onModeChange = {},
+                onCountryChange = {},
+                onNationalNumberChange = {},
+                onUsernameChange = {},
+                onOtpChange = {},
+                onSendOtp = {},
+                onVerifyOtp = {},
+            )
+        }
     }
 }
 
@@ -356,24 +358,26 @@ private fun AuthScreenRegisterPreview() {
 @Composable
 private fun AuthScreenCodeSentPreview() {
     MessengerTheme {
-        AuthScreenContent(
-            mode = AuthMode.REGISTER,
-            selectedCountry = Countries.all.first { it.isoCode == "PL" },
-            nationalNumber = "123456789",
-            username = "derek",
-            otp = "123",
-            isLoading = false,
-            error = null,
-            codeSent = true,
-            ringProgress = { 0.6f },
-            expired = false,
-            onModeChange = {},
-            onCountryChange = {},
-            onNationalNumberChange = {},
-            onUsernameChange = {},
-            onOtpChange = {},
-            onSendOtp = {},
-            onVerifyOtp = {},
-        )
+        WallpaperBackground {
+            AuthScreenContent(
+                mode = AuthMode.REGISTER,
+                selectedCountry = Countries.all.first { it.isoCode == "PL" },
+                nationalNumber = "123456789",
+                username = "derek",
+                otp = "123",
+                isLoading = false,
+                error = null,
+                codeSent = true,
+                ringProgress = { 0.6f },
+                expired = false,
+                onModeChange = {},
+                onCountryChange = {},
+                onNationalNumberChange = {},
+                onUsernameChange = {},
+                onOtpChange = {},
+                onSendOtp = {},
+                onVerifyOtp = {},
+            )
+        }
     }
 }

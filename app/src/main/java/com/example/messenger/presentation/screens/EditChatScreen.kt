@@ -1,39 +1,28 @@
 package com.example.messenger.presentation.screens
 import com.example.messenger.presentation.components.list.EditChatRow
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.presentation.components.call.CallAwareTopBar
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.presentation.base.ObserveAsEvents
+import com.example.messenger.presentation.components.common.NavHeaderPill
+import com.example.messenger.presentation.components.common.PillButton
+import com.example.messenger.presentation.components.common.PillButtonStyle
+import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.effect.EditChatEffect
-import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
-import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.state.EditChatUiState
 import com.example.messenger.presentation.viewmodel.EditChatViewModel
 
@@ -57,7 +46,6 @@ fun EditChatScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditChatScreenContent(
     state: EditChatUiState,
@@ -66,49 +54,16 @@ private fun EditChatScreenContent(
     onDelete: () -> Unit = {},
     onMarkAllRead: () -> Unit = {},
 ) {
-    Scaffold(
-        topBar = {
-            CallAwareTopBar {
-                CenterAlignedTopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
-                    title = { Text("Select chat", color = Color.White, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryBlue),
-                )
-            }
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-            ) {
-                Button(
-                    onClick = onMarkAllRead,
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                ) { Text("Read all", fontSize = 14.sp) }
-                Button(
-                    onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                    enabled = state.selectedIds.isNotEmpty(),
-                ) { Text("Delete", fontSize = 14.sp) }
-            }
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background),
-        ) {
+    val tokens = messengerTokens
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        CallAwareTopBar {
+            NavHeaderPill(title = "Select chat", onBack = onBackClick)
+        }
+        LazyColumn(modifier = Modifier.weight(1f)) {
             items(state.conversations, key = { it.id }) { conversation ->
                 val selected = conversation.id in state.selectedIds
                 EditChatRow(
@@ -116,8 +71,29 @@ private fun EditChatScreenContent(
                     selected = selected,
                     onClick = { onToggle(conversation.id) },
                 )
-                HorizontalDivider(color = LightGray, thickness = 0.5.dp)
+                HorizontalDivider(color = tokens.divider, thickness = 0.5.dp)
             }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+        ) {
+            PillButton(
+                text = "Read all",
+                onClick = onMarkAllRead,
+                style = PillButtonStyle.Neutral,
+                modifier = Modifier.weight(1f),
+            )
+            PillButton(
+                text = "Delete",
+                onClick = onDelete,
+                style = PillButtonStyle.Danger,
+                enabled = state.selectedIds.isNotEmpty(),
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -127,15 +103,17 @@ private fun EditChatScreenContent(
 @Composable
 fun EditChatScreenPreview() {
     MessengerTheme {
-        EditChatScreenContent(
-            state = EditChatUiState(
-                conversations = listOf(
-                    Conversation(id = "1", participantNames = listOf("Alice")),
-                    Conversation(id = "2", participantNames = listOf("Bob")),
-                    Conversation(id = "3", participantNames = listOf("Carol")),
+        WallpaperBackground {
+            EditChatScreenContent(
+                state = EditChatUiState(
+                    conversations = listOf(
+                        Conversation(id = "1", participantNames = listOf("Alice")),
+                        Conversation(id = "2", participantNames = listOf("Bob")),
+                        Conversation(id = "3", participantNames = listOf("Carol")),
+                    ),
+                    selectedIds = setOf("1", "3"),
                 ),
-                selectedIds = setOf("1", "3"),
-            ),
-        )
+            )
+        }
     }
 }

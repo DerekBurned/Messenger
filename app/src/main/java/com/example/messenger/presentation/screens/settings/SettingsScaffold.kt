@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.messenger.presentation.components.common.NavHeaderPill
-import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.screens.ui.theme.Dimens
 
 @Composable
@@ -22,23 +21,21 @@ fun SettingsSubScaffold(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    WallpaperBackground {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        NavHeaderPill(title = title, onBack = onBack)
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Dimens.screenPadding)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            NavHeaderPill(title = title, onBack = onBack)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Dimens.screenPadding)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                content()
-            }
+            content()
         }
     }
 }

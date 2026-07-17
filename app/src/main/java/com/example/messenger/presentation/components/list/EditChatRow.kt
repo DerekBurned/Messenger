@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.example.messenger.domain.model.Conversation
 import com.example.messenger.presentation.screens.ui.theme.LightGray
 import com.example.messenger.presentation.screens.ui.theme.PrimaryBlue
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 
 @Composable
 fun EditChatRow(conversation: Conversation, selected: Boolean, onClick: () -> Unit) {
@@ -57,7 +58,7 @@ fun EditChatRow(conversation: Conversation, selected: Boolean, onClick: () -> Un
         Spacer(Modifier.width(12.dp))
         Text(
             text = conversation.participantNames.firstOrNull() ?: "Unknown",
-            color = Color.Black,
+            color = messengerTokens.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )

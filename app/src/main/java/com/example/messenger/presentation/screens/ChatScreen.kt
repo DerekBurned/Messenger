@@ -332,7 +332,6 @@ private fun ChatScreenContent(
 
     val ctxState = rememberMessageContextMenuState()
     MessageContextMenuHost(state = ctxState) {
-    WallpaperBackground {
     Scaffold(
         topBar = {
             CallAwareTopBar {
@@ -907,7 +906,6 @@ private fun ChatScreenContent(
         }
     }
     }
-    }
 
     var lastPreviewIndex by remember { mutableStateOf(0) }
     LaunchedEffect(chatPreviewIndex) { chatPreviewIndex?.let { lastPreviewIndex = it } }
@@ -1027,33 +1025,35 @@ private fun ChatScreenPreview() {
         Message.Text(id = "3", senderId = "me", text = "All good, thanks!", timestamp = 1_700_000_120_000L, status = MessageStatus.SENT),
     )
     MessengerTheme {
-        ChatScreenContent(
-            uiState = ChatUiState(
-                messages = fakeMessages,
-                partnerUsername = "Alice",
-                isLoading = false,
-                currentUserId = "me",
-            ),
-            messageText = "",
-            onMessageTextChange = {},
-            onSendClick = {},
-            onBackClick = {},
-            onCallClick = {},
-            onVideoCallClick = {},
-            onCopy = {},
-            onReply = {},
-            onReplyClick = {},
-            onDelete = { _, _ -> },
-            onClearReply = {},
-            onAttachmentClick = {},
-            onClearAttachments = {},
-            onIntercultorProfileClick = { _, _ -> },
-            onMessagesSeen = {},
-            onLoadOlderMessages = {},
-            onDownload = {},
-            onCancelUpload = { _, _ -> },
-            onCancelDownload = {},
-            onRetryMedia = {},
-        )
+        WallpaperBackground {
+            ChatScreenContent(
+                uiState = ChatUiState(
+                    messages = fakeMessages,
+                    partnerUsername = "Alice",
+                    isLoading = false,
+                    currentUserId = "me",
+                ),
+                messageText = "",
+                onMessageTextChange = {},
+                onSendClick = {},
+                onBackClick = {},
+                onCallClick = {},
+                onVideoCallClick = {},
+                onCopy = {},
+                onReply = {},
+                onReplyClick = {},
+                onDelete = { _, _ -> },
+                onClearReply = {},
+                onAttachmentClick = {},
+                onClearAttachments = {},
+                onIntercultorProfileClick = { _, _ -> },
+                onMessagesSeen = {},
+                onLoadOlderMessages = {},
+                onDownload = {},
+                onCancelUpload = { _, _ -> },
+                onCancelDownload = {},
+                onRetryMedia = {},
+            )
+        }
     }
 }

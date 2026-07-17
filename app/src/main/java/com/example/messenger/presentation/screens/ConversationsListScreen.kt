@@ -47,7 +47,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import com.example.messenger.presentation.components.call.LocalCallBarInset
-import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.list.ConversationListItem
 import com.example.messenger.presentation.components.list.SwipeableConversationRow
@@ -85,22 +84,20 @@ fun ChatsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val tokens = messengerTokens
 
-    WallpaperBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) {
-            Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
-            Box(modifier = Modifier.weight(1f)) {
-                ChatsTabContent(
-                    uiState = uiState,
-                    onRefresh = viewModel::refresh,
-                    onChatClick = onChatClick,
-                    onDeleteForMe = viewModel::deleteForMe,
-                    onDeleteForEveryone = viewModel::deleteForEveryone,
-                )
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
+        Box(modifier = Modifier.weight(1f)) {
+            ChatsTabContent(
+                uiState = uiState,
+                onRefresh = viewModel::refresh,
+                onChatClick = onChatClick,
+                onDeleteForMe = viewModel::deleteForMe,
+                onDeleteForEveryone = viewModel::deleteForEveryone,
+            )
         }
     }
 }
@@ -113,19 +110,17 @@ fun CallsScreen(
     viewModel: com.example.messenger.presentation.viewmodel.CallsViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel(),
 ) {
     val calls by viewModel.calls.collectAsStateWithLifecycle()
-    WallpaperBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) {
-            Spacer(modifier = Modifier.height(64.dp + LocalCallBarInset.current))
-            CallsScreenContent(
-                calls = calls,
-                onCallBack = onCallBack,
-                modifier = Modifier.weight(1f),
-            )
-        }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        Spacer(modifier = Modifier.height(64.dp + LocalCallBarInset.current))
+        CallsScreenContent(
+            calls = calls,
+            onCallBack = onCallBack,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -135,18 +130,16 @@ fun ContactsScreen(
     onLogoutClick: () -> Unit = {},
     onContactClick: (String) -> Unit = {},
 ) {
-    WallpaperBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) {
-            Spacer(modifier = Modifier.height(64.dp))
-            ContactsScreenContent(
-                modifier = Modifier.weight(1f),
-                onContactClick = { user -> onContactClick(user.id) },
-            )
-        }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        Spacer(modifier = Modifier.height(64.dp))
+        ContactsScreenContent(
+            modifier = Modifier.weight(1f),
+            onContactClick = { user -> onContactClick(user.id) },
+        )
     }
 }
 

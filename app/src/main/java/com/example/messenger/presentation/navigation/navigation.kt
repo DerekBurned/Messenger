@@ -60,6 +60,7 @@ import com.example.messenger.presentation.components.common.FloatingTabBar
 import com.example.messenger.presentation.components.common.LocalNavAnimatedVisibilityScope
 import com.example.messenger.presentation.components.common.LocalSharedTransitionScope
 import com.example.messenger.presentation.components.common.MainTab
+import com.example.messenger.presentation.components.common.WallpaperBackdrop
 import com.example.messenger.presentation.components.search.SearchResultsOverlay
 import com.example.messenger.presentation.intent.AuthIntent
 import com.example.messenger.presentation.notification.NotificationPermissionGate
@@ -86,6 +87,9 @@ fun AppNavigation(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        // Single static wallpaper for the whole app: screens are transparent,
+        // so navigation transitions animate only their content over it.
+        WallpaperBackdrop()
         if (authState.isAuthenticated) {
             MainDisplay(
                 authViewModel = authViewModel,
