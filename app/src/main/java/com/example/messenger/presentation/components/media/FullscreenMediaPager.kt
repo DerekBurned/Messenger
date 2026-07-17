@@ -4,9 +4,10 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,11 +23,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,8 +50,11 @@ import androidx.media3.common.MediaItem as Media3Item
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
+import com.example.messenger.R
 import com.example.messenger.data.media.BlurHash
 import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 data class MediaSource(
@@ -78,30 +86,47 @@ fun FullscreenMediaPager(
         pageCount = { sources.size },
     )
     val scope = rememberCoroutineScope()
-    val dragOffsetY = remember { Animatable(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val springBack = remember { Animatable(0f) }
+    var springBackJob by remember { mutableStateOf<Job?>(null) }
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply { playWhenReady = true }
     }
+    val playerView = remember {
+        (LayoutInflater.from(context)
+            .inflate(R.layout.fullscreen_player_view, null) as PlayerView).apply {
+            useController = true
+            controllerAutoShow = false
+            setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+    }
     DisposableEffect(Unit) {
         onDispose {
             Log.d(TAG, "release player")
+            playerView.player = null
             exoPlayer.release()
         }
     }
 
-    LaunchedEffect(pagerState.currentPage, sources) {
-        onPageSettled(pagerState.currentPage)
-        val current = sources.getOrNull(pagerState.currentPage)
-        if (current != null && current.isVideo) {
-            Log.d(TAG, "bind video page=${pagerState.currentPage}")
-            exoPlayer.setMediaItem(Media3Item.fromUri(current.playUri))
-            exoPlayer.prepare()
-            exoPlayer.play()
-        } else {
-            exoPlayer.pause()
-            exoPlayer.clearMediaItems()
-        }
+    LaunchedEffect(sources) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collect { page ->
+                onPageSettled(page)
+                val settled = sources.getOrNull(page)
+                if (settled != null && settled.isVideo) {
+                    Log.d(TAG, "bind video page=$page")
+                    playerView.player = exoPlayer
+                    exoPlayer.setMediaItem(Media3Item.fromUri(settled.playUri))
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                } else {
+                    exoPlayer.pause()
+                    exoPlayer.clearMediaItems()
+                }
+            }
     }
 
     Dialog(
@@ -109,26 +134,28 @@ fun FullscreenMediaPager(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         ApplyBlurBehind()
-        val dragProgress = (abs(dragOffsetY.value) / screenHeightPx).coerceIn(0f, 1f)
-        val scrimAlpha = (1f - dragProgress) * 0.92f
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha)),
+                .drawBehind {
+                    val dragProgress = (abs(dragOffsetY) / screenHeightPx).coerceIn(0f, 1f)
+                    drawRect(color = Color.Black, alpha = (1f - dragProgress) * 0.92f)
+                },
         ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 val source = sources[page]
-                val isCurrent = page == pagerState.currentPage
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            if (isCurrent) {
-                                translationY = dragOffsetY.value
+                            if (page == pagerState.currentPage) {
+                                val dragProgress =
+                                    (abs(dragOffsetY) / screenHeightPx).coerceIn(0f, 1f)
+                                translationY = dragOffsetY
                                 val scale = (1f - dragProgress * 0.3f).coerceIn(0.7f, 1f)
                                 scaleX = scale
                                 scaleY = scale
@@ -136,42 +163,47 @@ fun FullscreenMediaPager(
                         }
                         .pointerInput(page) {
                             detectVerticalDragGestures(
+                                onDragStart = { springBackJob?.cancel() },
                                 onDragEnd = {
-                                    if (abs(dragOffsetY.value) > dismissThreshold) {
+                                    if (abs(dragOffsetY) > dismissThreshold) {
                                         Log.d(TAG, "dismiss via drag")
                                         onDismiss()
                                     } else {
-                                        scope.launch { dragOffsetY.animateTo(0f) }
+                                        springBackJob = scope.launch {
+                                            springBack.snapTo(dragOffsetY)
+                                            springBack.animateTo(0f) { dragOffsetY = value }
+                                        }
                                     }
                                 },
                                 onVerticalDrag = { _, dragAmount ->
-                                    scope.launch { dragOffsetY.snapTo(dragOffsetY.value + dragAmount) }
+                                    dragOffsetY += dragAmount
                                 },
                             )
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (source.isVideo && isCurrent) {
+                    val placeholder = remember(source.blurHash) {
+                        source.blurHash?.let { BlurHash.decode(it, 32, 32) }
+                            ?.let { BitmapPainter(it.asImageBitmap()) }
+                    }
+                    AsyncImage(
+                        model = source.model,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        placeholder = placeholder,
+                        error = placeholder,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (source.isVideo && page == pagerState.settledPage) {
                         AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    player = exoPlayer
-                                    useController = true
-                                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                                }
+                            factory = {
+                                (playerView.parent as? ViewGroup)?.removeView(playerView)
+                                playerView
                             },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        val placeholder = remember(source.blurHash) {
-                            source.blurHash?.let { BlurHash.decode(it, 32, 32) }
-                                ?.let { BitmapPainter(it.asImageBitmap()) }
-                        }
-                        AsyncImage(
-                            model = source.model,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            placeholder = placeholder,
+                            update = { it.player = exoPlayer },
+                            onRelease = {
+                                if (pagerState.settledPage == page) it.player = null
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
