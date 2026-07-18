@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
@@ -839,24 +842,32 @@ private fun ChatScreenContent(
                 }
             }
 
+            val composerShape = RoundedCornerShape(28.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Transparent)
                     .navigationBarsPadding()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .shadow(elevation = 10.dp, shape = composerShape, clip = false)
+                    .clip(composerShape)
+                    .background(tokens.cardFill)
+                    .border(1.dp, tokens.panelBorder, composerShape)
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = onAttachmentClick,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Icons.Default.AddCircle,
                         contentDescription = "Add attachment",
-                        tint = tokens.textPrimary
+                        tint = tokens.accent,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
+
+                Spacer(modifier = Modifier.width(6.dp))
 
                 Box(
                     modifier = Modifier
@@ -868,7 +879,7 @@ private fun ChatScreenContent(
                     if (messageText.isEmpty()) {
                         Text(
                             text = "Message",
-                            color = tokens.textMuted,
+                            color = tokens.textOnField.copy(alpha = 0.45f),
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }
@@ -886,7 +897,7 @@ private fun ChatScreenContent(
                 val hasContent = messageText.isNotBlank() || uiState.pendingAttachments.isNotEmpty()
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
                         .background(tokens.accent)
                         .clickable(enabled = !uiState.isSending) {
@@ -898,7 +909,7 @@ private fun ChatScreenContent(
                         imageVector = if (hasContent) Icons.AutoMirrored.Outlined.Send else Icons.Default.Mic,
                         contentDescription = if (hasContent) "Send" else "Record voice message",
                         tint = tokens.onAccent,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }

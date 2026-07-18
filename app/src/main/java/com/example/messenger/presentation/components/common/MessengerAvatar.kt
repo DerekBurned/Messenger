@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
@@ -33,7 +34,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.example.messenger.presentation.screens.ui.theme.Dimens
-import com.example.messenger.presentation.screens.ui.theme.messengerTokens
+import com.example.messenger.presentation.screens.ui.theme.avatarColorFor
 
 @Composable
 fun MessengerAvatar(
@@ -42,20 +43,19 @@ fun MessengerAvatar(
     photoUrl: String? = null,
     size: Dp = Dimens.avatarMedium,
 ) {
-    val tokens = messengerTokens
     val context = LocalContext.current
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(tokens.fieldFill),
+            .background(avatarColorFor(name)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = name.take(1).ifBlank { "?" },
-            color = tokens.accent,
+            text = name.take(1).uppercase().ifBlank { "?" },
+            color = Color.White,
             fontWeight = FontWeight.SemiBold,
-            fontSize = (size.value * 0.4f).sp,
+            fontSize = (size.value * 0.38f).sp,
         )
         if (!photoUrl.isNullOrBlank()) {
             val cachedPainter = remember(photoUrl) {

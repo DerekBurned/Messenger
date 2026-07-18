@@ -23,6 +23,7 @@ data class MessengerTokens(
     val textOnField: Color,
     val textMuted: Color,
     val divider: Color,
+    val panelBorder: Color,
 )
 
 val DarkTokens = MessengerTokens(
@@ -40,9 +41,10 @@ val DarkTokens = MessengerTokens(
     danger = DeclineRed,
     callAccept = CallAcceptGreen,
     textPrimary = TextDarkPrimary,
-    textOnField = TextLightPrimary,
+    textOnField = TextOnFieldDark,
     textMuted = LabelMutedDark,
     divider = DividerOnDark,
+    panelBorder = PanelBorderDark,
 )
 
 val LightTokens = MessengerTokens(
@@ -53,16 +55,17 @@ val LightTokens = MessengerTokens(
     cardFill = CardFillLight,
     pillFill = PillTranslucentLight,
     pillFillSelected = PillWhite,
-    trackFill = TabTrackTranslucent,
+    trackFill = TabTrackTranslucentLight,
     neutralButtonFill = NeutralButtonLight,
-    accent = AccentTeal,
+    accent = AccentLight,
     onAccent = PillWhite,
-    danger = DeclineRed,
-    callAccept = CallAcceptGreen,
+    danger = DeclineRedLight,
+    callAccept = CallAcceptGreenLight,
     textPrimary = TextLightPrimary,
-    textOnField = TextLightPrimary,
+    textOnField = TextOnFieldDark,
     textMuted = TextLightMuted,
     divider = DividerOnLight,
+    panelBorder = PanelBorderLight,
 )
 
 val LocalMessengerTokens = staticCompositionLocalOf { DarkTokens }

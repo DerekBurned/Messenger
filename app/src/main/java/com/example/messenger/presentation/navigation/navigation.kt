@@ -229,6 +229,7 @@ private fun MainDisplay(
                                             backStack.add(ChatRoute(conversationId, partnerId, partnerName, partnerAvatarUrl))
                                         },
                                         onLogoutClick = { logout() },
+                                        onNewChatClick = { backStack.add(ContactsRoute) },
                                     )
                                 }
                             }

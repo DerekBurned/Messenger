@@ -1,11 +1,13 @@
 package com.example.messenger.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallReceived
@@ -50,18 +52,22 @@ fun CallsScreenContent(
             options = listOf("All", "Missed"),
             selectedIndex = if (filter == CallsFilter.ALL) 0 else 1,
             onSelect = { filter = if (it == 0) CallsFilter.ALL else CallsFilter.MISSED },
-            selectedContentColors = listOf(Color(0xFF1C1C1E), tokens.danger),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
         )
 
         if (visible.isEmpty()) {
             CallsEmptyState(missed = filter == CallsFilter.MISSED)
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(tokens.cardFill)
+                    .border(1.dp, tokens.panelBorder, RoundedCornerShape(26.dp)),
+                contentPadding = PaddingValues(vertical = 4.dp),
             ) {
                 items(visible, key = { it.id }) { entry ->
                     CallHistoryRow(entry = entry, onCallBack = onCallBack)
@@ -77,54 +83,55 @@ private fun CallHistoryRow(
     onCallBack: (partnerId: String, partnerName: String, video: Boolean) -> Unit,
 ) {
     val tokens = messengerTokens
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable { onCallBack(entry.partnerId, entry.partnerName, entry.video) }
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MessengerAvatar(name = entry.partnerName, photoUrl = entry.partnerAvatarUrl, size = 46.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = entry.partnerName.ifBlank { "Unknown" },
-                color = if (entry.missed) tokens.danger else tokens.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = directionIcon(entry),
-                    contentDescription = null,
-                    tint = if (entry.missed) tokens.danger else tokens.textPrimary.copy(0.6f),
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(Modifier.width(5.dp))
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onCallBack(entry.partnerId, entry.partnerName, entry.video) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MessengerAvatar(name = entry.partnerName, photoUrl = entry.partnerAvatarUrl, size = 48.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = subtitle(entry),
-                    color = tokens.textPrimary.copy(0.6f),
-                    fontSize = 13.sp,
+                    text = entry.partnerName.ifBlank { "Unknown" },
+                    color = if (entry.missed) tokens.danger else tokens.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                )
+                Spacer(Modifier.height(1.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = directionIcon(entry),
+                        contentDescription = null,
+                        tint = if (entry.missed) tokens.danger else tokens.textMuted,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = subtitle(entry),
+                        color = tokens.textMuted,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(tokens.pillFill),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (entry.video) Icons.Filled.Videocam else Icons.Filled.Call,
+                    contentDescription = if (entry.video) "Video call back" else "Call back",
+                    tint = tokens.callAccept,
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
-        if (entry.video) {
-            Icon(
-                imageVector = Icons.Filled.Videocam,
-                contentDescription = "Video call back",
-                tint = tokens.textPrimary.copy(0.8f),
-                modifier = Modifier.size(22.dp),
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Filled.Call,
-                contentDescription = "Call back",
-                tint = tokens.textPrimary.copy(0.8f),
-                modifier = Modifier.size(22.dp),
-            )
-        }
+        HorizontalDivider(color = tokens.divider, thickness = 1.dp)
     }
 }
 
