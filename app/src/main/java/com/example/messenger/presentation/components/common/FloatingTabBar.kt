@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -105,7 +104,6 @@ private fun SegmentedTabs(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .shadow(elevation = 8.dp, shape = barShape, clip = false)
                 .clip(barShape)
                 .background(tokens.trackFill)
                 .border(1.dp, tokens.panelBorder, barShape)
@@ -123,6 +121,7 @@ private fun SegmentedTabs(
         ) {
             MainTab.entries.forEach { tab ->
                 val isSelected = tab == selected
+                val interaction = remember { MutableInteractionSource() }
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) TextOnFieldDark else tokens.textPrimary.copy(alpha = 0.72f),
                     animationSpec = spring(stiffness = 700f),
@@ -132,9 +131,10 @@ private fun SegmentedTabs(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .pressScale(interaction)
                         .clip(RoundedCornerShape(19.dp))
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = interaction,
                             indication = null,
                         ) { onSelect(tab) },
                     contentAlignment = Alignment.Center,
@@ -149,15 +149,15 @@ private fun SegmentedTabs(
             }
         }
         Spacer(modifier = Modifier.width(8.dp))
+        val searchInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
+                .pressScale(searchInteraction, pressedScale = 0.88f)
                 .clip(CircleShape)
                 .background(tokens.trackFill)
-                .border(1.dp, tokens.panelBorder, CircleShape)
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = searchInteraction,
                     indication = null,
                 ) { onSearch() },
             contentAlignment = Alignment.Center,
@@ -186,7 +186,6 @@ private fun SearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .shadow(elevation = 8.dp, shape = barShape, clip = false)
             .clip(barShape)
             .background(tokens.trackFill)
             .border(1.dp, tokens.panelBorder, barShape)

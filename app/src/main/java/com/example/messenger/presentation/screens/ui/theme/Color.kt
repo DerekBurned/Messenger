@@ -49,7 +49,7 @@ val PillTranslucentDark = Color(0x1AFFFFFF)
 val PillTranslucentLight = Color(0x8CFFFFFF)
 val PillWhite = Color(0xFFFFFFFF)
 val TabTrackTranslucent = Color(0x52787880)
-val TabTrackTranslucentLight = Color(0x38787880)
+val TabTrackTranslucentLight = Color(0x8FFFFFFF)
 val NeutralButtonDark = Color(0x29FFFFFF)
 val NeutralButtonLight = Color(0x1F000000)
 

@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,7 +57,6 @@ fun ChatTopBar(
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(start = 10.dp, end = 10.dp, top = 6.dp)
-            .shadow(elevation = 10.dp, shape = barShape, clip = false)
             .clip(barShape)
             .background(tokens.cardFill)
             .border(1.dp, tokens.panelBorder, barShape)

@@ -2,8 +2,10 @@ package com.example.messenger.presentation.components.call
 
 import android.content.Context
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,6 +47,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.data.remote.call.ActiveCallHolder
 import com.example.messenger.presentation.components.common.MessengerAvatar
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val BubbleSize = 60.dp
@@ -153,10 +157,12 @@ private fun BoxScope.CallBubble(
     val scope = rememberCoroutineScope()
 
     val bubbleSizePx = with(density) { BubbleSize.toPx() }
+    val pillWidthPx = with(density) { PillWidth.toPx() }
     val marginPx = with(density) { EdgeMargin.toPx() }
     val homeTopPx = topInsetPx + with(density) { 68.dp.toPx() }
     val homeHeightPx = with(density) { 56.dp.toPx() }
     val homeTolerancePx = with(density) { 30.dp.toPx() }
+    val flingThresholdPx = with(density) { 300.dp.toPx() }
 
     val defaultOffset = remember(overlayWidthPx, topInsetPx) {
         Offset(
@@ -167,13 +173,20 @@ private fun BoxScope.CallBubble(
     val offset = remember {
         Animatable(CallBarPresenter.bubbleOffset ?: defaultOffset, Offset.VectorConverter)
     }
+    val velocityTracker = remember { VelocityTracker() }
     var overHome by remember { mutableStateOf(false) }
-    var expanding by remember { mutableStateOf(false) }
+    var expandedInfo by remember { mutableStateOf(false) }
     val expand by animateFloatAsState(
-        targetValue = if (expanding) 1f else 0f,
+        targetValue = if (expandedInfo) 1f else 0f,
         animationSpec = tween(220),
         label = "expand",
     )
+    LaunchedEffect(expandedInfo) {
+        if (expandedInfo) {
+            kotlinx.coroutines.delay(2600)
+            expandedInfo = false
+        }
+    }
 
     fun centerY(top: Float) = top + bubbleSizePx / 2f
 
@@ -186,6 +199,18 @@ private fun BoxScope.CallBubble(
         x = raw.x.coerceIn(marginPx, (overlayWidthPx - bubbleSizePx - marginPx).coerceAtLeast(marginPx)),
         y = raw.y.coerceIn(topInsetPx, (overlayHeightPx - bubbleSizePx - marginPx).coerceAtLeast(topInsetPx)),
     )
+
+    fun wallTarget(current: Offset, velocityX: Float): Offset {
+        val leftX = marginPx
+        val rightX = (overlayWidthPx - bubbleSizePx - marginPx).coerceAtLeast(marginPx)
+        val projectedCenter = current.x + bubbleSizePx / 2f + velocityX * 0.10f
+        val goRight = if (abs(velocityX) > flingThresholdPx) {
+            velocityX > 0f
+        } else {
+            projectedCenter > overlayWidthPx / 2f
+        }
+        return Offset(if (goRight) rightX else leftX, current.y)
+    }
 
     if (overHome) {
         SnapPreview(topInsetPx = topInsetPx)
@@ -200,7 +225,15 @@ private fun BoxScope.CallBubble(
 
     Box(
         modifier = Modifier
-            .offset { IntOffset(offset.value.x.roundToInt(), offset.value.y.roundToInt()) }
+            .offset {
+                val onRightHalf = offset.value.x + bubbleSizePx / 2f > overlayWidthPx / 2f
+                val renderX = if (onRightHalf) {
+                    offset.value.x - (pillWidthPx - bubbleSizePx) * expand
+                } else {
+                    offset.value.x
+                }
+                IntOffset(renderX.roundToInt(), offset.value.y.roundToInt())
+            }
             .size(width = lerp(BubbleSize, PillWidth, expand), height = BubbleSize)
             .graphicsLayer {
                 val scale = 1f + 0.02f * expand.coerceIn(0f, 1f)
@@ -211,14 +244,20 @@ private fun BoxScope.CallBubble(
             .background(BarBackground)
             .pointerInput(overlayWidthPx, overlayHeightPx) {
                 detectDragGestures(
-                    onDragStart = { overHome = isOverHome(offset.value) },
+                    onDragStart = {
+                        expandedInfo = false
+                        overHome = isOverHome(offset.value)
+                        velocityTracker.resetTracking()
+                    },
                     onDrag = { change, delta ->
                         change.consume()
                         val next = clampToBounds(offset.value + delta)
+                        velocityTracker.addPosition(change.uptimeMillis, next)
                         overHome = isOverHome(next)
                         scope.launch { offset.snapTo(next) }
                     },
                     onDragEnd = {
+                        val velocity = velocityTracker.calculateVelocity()
                         if (isOverHome(offset.value)) {
                             scope.launch {
                                 offset.animateTo(homeSnapTarget, tween(200))
@@ -228,7 +267,23 @@ private fun BoxScope.CallBubble(
                             }
                         } else {
                             overHome = false
-                            CallBarPresenter.bubbleOffset = offset.value
+                            val settledY = (offset.value.y + velocity.y * 0.08f)
+                                .coerceIn(
+                                    topInsetPx,
+                                    (overlayHeightPx - bubbleSizePx - marginPx).coerceAtLeast(topInsetPx),
+                                )
+                            val target = wallTarget(offset.value, velocity.x).copy(y = settledY)
+                            CallBarPresenter.bubbleOffset = target
+                            scope.launch {
+                                offset.animateTo(
+                                    targetValue = target,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.72f,
+                                        stiffness = Spring.StiffnessLow,
+                                    ),
+                                    initialVelocity = Offset(velocity.x, velocity.y),
+                                )
+                            }
                         }
                     },
                     onDragCancel = {
@@ -238,20 +293,22 @@ private fun BoxScope.CallBubble(
                 )
             }
             .pointerInput(Unit) {
-                detectTapGestures(onTap = { expanding = true })
+                detectTapGestures(
+                    onTap = {
+                        if (expandedInfo) {
+                            expandedInfo = false
+                            CallBarPresenter.bubbleOffset = null
+                            onOpenCall()
+                            CallBarPresenter.showBar()
+                        } else {
+                            expandedInfo = true
+                        }
+                    },
+                )
             },
         contentAlignment = Alignment.CenterStart,
     ) {
         BubbleContent(call = call, expand = expand)
-    }
-
-    LaunchedEffect(expanding) {
-        if (expanding) {
-            kotlinx.coroutines.delay(240)
-            CallBarPresenter.bubbleOffset = null
-            onOpenCall()
-            CallBarPresenter.showBar()
-        }
     }
 }
 
@@ -260,6 +317,7 @@ private fun BubbleContent(
     call: ActiveCallHolder.ActiveCall,
     expand: Float,
 ) {
+    val partner = rememberCallPartnerUi(call)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -267,8 +325,8 @@ private fun BubbleContent(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MessengerAvatar(
-            name = call.partnerName,
-            photoUrl = null,
+            name = partner.displayName,
+            photoUrl = partner.avatarUrl,
             size = 40.dp,
             modifier = Modifier
                 .size(40.dp)
@@ -283,7 +341,7 @@ private fun BubbleContent(
                     .graphicsLayer { alpha = ((expand - 0.15f) / 0.85f).coerceIn(0f, 1f) },
             ) {
                 Text(
-                    text = call.partnerName.ifBlank { "On call" },
+                    text = partner.displayName.ifBlank { "On call" },
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,

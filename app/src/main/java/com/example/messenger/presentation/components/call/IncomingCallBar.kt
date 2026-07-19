@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messenger.R
 import com.example.messenger.data.remote.call.ActiveCallHolder
+import com.example.messenger.presentation.components.common.MessengerAvatar
 
 private val AcceptGreen = Color(0xFF34C759)
 private val DeclineRed = Color(0xFFE53935)
@@ -70,6 +71,7 @@ fun IncomingCallBar(
             color = BarBackground,
             shadowElevation = 8.dp,
         ) {
+            val partner = rememberCallPartnerUi(c)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -77,16 +79,15 @@ fun IncomingCallBar(
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Call,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp),
+                MessengerAvatar(
+                    name = partner.displayName,
+                    photoUrl = partner.avatarUrl,
+                    size = 40.dp,
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = c.partnerName.ifBlank { "Incoming call" },
+                        text = partner.displayName.ifBlank { "Incoming call" },
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,

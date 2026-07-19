@@ -13,3 +13,12 @@ fun <T> Query<T>.asFlow(): Flow<List<T>> = callbackFlow {
         query.close()
     }
 }
+
+fun <T> queryFlow(build: () -> Query<T>): Flow<List<T>> = callbackFlow {
+    val query = build()
+    val subscription = query.subscribe().observer { data -> trySend(data) }
+    awaitClose {
+        subscription.cancel()
+        query.close()
+    }
+}

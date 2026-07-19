@@ -1,4 +1,4 @@
-package com.example.messenger.data.repository
+﻿package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxConversation_
@@ -6,6 +6,7 @@ import com.example.messenger.data.local.obx.ObxMessage
 import com.example.messenger.data.local.obx.ObxMessage_
 import com.example.messenger.data.local.obx.ObxSyncQueueItem
 import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.queryFlow
 import com.example.messenger.data.local.obx.toDomain
 import com.example.messenger.data.local.obx.toObx
 import com.example.messenger.data.remote.firebase.FirestoreService
@@ -32,13 +33,14 @@ class MessageRepositoryImpl @Inject constructor(
 ) : IMessageRepository {
 
     override fun getMessagesStream(conversationId: String): Flow<List<Message>> {
-        return messageBox.query(
-            ObxMessage_.conversationId.equal(conversationId)
-                .and(ObxMessage_.deleted.equal(false)),
-        )
-            .order(ObxMessage_.timestamp)
-            .build()
-            .asFlow()
+        return queryFlow {
+            messageBox.query(
+                ObxMessage_.conversationId.equal(conversationId)
+                    .and(ObxMessage_.deleted.equal(false)),
+            )
+                .order(ObxMessage_.timestamp)
+                .build()
+        }
             .map { rows -> rows.map { it.toDomain() } }
             .flowOn(Dispatchers.Default)
     }
@@ -157,6 +159,14 @@ class MessageRepositoryImpl @Inject constructor(
             putPreservingReadState(conversationId, older)
             older.size
         }
+    }
+
+    override suspend fun backfillRecentMessages(conversationId: String, limit: Long): Result<Int> {
+        return firestoreService.fetchRecentMessagesOnce(conversationId, limit, cutoffFor(conversationId))
+            .map { messages ->
+                putPreservingReadState(conversationId, messages)
+                messages.size
+            }
     }
 
     private fun updateMessage(id: String, mutate: (ObxMessage) -> Unit) {

@@ -82,44 +82,22 @@ fun ChatsScreen(
     viewModel: ConversationsViewModel = hiltViewModel(),
     onChatClick: (String, String, String, String?) -> Unit = { _, _, _, _ -> },
     onLogoutClick: () -> Unit = {},
-    onNewChatClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val tokens = messengerTokens
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) {
-            Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
-            Box(modifier = Modifier.weight(1f)) {
-                ChatsTabContent(
-                    uiState = uiState,
-                    onRefresh = viewModel::refresh,
-                    onChatClick = onChatClick,
-                    onDeleteForMe = viewModel::deleteForMe,
-                    onDeleteForEveryone = viewModel::deleteForEveryone,
-                )
-            }
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 18.dp, bottom = 30.dp)
-                .size(60.dp)
-                .shadow(elevation = 12.dp, shape = RoundedCornerShape(20.dp), clip = false)
-                .clip(RoundedCornerShape(20.dp))
-                .background(tokens.accent)
-                .clickable { onNewChatClick() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "New chat",
-                tint = Color.White,
-                modifier = Modifier.size(26.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
+        Box(modifier = Modifier.weight(1f)) {
+            ChatsTabContent(
+                uiState = uiState,
+                onRefresh = viewModel::refresh,
+                onChatClick = onChatClick,
+                onDeleteForMe = viewModel::deleteForMe,
+                onDeleteForEveryone = viewModel::deleteForEveryone,
             )
         }
     }

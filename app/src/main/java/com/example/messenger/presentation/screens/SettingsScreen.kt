@@ -108,8 +108,8 @@ fun SettingsScreenContent(
             .padding(horizontal = 12.dp)
             .padding(bottom = 40.dp),
     ) {
-        Spacer(modifier = Modifier.height(64.dp + LocalCallBarInset.current))
-
+        Spacer(modifier = Modifier.height(72.dp + LocalCallBarInset.current))
+        
         Row(
             modifier = Modifier
                 .fillMaxWidth()

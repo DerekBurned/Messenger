@@ -4,6 +4,7 @@ import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.common.PresenceIndicator
 import com.example.messenger.presentation.components.common.sharedElementKey
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,7 +52,14 @@ fun ConversationListItem(
     photoUrl: String? = null,
 ) {
     val tokens = messengerTokens
-    Column(modifier = Modifier.fillMaxWidth().background(tokens.cardFill)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(tokens.cardFill)
+            .border(1.dp, tokens.panelBorder, RoundedCornerShape(26.dp)),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -81,7 +89,6 @@ fun ConversationListItem(
                 unreadCount = conversation.unreadCount,
             )
         }
-        HorizontalDivider(color = tokens.divider, thickness = 1.dp)
     }
 }
 

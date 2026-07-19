@@ -1,10 +1,11 @@
-package com.example.messenger.data.repository
+﻿package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxConversation_
 import com.example.messenger.data.local.obx.ObxMessage
 import com.example.messenger.data.local.obx.ObxMessage_
 import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.queryFlow
 import com.example.messenger.domain.model.CallHistoryEntry
 import com.example.messenger.domain.model.CallType
 import com.example.messenger.domain.model.Message
@@ -22,12 +23,13 @@ class CallHistoryRepository @Inject constructor(
 ) {
 
     fun getCallHistory(currentUserId: String): Flow<List<CallHistoryEntry>> {
-        val query = messageBox.query(
-            ObxMessage_.type.oneOf(CALL_TYPES, QueryBuilder.StringOrder.CASE_SENSITIVE),
-        )
-            .orderDesc(ObxMessage_.timestamp)
-            .build()
-        return query.asFlow().map { rows ->
+        return queryFlow {
+            messageBox.query(
+                ObxMessage_.type.oneOf(CALL_TYPES, QueryBuilder.StringOrder.CASE_SENSITIVE),
+            )
+                .orderDesc(ObxMessage_.timestamp)
+                .build()
+        }.map { rows ->
             val liveRows = rows.filterNot { it.deleted }
             val conversationIds = liveRows.map { it.conversationId }.distinct().toTypedArray()
             val conversationsById = if (conversationIds.isEmpty()) {
