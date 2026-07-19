@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import com.example.messenger.presentation.components.common.WallpaperBackground
 import com.example.messenger.presentation.components.common.MessengerAvatar
+import com.example.messenger.presentation.components.common.springEnter
 import com.example.messenger.presentation.components.call.CallControlButton
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.presentation.screens.ui.theme.MessengerShapes
@@ -249,7 +250,10 @@ private fun AudioCallContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.springEnter(initialScale = 0.88f),
+            ) {
                 CallAvatar(name = state.partnerName, photoUrl = state.partnerAvatarUrl)
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -333,7 +337,9 @@ private fun VideoCallContent(
 
         if (!state.remoteVideoOn && !state.localVideoOn) {
             Column(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .springEnter(initialScale = 0.88f),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 CallAvatar(name = state.partnerName, photoUrl = state.partnerAvatarUrl)

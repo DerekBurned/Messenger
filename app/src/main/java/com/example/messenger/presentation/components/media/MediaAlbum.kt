@@ -4,6 +4,7 @@ import com.example.messenger.presentation.components.common.MessageStatusIcon
 import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -49,10 +51,10 @@ import com.example.messenger.domain.model.MediaTransfer
 import com.example.messenger.domain.model.Message
 import com.example.messenger.domain.model.MessageStatus
 
-import com.example.messenger.presentation.screens.ui.theme.BubbleReceived
-import com.example.messenger.presentation.screens.ui.theme.BubbleReceivedText
 import com.example.messenger.presentation.screens.ui.theme.BubbleSent
+import com.example.messenger.presentation.screens.ui.theme.BubbleSentTop
 import com.example.messenger.presentation.screens.ui.theme.LightGray
+import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.util.DateUtils
 import java.io.File
 
@@ -68,17 +70,33 @@ fun MediaAlbumGrid(
     onCancelUpload: (messageId: String, itemId: String) -> Unit,
     onCancelDownload: (itemId: String) -> Unit,
 ) {
+    val tokens = messengerTokens
+    val bubbleShape = if (isMe) {
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 5.dp, bottomStart = 18.dp)
+    } else {
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 5.dp)
+    }
+    val containerModifier = if (isMe) {
+        Modifier
+            .width(ALBUM_WIDTH)
+            .clip(bubbleShape)
+            .background(brush = Brush.linearGradient(listOf(BubbleSentTop, BubbleSent)), shape = bubbleShape)
+            .padding(3.dp)
+    } else {
+        Modifier
+            .width(ALBUM_WIDTH)
+            .clip(bubbleShape)
+            .background(color = tokens.cardFill, shape = bubbleShape)
+            .border(1.dp, tokens.panelBorder, bubbleShape)
+            .padding(3.dp)
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
     ) {
         Column(horizontalAlignment = if (isMe) Alignment.End else Alignment.Start) {
             Column(
-                modifier = Modifier
-                    .width(ALBUM_WIDTH)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (isMe) BubbleSent else BubbleReceived)
-                    .padding(3.dp),
+                modifier = containerModifier,
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 AlbumLayout(
@@ -92,7 +110,7 @@ fun MediaAlbumGrid(
                 if (message.caption.isNotBlank()) {
                     Text(
                         text = message.caption,
-                        color = if (isMe) Color.White else BubbleReceivedText,
+                        color = if (isMe) Color.White else tokens.textPrimary,
                         fontSize = 15.sp,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
                     )
@@ -106,7 +124,7 @@ fun MediaAlbumGrid(
             ) {
                 Text(
                     text = DateUtils.formatMessageTime(message.timestamp),
-                    color = Color.Gray,
+                    color = tokens.textMuted,
                     fontSize = 11.sp,
                 )
                 if (isMe) MessageStatusIcon(status = message.status)

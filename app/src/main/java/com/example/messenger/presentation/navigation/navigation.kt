@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -133,6 +135,14 @@ private fun MainDisplay(
 ) {
     val backStack = rememberNavBackStack(ChatsRoute)
     val context = LocalContext.current
+    val tabViewModelOwner = remember(context) {
+        var current: Context = context
+        while (current is android.content.ContextWrapper) {
+            if (current is androidx.activity.ComponentActivity) break
+            current = current.baseContext
+        }
+        current as? ViewModelStoreOwner
+    }
 
     LaunchedEffect(pendingRoute) {
         if (pendingRoute != null) {
@@ -148,6 +158,18 @@ private fun MainDisplay(
     val callBarMode by CallBarPresenter.mode.collectAsStateWithLifecycle()
     val callBarVisible = activeCall?.let { isCallBarVisible(it) } == true
     val callBarDocked = callBarVisible && callBarMode == CallBarMode.BAR
+    val incomingRinging = activeCall?.let { it.isIncoming && !it.isActive } == true
+    val callBarRoute = isTabRoute ||
+        currentRoute is ChatRoute ||
+        currentRoute is ChatUserProfileRoute ||
+        currentRoute is EditChatRoute ||
+        currentRoute is EditContactDataRoute ||
+        currentRoute is ChangePhoneRoute
+    val callBarInset by animateDpAsState(
+        targetValue = if (callBarRoute && (callBarDocked || incomingRinging)) 84.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = 300f),
+        label = "callBarInset",
+    )
 
     LaunchedEffect(activeCall == null) {
         if (activeCall == null) CallBarPresenter.reset()
@@ -202,10 +224,11 @@ private fun MainDisplay(
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalOpenActiveCall provides { openActiveCall(accept = false) },
-            LocalCallBarInset provides if (isTabRoute && callBarDocked) 76.dp else 0.dp,
+            LocalCallBarInset provides callBarInset,
         ) {
             SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                     NavDisplay(
                         backStack = backStack,
                         onBack = { backStack.removeLastOrNull() },
@@ -225,6 +248,7 @@ private fun MainDisplay(
                             entry<ChatsRoute> {
                                 ProvideNavAnimatedScope {
                                     ChatsScreen(
+                                        viewModel = tabViewModelOwner?.let { hiltViewModel(it) } ?: hiltViewModel(),
                                         onChatClick = { conversationId, partnerId, partnerName, partnerAvatarUrl ->
                                             backStack.add(ChatRoute(conversationId, partnerId, partnerName, partnerAvatarUrl))
                                         },
@@ -239,11 +263,13 @@ private fun MainDisplay(
                                     onCallBack = { partnerId, partnerName, video ->
                                         backStack.add(CallRoute(partnerId, partnerName, "", video = video))
                                     },
+                                    viewModel = tabViewModelOwner?.let { hiltViewModel(it) } ?: hiltViewModel(),
                                 )
                             }
 
                             entry<SettingsRoute> {
                                 SettingsScreen(
+                                    viewModel = tabViewModelOwner?.let { hiltViewModel(it) } ?: hiltViewModel(),
                                     onProfileClick = { backStack.add(ProfileRoute) },
                                     onSwitchAccountClick = { backStack.add(ChangeAccountRoute) },
                                     onPrivacyClick = { backStack.add(PrivacyRoute) },
@@ -380,6 +406,25 @@ private fun MainDisplay(
                             }
                         },
                     )
+                    if (isTabRoute) {
+                        FloatingTabBar(
+                            selected = selectedTab,
+                            onSelect = { tab -> navigateToTab(tab.toNavRoute()) },
+                            isSearching = isSearching,
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            onSearchOpen = { isSearching = true },
+                            onSearchClose = {
+                                isSearching = false
+                                searchQuery = ""
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                        )
+                    }
+                    }
                 }
             }
         }
@@ -395,44 +440,28 @@ private fun MainDisplay(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        if (isTabRoute) {
-            FloatingTabBar(
-                selected = selectedTab,
-                onSelect = { tab -> navigateToTab(tab.toNavRoute()) },
-                isSearching = isSearching,
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearchOpen = { isSearching = true },
-                onSearchClose = {
-                    isSearching = false
-                    searchQuery = ""
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-        }
         if (showCallBar) {
             IncomingCallBar(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
                     .padding(top = 76.dp),
-                onAccept = { openActiveCall(accept = true) },
+                onAccept = {
+                    sendCallAction(context, CallForegroundService.ACTION_ACCEPT)
+                    CallBarPresenter.showBar()
+                },
                 onDecline = { sendCallAction(context, CallForegroundService.ACTION_DECLINE) },
                 onOpen = { openActiveCall(accept = false) },
             )
         }
-        if (isTabRoute) {
-            ActiveCallBar(
-                onClick = { openActiveCall(accept = false) },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 68.dp),
-            )
-        }
+        ActiveCallBar(
+            onClick = { openActiveCall(accept = false) },
+            routeAllowsBar = callBarRoute,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 68.dp),
+        )
         if (currentRoute !is CallRoute && currentRoute !is AuthRoute) {
             CallBarOverlay(
                 onOpenCall = { openActiveCall(accept = false) },

@@ -89,7 +89,7 @@ private fun ToggleHalf(
     onClick: () -> Unit,
 ) {
     val textColor by animateColorAsState(
-        targetValue = if (selected) Color(0xFF5B8DEE) else Color.White,
+        targetValue = if (selected) Color(0xFF16141B) else Color.White,
         animationSpec = tween(durationMillis = 220),
         label = "auth-toggle-text",
     )

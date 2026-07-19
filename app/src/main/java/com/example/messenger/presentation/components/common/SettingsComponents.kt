@@ -5,6 +5,7 @@ import androidx.compose.material3.Surface
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -32,7 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.messenger.presentation.screens.ui.theme.Dimens
 import com.example.messenger.presentation.screens.ui.theme.MessengerShapes
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
@@ -48,35 +53,29 @@ fun NavHeaderPill(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
-            .padding(horizontal = Dimens.screenPadding),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(Dimens.iconButton)
-                .clip(CircleShape)
-                .background(tokens.pillFill)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.ChevronLeft,
-                contentDescription = "Back",
-                tint = tokens.textPrimary,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .clip(MessengerShapes.button)
-                .background(tokens.pillFill)
-                .padding(horizontal = 24.dp, vertical = 9.dp),
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ChevronLeft,
+                    contentDescription = "Back",
+                    tint = tokens.textPrimary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
             Text(
                 text = title,
                 color = tokens.textPrimary,
-                style = MaterialTheme.typography.titleSmall,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -92,7 +91,8 @@ fun RoundedCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(MessengerShapes.card)
-            .background(tokens.cardFill),
+            .background(tokens.cardFill)
+            .border(1.dp, tokens.panelBorder, MessengerShapes.card),
         content = content,
     )
 }
@@ -103,11 +103,35 @@ fun SectionHeader(
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = text,
-        modifier = modifier.padding(start = 14.dp, top = 18.dp, bottom = 6.dp),
-        color = messengerTokens.textMuted,
-        style = MaterialTheme.typography.labelMedium,
+        text = text.uppercase(),
+        modifier = modifier.padding(start = 14.dp, top = 18.dp, bottom = 8.dp),
+        color = messengerTokens.accent,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.6.sp,
     )
+}
+
+@Composable
+fun SettingsIconTile(
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(tint),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(21.dp),
+        )
+    }
 }
 
 @Composable
@@ -116,6 +140,7 @@ fun SettingsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leading: (@Composable () -> Unit)? = null,
+    subtitle: String? = null,
     trailingText: String? = null,
     titleColor: Color? = null,
     showChevron: Boolean = true,
@@ -126,19 +151,27 @@ fun SettingsRow(
             .fillMaxWidth()
             .heightIn(min = Dimens.rowHeight)
             .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
             leading()
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
         }
-        Text(
-            text = title,
-            color = titleColor ?: tokens.textOnField,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = titleColor ?: tokens.textPrimary,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    color = tokens.textMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
         if (trailingText != null) {
             Text(
                 text = trailingText,
@@ -152,7 +185,7 @@ fun SettingsRow(
                 imageVector = Icons.Filled.ChevronRight,
                 contentDescription = null,
                 tint = tokens.textMuted.copy(alpha = 0.8f),
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(22.dp),
             )
         }
     }
@@ -170,12 +203,12 @@ fun ToggleRow(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = Dimens.rowHeight)
-            .padding(horizontal = 18.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            color = tokens.textOnField,
+            color = tokens.textPrimary,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
         )
@@ -194,8 +227,8 @@ fun ToggleRow(
 @Composable
 fun CardDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
-        modifier = modifier.padding(start = 18.dp),
-        thickness = 0.5.dp,
+        modifier = modifier,
+        thickness = 1.dp,
         color = messengerTokens.divider,
     )
 }

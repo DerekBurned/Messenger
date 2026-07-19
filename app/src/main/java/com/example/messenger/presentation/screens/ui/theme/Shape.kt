@@ -6,10 +6,10 @@ import androidx.compose.ui.unit.dp
 
 object MessengerShapes {
     val pill = RoundedCornerShape(percent = 50)
-    val button = RoundedCornerShape(46.dp)
+    val button = RoundedCornerShape(28.dp)
     val field = RoundedCornerShape(28.dp)
-    val card = RoundedCornerShape(30.dp)
-    val tab = RoundedCornerShape(23.dp)
+    val card = RoundedCornerShape(24.dp)
+    val tab = RoundedCornerShape(24.dp)
     val bubble = RoundedCornerShape(20.dp)
     val menu = RoundedCornerShape(24.dp)
     val sheet = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)

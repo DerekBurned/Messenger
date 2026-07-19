@@ -28,7 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Brush
 import com.example.messenger.presentation.components.common.MessageStatusIcon
+import com.example.messenger.presentation.screens.ui.theme.BubbleSent
+import com.example.messenger.presentation.screens.ui.theme.BubbleSentTop
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import com.example.messenger.util.DateUtils
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,19 +57,30 @@ fun ChatTextBubble(
     ) {
         val tokens = messengerTokens
         Column(horizontalAlignment = if (message.isMe) Alignment.End else Alignment.Start) {
-            val bubbleShape = RoundedCornerShape(22.dp)
-            val bubbleColor = if (tokens.isDark) Color(0xD6787880) else tokens.fieldFill
-            val onBubble = if (tokens.isDark) Color.White else tokens.textOnField
-            val metaColor = if (tokens.isDark) Color.White.copy(alpha = 0.7f) else tokens.textMuted
-            val borderColor = if (tokens.isDark) Color.White.copy(alpha = 0.10f)
-                else Color.Black.copy(alpha = 0.05f)
-            Box(
-                modifier = Modifier
+            val bubbleShape = if (message.isMe) {
+                RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 5.dp, bottomStart = 18.dp)
+            } else {
+                RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 5.dp)
+            }
+            val onBubble = if (message.isMe) Color.White else tokens.textPrimary
+            val metaColor = if (message.isMe) Color.White.copy(alpha = 0.85f) else tokens.textMuted
+            val bubbleModifier = if (message.isMe) {
+                Modifier
                     .widthIn(max = 300.dp)
                     .clip(bubbleShape)
-                    .background(color = bubbleColor, shape = bubbleShape)
-                    .border(width = 1.dp, color = borderColor, shape = bubbleShape)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .background(
+                        brush = Brush.linearGradient(listOf(BubbleSentTop, BubbleSent)),
+                        shape = bubbleShape,
+                    )
+            } else {
+                Modifier
+                    .widthIn(max = 300.dp)
+                    .clip(bubbleShape)
+                    .background(color = tokens.cardFill, shape = bubbleShape)
+                    .border(width = 1.dp, color = tokens.panelBorder, shape = bubbleShape)
+            }
+            Box(
+                modifier = bubbleModifier.padding(horizontal = 13.dp, vertical = 9.dp),
             ) {
                 Column {
                     if (message.replyToMessageId != null) {

@@ -4,6 +4,7 @@ import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.common.PresenceIndicator
 import com.example.messenger.presentation.components.common.sharedElementKey
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,37 +52,43 @@ fun ConversationListItem(
     photoUrl: String? = null,
 ) {
     val tokens = messengerTokens
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-            .clip(RoundedCornerShape(50.dp))
-            .background(tokens.pillFill)
-            .clickable { onClick() }
-            .height(76.dp)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(tokens.cardFill)
+            .border(1.dp, tokens.panelBorder, RoundedCornerShape(26.dp)),
     ) {
-        ConversationAvatar(partnerId = partnerId, displayName = displayName, presence = presence, photoUrl = photoUrl)
-        Spacer(modifier = Modifier.width(14.dp))
-        ConversationPreview(
-            displayName = displayName,
-            partnerId = partnerId,
-            lastMessage = conversation.lastMessage?.let { message ->
-                if (currentUserId.isNotBlank() && conversation.lastMessageSenderId == currentUserId) {
-                    "You: $message"
-                } else {
-                    message
-                }
-            },
-            hasUnread = conversation.unreadCount > 0,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(modifier = Modifier.width(2.dp))
-        ConversationMeta(
-            timestamp = conversation.lastMessageTimestamp,
-            unreadCount = conversation.unreadCount,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .height(74.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ConversationAvatar(partnerId = partnerId, displayName = displayName, presence = presence, photoUrl = photoUrl)
+            Spacer(modifier = Modifier.width(14.dp))
+            ConversationPreview(
+                displayName = displayName,
+                partnerId = partnerId,
+                lastMessage = conversation.lastMessage?.let { message ->
+                    if (currentUserId.isNotBlank() && conversation.lastMessageSenderId == currentUserId) {
+                        "You: $message"
+                    } else {
+                        message
+                    }
+                },
+                hasUnread = conversation.unreadCount > 0,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            ConversationMeta(
+                timestamp = conversation.lastMessageTimestamp,
+                unreadCount = conversation.unreadCount,
+            )
+        }
     }
 }
 
@@ -113,16 +120,16 @@ private fun ConversationPreview(
         Text(
             text = displayName,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
+            fontSize = 17.sp,
             color = tokens.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.sharedElementKey("name-$partnerId"),
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
         Text(
             text = lastMessage ?: "No messages yet",
-            color = if (hasUnread) tokens.textPrimary.copy(alpha = 0.9f) else tokens.textPrimary.copy(alpha = 0.6f),
+            color = if (hasUnread) tokens.textPrimary.copy(alpha = 0.85f) else tokens.textMuted,
             fontWeight = if (hasUnread) FontWeight.Medium else FontWeight.Normal,
             fontSize = 14.sp,
             maxLines = 1,
@@ -160,10 +167,10 @@ private fun UnreadCountBadge(count: Int) {
     val label = if (count > 99) "99+" else count.toString()
     Box(
         modifier = Modifier
-            .defaultMinSize(minWidth = 25.dp, minHeight = 25.dp)
+            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
             .clip(CircleShape)
             .background(tokens.accent)
-            .padding(horizontal = 7.dp),
+            .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

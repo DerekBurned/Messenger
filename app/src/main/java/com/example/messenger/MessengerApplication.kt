@@ -77,7 +77,13 @@ class MessengerApplication : Application(), Configuration.Provider {
                         .maxSizeBytes(30L * 1024 * 1024)
                         .build()
                 }
-                .apply { if (com.example.messenger.BuildConfig.DEBUG) logger(DebugLogger()) }
+                .apply {
+                    if (com.example.messenger.BuildConfig.DEBUG) {
+                        logger(DebugLogger())
+                    } else {
+                        logger(DebugLogger(coil3.util.Logger.Level.Warn))
+                    }
+                }
                 .components {
                     add(OkHttpNetworkFetcherFactory())
                     add(VideoFrameDecoder.Factory())

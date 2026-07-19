@@ -1,4 +1,4 @@
-package com.example.messenger.data.repository
+﻿package com.example.messenger.data.repository
 
 import com.example.messenger.data.local.obx.ObxContactAlias
 import com.example.messenger.data.local.obx.ObxContactAlias_
@@ -6,6 +6,7 @@ import com.example.messenger.data.local.obx.ObxConversation
 import com.example.messenger.data.local.obx.ObxUser
 import com.example.messenger.data.local.obx.ObxUser_
 import com.example.messenger.data.local.obx.asFlow
+import com.example.messenger.data.local.obx.queryFlow
 import com.example.messenger.data.local.obx.toDomain
 import com.example.messenger.data.local.obx.toObx
 import android.net.Uri
@@ -98,8 +99,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun observeUser(userId: String): Flow<User?> {
-        return userBox.query(ObxUser_.uid.equal(userId)).build()
-            .asFlow()
+        return queryFlow { userBox.query(ObxUser_.uid.equal(userId)).build() }
             .map { rows -> rows.firstOrNull()?.toDomain() }
     }
 
@@ -161,8 +161,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun observeContactAliases(): Flow<Map<String, String>> =
-        contactAliasBox.query().build()
-            .asFlow()
+        queryFlow { contactAliasBox.query().build() }
             .map { rows -> rows.associate { it.contactId to it.name } }
 
     override suspend fun refreshContactAliases(): Result<Unit> {

@@ -110,11 +110,17 @@ class ConversationsViewModel @Inject constructor(
 
         viewModelScope.launch {
             newUserIds.forEach { id ->
-                val url = runCatching {
+                val result = runCatching {
                     userRepository.getUserById(id).getOrNull()?.avatarUrl
-                }.getOrNull()
+                }
+                result.exceptionOrNull()?.let {
+                    android.util.Log.w("ConversationsVM", "avatar fetch failed for $id", it)
+                }
+                val url = result.getOrNull()
                 if (url != null) {
                     _uiState.update { it.copy(avatars = it.avatars + (id to url)) }
+                } else if (result.isFailure) {
+                    fetchedUserIds.remove(id)
                 }
             }
         }

@@ -14,4 +14,6 @@ interface IMessageRepository {
     suspend fun observeRecentMessages(conversationId: String, limit: Long = 100): Flow<Result<Unit>>
 
     suspend fun loadOlderMessages(conversationId: String, limit: Long = 100): Result<Int>
+
+    suspend fun backfillRecentMessages(conversationId: String, limit: Long = 30): Result<Int>
 }

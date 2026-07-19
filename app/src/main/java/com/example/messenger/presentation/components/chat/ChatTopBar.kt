@@ -4,6 +4,7 @@ import com.example.messenger.presentation.components.common.MessengerAvatar
 import com.example.messenger.presentation.components.common.PresenceIndicator
 import com.example.messenger.presentation.components.common.sharedElementKey
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,21 +51,23 @@ fun ChatTopBar(
     partnerAvatarUrl: String? = null,
 ) {
     val tokens = messengerTokens
-    val chipFill = if (tokens.isDark) Color.Black.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
+    val barShape = RoundedCornerShape(26.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 8.dp),
+            .padding(start = 10.dp, end = 10.dp, top = 6.dp)
+            .clip(barShape)
+            .background(tokens.cardFill)
+            .border(1.dp, tokens.panelBorder, barShape)
+            .padding(horizontal = 6.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(width = 40.dp, height = 46.dp)
                 .clip(CircleShape)
-
-                .background(chipFill)
                 .clickable(onClick = onBackClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -74,73 +77,69 @@ fun ChatTopBar(
                 tint = tokens.textPrimary,
             )
         }
-        Row(
+        Box(contentAlignment = Alignment.BottomEnd) {
+            MessengerAvatar(
+                name = partnerName,
+                photoUrl = partnerAvatarUrl,
+                size = 40.dp,
+                modifier = Modifier
+                    .sharedElementKey("avatar-$sharedKeyPartnerId")
+                    .clip(CircleShape)
+                    .clickable(onClick = onProfileClick),
+            )
+            PresenceIndicator(
+                state = presenceState,
+                size = 12.dp,
+            )
+        }
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(26.dp))
-                .background(chipFill)
+                .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onProfileClick)
-                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(start = 4.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = partnerName.ifBlank { "Chat" },
-                    color = tokens.textPrimary,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.sharedElementKey("name-$sharedKeyPartnerId"),
-                )
-                Text(
-                    text = presenceStatusText,
-                    color = if (statusAccent) tokens.callAccept else tokens.textPrimary.copy(alpha = 0.6f),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.width(4.dp))
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onCallClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Call,
-                    contentDescription = "Voice call",
-                    tint = tokens.textPrimary,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onVideoCallClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Videocam,
-                    contentDescription = "Video call",
-                    tint = tokens.textPrimary,
-                )
-            }
-            Spacer(Modifier.width(4.dp))
-            Box(contentAlignment = Alignment.BottomEnd) {
-                MessengerAvatar(
-                    name = partnerName,
-                    photoUrl = partnerAvatarUrl,
-                    size = 40.dp,
-                    modifier = Modifier.sharedElementKey("avatar-$sharedKeyPartnerId"),
-                )
-                PresenceIndicator(
-                    state = presenceState,
-                    size = 12.dp,
-                    modifier = Modifier.padding(end = 2.dp, bottom = 2.dp),
-                )
-            }
+            Text(
+                text = partnerName.ifBlank { "Chat" },
+                color = tokens.textPrimary,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.sharedElementKey("name-$sharedKeyPartnerId"),
+            )
+            Text(
+                text = presenceStatusText,
+                color = if (statusAccent) tokens.callAccept else tokens.textMuted,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onCallClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Call,
+                contentDescription = "Voice call",
+                tint = tokens.textPrimary,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onVideoCallClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Videocam,
+                contentDescription = "Video call",
+                tint = tokens.textPrimary,
+            )
         }
     }
 }

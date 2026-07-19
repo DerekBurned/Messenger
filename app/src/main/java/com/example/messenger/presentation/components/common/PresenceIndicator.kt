@@ -44,7 +44,7 @@ fun PresenceIndicator(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .border(borderWidth, Color.White, CircleShape)
+            .border(borderWidth, Color(0xE6100E14), CircleShape)
             .background(color, CircleShape)
     )
 }

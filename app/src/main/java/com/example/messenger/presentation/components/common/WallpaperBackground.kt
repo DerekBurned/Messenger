@@ -11,65 +11,80 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import com.example.messenger.R
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import coil3.compose.AsyncImage
+import com.example.messenger.di.UiEntryPoints
+import com.example.messenger.presentation.screens.ui.theme.appBackgroundFor
+import com.example.messenger.presentation.screens.ui.theme.customWallpaperFile
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
+import dagger.hilt.android.EntryPointAccessors
 
-/**
- * The single app-wide wallpaper. Drawn once as a static layer behind the
- * navigation host so screen transitions animate only screen content over it.
- */
 @Composable
 fun WallpaperBackdrop(modifier: Modifier = Modifier) {
     val tokens = messengerTokens
+    val inspection = LocalInspectionMode.current
+    var backgroundKey = "neutral"
+    var intensity = 1f
+    if (!inspection) {
+        val context = LocalContext.current
+        val store = remember {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                UiEntryPoints::class.java,
+            ).themePreferenceStore()
+        }
+        backgroundKey = store.background.collectAsState(initial = "neutral").value
+        intensity = store.intensity.collectAsState(initial = 1f).value
+    }
+    val preset = appBackgroundFor(backgroundKey)
+    val colors = if (tokens.isDark) preset.darkColors else preset.lightColors
+    val customFile = if (inspection) {
+        null
+    } else {
+        val context = LocalContext.current
+        remember(backgroundKey) {
+            customWallpaperFile(context, backgroundKey)?.takeIf { it.exists() }
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
-        if (tokens.isDark) {
-            Image(
-                painter = painterResource(R.drawable.wallpaper_doodles),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(colors)),
+        )
+        if (customFile != null) {
+            AsyncImage(
+                model = customFile,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
             )
+        }
+        val scrimAlpha = ((1f - intensity) * 0.85f).coerceIn(0f, 1f)
+        if (scrimAlpha > 0.005f) {
+            val scrim = if (tokens.isDark) Color.Black else Color.White
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.05f),
-                                Color.Black.copy(alpha = 0.32f),
-                            ),
-                        ),
-                    ),
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(tokens.backgroundTop, tokens.backgroundBottom),
-                        ),
-                    ),
+                    .background(scrim.copy(alpha = scrimAlpha)),
             )
         }
     }
 }
 
-/**
- * Wallpaper with content on top, for surfaces rendered outside the main
- * navigation host (overlays, bubble activity, previews) that must be opaque.
- */
 @Composable
 fun WallpaperBackground(
     modifier: Modifier = Modifier,

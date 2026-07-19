@@ -234,6 +234,30 @@ class FirestoreService @Inject constructor(
         return raw.map { rows -> rows.map { (dto, pending) -> applyDeletedFor(dto, codec.decode(dto, pending)) } }
     }
 
+    suspend fun fetchRecentMessagesOnce(
+        conversationId: String,
+        limit: Long = 30,
+        cutoff: Long = 0,
+    ): Result<List<Message>> {
+        return try {
+            val snapshot = conversationsCollection
+                .document(conversationId)
+                .collection("messages")
+                .whereGreaterThan("timestamp", cutoff)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(limit)
+                .get()
+                .await()
+            val messages = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(RemoteMessageDto::class.java)?.copy(id = doc.id)
+            }.map { dto -> applyDeletedFor(dto, codec.decode(dto)) }.reversed()
+            Result.success(messages)
+        } catch (e: Exception) {
+            Log.e("FirestoreService", "Error fetching recent messages", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchOlderMessages(
         conversationId: String,
         oldestLoadedMessageId: String,
