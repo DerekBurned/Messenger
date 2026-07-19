@@ -8,6 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,11 +18,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -31,8 +34,10 @@ import androidx.compose.ui.unit.sp
 import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import kotlinx.coroutines.launch
 import com.example.messenger.presentation.screens.ui.theme.Dimens
 import com.example.messenger.presentation.screens.ui.theme.avatarColorFor
 
@@ -75,6 +80,10 @@ fun MessengerAvatar(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            val scope = rememberCoroutineScope()
+            val appearScale = remember(photoUrl) {
+                Animatable(if (cachedPainter == null) 0.85f else 1f)
+            }
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(photoUrl)
@@ -84,7 +93,17 @@ fun MessengerAvatar(
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                onState = { state ->
+                    if (state is AsyncImagePainter.State.Success && appearScale.value < 1f) {
+                        scope.launch { appearScale.animateTo(1f, MotionSprings.pop) }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = appearScale.value
+                        scaleY = appearScale.value
+                    },
             )
         }
     }

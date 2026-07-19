@@ -1,6 +1,13 @@
 package com.example.messenger.presentation.components.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,11 +21,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.messenger.presentation.components.common.MotionSprings
+import com.example.messenger.presentation.components.common.pressScale
 import com.example.messenger.presentation.screens.ui.theme.messengerTokens
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.messenger.presentation.screens.ui.theme.MessengerTheme
@@ -30,11 +40,16 @@ fun ScrollToBottomButton(
     modifier: Modifier = Modifier,
 ) {
     val tokens = messengerTokens
-    Box(modifier = modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    Box(modifier = modifier.pressScale(interaction, pressedScale = 0.9f)) {
         Surface(
             modifier = Modifier
                 .size(44.dp)
-                .clickable(onClick = onClick),
+                .clickable(
+                    interactionSource = interaction,
+                    indication = LocalIndication.current,
+                    onClick = onClick,
+                ),
             shape = CircleShape,
             color = tokens.cardFill,
             shadowElevation = 6.dp,
@@ -48,12 +63,16 @@ fun ScrollToBottomButton(
                 )
             }
         }
-        if (unreadCount > 0) {
+        AnimatedVisibility(
+            visible = unreadCount > 0,
+            enter = scaleIn(animationSpec = MotionSprings.pop) + fadeIn(),
+            exit = scaleOut() + fadeOut(),
+            modifier = Modifier.align(Alignment.TopEnd),
+        ) {
             Surface(
                 shape = CircleShape,
                 color = tokens.accent,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
                     .offset(x = 4.dp, y = (-6).dp)
                     .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp),
             ) {
