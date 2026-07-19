@@ -919,7 +919,7 @@ private fun ChatScreenContent(
     }
 
     var lastPreviewIndex by remember { mutableStateOf(0) }
-    LaunchedEffect(chatPreviewIndex) { chatPreviewIndex?.let { lastPreviewIndex = it } }
+    chatPreviewIndex?.let { lastPreviewIndex = it }
     androidx.compose.animation.AnimatedVisibility(
         visible = chatPreviewIndex != null,
         enter = androidx.compose.animation.fadeIn(tween(Motion.durationShort)) +
@@ -943,19 +943,21 @@ private fun ChatScreenContent(
                 )
             }
         }
-        FullscreenMediaPager(
-            sources = sources,
-            startIndex = lastPreviewIndex,
-            onDismiss = { chatPreviewIndex = null },
-            onPageSettled = { idx ->
-                media.getOrNull(idx)?.let { item ->
-                    val file = mediaCacheFile(context, item)
-                    if ((!file.exists() || file.length() == 0L) && item.url.isNotBlank()) {
-                        onDownload(item)
+        androidx.compose.runtime.key(lastPreviewIndex) {
+            FullscreenMediaPager(
+                sources = sources,
+                startIndex = lastPreviewIndex,
+                onDismiss = { chatPreviewIndex = null },
+                onPageSettled = { idx ->
+                    media.getOrNull(idx)?.let { item ->
+                        val file = mediaCacheFile(context, item)
+                        if ((!file.exists() || file.length() == 0L) && item.url.isNotBlank()) {
+                            onDownload(item)
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     }
 }
 
